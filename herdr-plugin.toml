@@ -1,0 +1,20 @@
+id = "personal.inbox"
+name = "Personal Inbox"
+version = "0.1.0"
+min_herdr_version = "0.9.1"
+description = "Local spec-to-PR workflow inbox"
+platforms = ["macos"]
+
+[[panes]]
+id = "inbox"
+title = "Inbox"
+placement = "popup"
+width = "85%"
+height = "85%"
+command = ["./target/release/herdr-inbox", "tui"]
+
+[[actions]]
+id = "open"
+title = "Open inbox"
+description = "Open the local workflow inbox"
+command = ["./target/release/herdr-inbox", "open"]
