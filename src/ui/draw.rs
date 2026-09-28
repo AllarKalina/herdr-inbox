@@ -125,7 +125,14 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             areas[1],
         );
     }
-    let footer = if let Some(selected) = app.choice_selected {
+    frame.render_widget(Paragraph::new(footer_text(app)), areas[2]);
+}
+
+const COMMANDS: &str =
+    "n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · d delete · q quit";
+
+pub(super) fn footer_text(app: &App) -> String {
+    if let Some(selected) = app.choice_selected {
         format!(
             "{} selected · j/k choose · Enter continue · Esc cancel",
             app.choices[selected].label()
@@ -139,12 +146,10 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             app.input
         )
     } else if !app.message.is_empty() {
-        app.message.clone()
+        format!("{}\n{COMMANDS}", app.message)
     } else {
-        "n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · d delete · q quit"
-            .into()
-    };
-    frame.render_widget(Paragraph::new(footer), areas[2]);
+        COMMANDS.into()
+    }
 }
 
 fn short(value: &str) -> &str {

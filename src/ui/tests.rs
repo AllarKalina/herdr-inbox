@@ -22,6 +22,9 @@ fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
     assert!(app.input.is_empty());
     press(&mut app, KeyCode::Enter)?;
     assert!(app.store.list()?.is_empty());
+    let footer = draw::footer_text(&app);
+    assert!(footer.starts_with("Item moved to local Trash\n"));
+    assert!(footer.contains("d delete · q quit"));
     assert!(
         root.join("trash/items")
             .join(format!("{}.json", record.id))
