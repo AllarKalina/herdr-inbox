@@ -6,7 +6,7 @@ A local Herdr inbox for moving an idea through spec, Jira, implementation, and d
 
 Each item is a JSON file in `~/Library/Application Support/herdr-inbox/items/`. New specs are Markdown files in `~/Library/Application Support/herdr-inbox/specs/` unless `--spec` points elsewhere. `HERDR_INBOX_HOME` overrides the data directory for backup or testing. The plugin has no hosted database, sync service, or background daemon. Jira and PR URLs are references to external services; linking them does not create anything remotely.
 
-To remove an item, select it and press `d`. The confirmation shows its title, ID, spec path, and which files will move. Type `DELETE ` followed by the first eight characters of that item's ID, then press Enter. Esc or any other phrase cancels. Deleted records move to `trash/items/` under the inbox data directory; inbox-owned specs move to `trash/specs/`. Specs linked from elsewhere stay in place. Open agent tabs and external Jira/PRs are unaffected. The files remain on disk for manual recovery.
+To remove an item, select it and press `d`. The confirmation shows its title, ID, spec path, and which files will move. Press Enter to delete or Esc to cancel. Deleted records move to `trash/items/` under the inbox data directory; inbox-owned specs move to `trash/specs/`. Specs linked from elsewhere stay in place. Open agent tabs and external Jira/PRs are unaffected. The files remain on disk for manual recovery.
 
 ## Install locally
 

@@ -211,12 +211,8 @@ impl App {
                 self.message = "Draft PR linked".into();
             }
             Prompt::Delete { id } => {
-                if value == format!("DELETE {}", &id[..8]) {
-                    self.store.delete(&id)?;
-                    self.message = "Item moved to local Trash".into();
-                } else {
-                    self.message = "Deletion cancelled; confirmation did not match".into();
-                }
+                self.store.delete(&id)?;
+                self.message = "Item moved to local Trash".into();
             }
             _ => self.message = "Cancelled".into(),
         }
@@ -247,6 +243,17 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.choice_selected = None;
                 app.begin(Prompt::LaunchWorkspace { profile });
             }
+            _ => {}
+        }
+        return Ok(false);
+    }
+    if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
+        match key.code {
+            KeyCode::Esc => {
+                app.prompt = None;
+                app.message = "Deletion cancelled".into();
+            }
+            KeyCode::Enter => app.submit()?,
             _ => {}
         }
         return Ok(false);

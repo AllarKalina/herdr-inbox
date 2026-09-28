@@ -130,12 +130,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             "{} selected · j/k choose · Enter continue · Esc cancel",
             app.choices[selected].label()
         )
-    } else if let Some(Prompt::Delete { id }) = &app.prompt {
-        format!(
-            "Type DELETE {}: {}█    Enter confirm · Esc cancel",
-            &id[..8],
-            app.input
-        )
+    } else if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
+        "Enter delete this item · Esc cancel".into()
     } else if let Some(prompt) = &app.prompt {
         format!(
             "{}: {}█    Enter save · Esc cancel",
