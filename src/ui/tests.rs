@@ -2,6 +2,7 @@ use super::*;
 use crossterm::event::KeyModifiers;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
+use ratatui::style::Color;
 use std::fs;
 use uuid::Uuid;
 
@@ -65,17 +66,66 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
         );
         let rows: Vec<&String> = lines
             .iter()
-            .filter(|line| line.contains("working"))
+            .filter(|line| line.contains("● active"))
             .collect();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].find("working"), rows[1].find("working"));
+        assert_eq!(rows[0].find("● active"), rows[1].find("● active"));
         assert!(
             rows.iter()
-                .all(|row| row.rfind("waiting").unwrap() > width as usize - 15)
+                .all(|row| row.rfind("○ wait").unwrap() > width as usize - 15)
         );
         assert!(rows.iter().any(|row| row.contains("Short")));
         assert!(rows.iter().any(|row| row.contains("Long title")));
+        let active_colors: Vec<Color> = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .filter(|cell| cell.symbol() == "●")
+            .map(|cell| cell.fg)
+            .collect();
+        assert!(active_colors.contains(&Color::Black));
+        assert!(active_colors.contains(&Color::Cyan));
     }
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn list_icons_show_completed_and_draft_stages() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-icons-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    let record = store.start("Completed item", None, None)?;
+    store.update(&record.id, Change::Finish { title: None })?;
+    store.update(
+        &record.id,
+        Change::Jira {
+            key: "TEST-1".into(),
+            url: None,
+        },
+    )?;
+    store.update(
+        &record.id,
+        Change::Pr {
+            url: "https://example.test/pr/1".into(),
+        },
+    )?;
+    let mut app = App::new(store)?;
+    let mut terminal = Terminal::new(TestBackend::new(100, 24))?;
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    let lines: Vec<String> = terminal
+        .backend()
+        .buffer()
+        .content()
+        .chunks(100)
+        .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
+        .collect();
+    let row = lines
+        .iter()
+        .find(|line| line.contains("Completed item"))
+        .unwrap();
+    assert_eq!(row.matches("✓ done").count(), 2);
+    assert_eq!(row.matches("◐ draft").count(), 2);
     fs::remove_dir_all(root)?;
     Ok(())
 }

@@ -17,13 +17,15 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     let rows: Vec<Row> = app
         .records
         .iter()
-        .map(|record| {
+        .enumerate()
+        .map(|(index, record)| {
+            let selected = index == app.selected;
             Row::new([
                 Cell::from(record.display_title().to_owned()),
-                Cell::from(short(&record.spec)),
-                Cell::from(short(&record.jira.status)),
-                Cell::from(short(&record.implementation.status)),
-                Cell::from(short(&record.pr.status)),
+                status_cell(&record.spec, selected),
+                status_cell(&record.jira.status, selected),
+                status_cell(&record.implementation.status, selected),
+                status_cell(&record.pr.status, selected),
             ])
         })
         .collect();
@@ -32,10 +34,10 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         rows,
         [
             Constraint::Fill(1),
-            Constraint::Length(7),
-            Constraint::Length(7),
-            Constraint::Length(7),
-            Constraint::Length(7),
+            Constraint::Length(8),
+            Constraint::Length(8),
+            Constraint::Length(8),
+            Constraint::Length(8),
         ],
     )
     .header(
@@ -174,10 +176,20 @@ pub(super) fn footer_text(app: &App) -> String {
     }
 }
 
-fn short(value: &str) -> &str {
-    match value {
-        "in_progress" => "working",
-        "draft_pr" => "draft",
-        other => other,
+fn status_cell(status: &str, selected: bool) -> Cell<'static> {
+    let (label, color) = match status {
+        "waiting" => ("○ wait", Color::Gray),
+        "ready" => ("→ ready", Color::LightBlue),
+        "in_progress" => ("● active", Color::Cyan),
+        "done" | "created" => ("✓ done", Color::LightGreen),
+        "draft_pr" | "draft" => ("◐ draft", Color::Yellow),
+        "failed" => ("✕ failed", Color::Red),
+        _ => ("? check", Color::Yellow),
+    };
+    let cell = Cell::from(label);
+    if selected {
+        cell
+    } else {
+        cell.style(Style::default().fg(color))
     }
 }
