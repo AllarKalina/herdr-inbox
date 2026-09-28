@@ -1,0 +1,35 @@
+use super::*;
+use crossterm::event::KeyModifiers;
+use std::fs;
+use uuid::Uuid;
+
+#[test]
+fn delete_requires_matching_phrase_and_esc_cancels() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-ui-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    let record = store.start("Keep until confirmed", None, None)?;
+    let mut app = App::new(store)?;
+    let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
+
+    press(&mut app, KeyCode::Char('d'))?;
+    assert!(matches!(app.prompt, Some(Prompt::Delete { .. })));
+    press(&mut app, KeyCode::Esc)?;
+    assert!(app.store.get(&record.id).is_ok());
+
+    press(&mut app, KeyCode::Char('d'))?;
+    app.input = "DELETE wrong".into();
+    press(&mut app, KeyCode::Enter)?;
+    assert!(app.store.get(&record.id).is_ok());
+
+    press(&mut app, KeyCode::Char('d'))?;
+    app.input = format!("DELETE {}", &record.id[..8]);
+    press(&mut app, KeyCode::Enter)?;
+    assert!(app.store.list()?.is_empty());
+    assert!(
+        root.join("trash/items")
+            .join(format!("{}.json", record.id))
+            .is_file()
+    );
+    fs::remove_dir_all(root)?;
+    Ok(())
+}

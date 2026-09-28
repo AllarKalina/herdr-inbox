@@ -1,3 +1,7 @@
+mod draw;
+#[cfg(test)]
+mod tests;
+
 use crate::launch::{self, DEFAULT_WORKSPACE, Options, Profile};
 use crate::store::{Change, Record, Result, Store};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -6,9 +10,6 @@ use crossterm::terminal::{
 };
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use std::io::{self, stdout};
 use std::path::PathBuf;
 use std::process::Command;
@@ -50,6 +51,9 @@ enum Prompt {
     Pr {
         id: String,
     },
+    Delete {
+        id: String,
+    },
 }
 
 impl Prompt {
@@ -66,6 +70,7 @@ impl Prompt {
             Self::Agent { .. } => "Agent name (optional)",
             Self::Branch { .. } => "Branch (optional)",
             Self::Pr { .. } => "Draft PR URL",
+            Self::Delete { .. } => "Confirm deletion",
         }
     }
 }
@@ -205,6 +210,14 @@ impl App {
                 self.store.update(&id, Change::Pr { url: value })?;
                 self.message = "Draft PR linked".into();
             }
+            Prompt::Delete { id } => {
+                if value == format!("DELETE {}", &id[..8]) {
+                    self.store.delete(&id)?;
+                    self.message = "Item moved to local Trash".into();
+                } else {
+                    self.message = "Deletion cancelled; confirmation did not match".into();
+                }
+            }
             _ => self.message = "Cancelled".into(),
         }
         self.refresh()?;
@@ -214,131 +227,6 @@ impl App {
 
 fn nonempty(value: String) -> Option<String> {
     if value.is_empty() { None } else { Some(value) }
-}
-
-fn draw(frame: &mut ratatui::Frame, app: &mut App) {
-    let areas = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(5),
-            Constraint::Length(10),
-            Constraint::Length(2),
-        ])
-        .split(frame.area());
-    let rows: Vec<ListItem> = app
-        .records
-        .iter()
-        .map(|record| {
-            ListItem::new(format!(
-                "{:<7} {:<7} {:<8} {:<6} {}",
-                short(&record.spec),
-                short(&record.jira.status),
-                short(&record.implementation.status),
-                short(&record.pr.status),
-                record.display_title(),
-            ))
-        })
-        .collect();
-    let list = List::new(rows)
-        .block(
-            Block::default()
-                .title(format!(" Inbox · {} items ", app.records.len()))
-                .borders(Borders::ALL),
-        )
-        .highlight_style(
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
-    let mut state = ListState::default().with_selected(app.current().map(|_| app.selected));
-    frame.render_stateful_widget(list, areas[0], &mut state);
-
-    let detail = if let Some(record) = app.current() {
-        format!(
-            "ID: {}\nRepo: {}\nSpec: {}\nJira: {}  Branch: {}\nSession: {}  Model: {}\nPR: {}\nNext: {}\nError: {}",
-            record.id,
-            record
-                .repo
-                .as_ref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| "—".into()),
-            record.spec_path.display(),
-            record.jira.key.as_deref().unwrap_or("—"),
-            record.implementation.branch.as_deref().unwrap_or("—"),
-            record
-                .launch
-                .as_ref()
-                .map(|launch| launch.status.as_str())
-                .unwrap_or("—"),
-            record
-                .launch
-                .as_ref()
-                .map(|launch| launch.model.as_str())
-                .unwrap_or("—"),
-            record.pr.url.as_deref().unwrap_or("—"),
-            record.next_actions().join(", "),
-            record
-                .launch
-                .as_ref()
-                .and_then(|launch| launch.error.as_deref())
-                .unwrap_or("—"),
-        )
-    } else {
-        "No items yet. Press n to start a spec.".into()
-    };
-    if let Some(selected) = app.choice_selected {
-        let choices = app
-            .choices
-            .iter()
-            .map(|profile| ListItem::new(profile.label()))
-            .collect::<Vec<_>>();
-        let list = List::new(choices)
-            .block(
-                Block::default()
-                    .title(" Choose client ")
-                    .borders(Borders::ALL),
-            )
-            .highlight_style(
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            );
-        let mut state = ListState::default().with_selected(Some(selected));
-        frame.render_stateful_widget(list, areas[1], &mut state);
-    } else {
-        frame.render_widget(
-            Paragraph::new(detail)
-                .block(Block::default().title(" Selected ").borders(Borders::ALL)),
-            areas[1],
-        );
-    }
-    let footer = if let Some(selected) = app.choice_selected {
-        format!(
-            "{} selected · j/k choose · Enter continue · Esc cancel",
-            app.choices[selected].label()
-        )
-    } else if let Some(prompt) = &app.prompt {
-        format!(
-            "{}: {}█    Enter save · Esc cancel",
-            prompt.label(),
-            app.input
-        )
-    } else if !app.message.is_empty() {
-        app.message.clone()
-    } else {
-        "n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · q quit".into()
-    };
-    frame.render_widget(Paragraph::new(footer), areas[2]);
-}
-
-fn short(value: &str) -> &str {
-    match value {
-        "in_progress" => "working",
-        "draft_pr" => "draft",
-        other => other,
-    }
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
@@ -444,6 +332,13 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 open_editor(&record.spec_path)?;
             }
         }
+        KeyCode::Char('d') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Delete {
+                    id: record.id.clone(),
+                });
+            }
+        }
         _ => {}
     }
     app.refresh()?;
@@ -477,7 +372,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: Store)
     let mut app = App::new(store)?;
     loop {
         app.refresh()?;
-        terminal.draw(|frame| draw(frame, &mut app))?;
+        terminal.draw(|frame| draw::draw(frame, &mut app))?;
         if event::poll(Duration::from_secs(1))?
             && let Event::Key(key) = event::read()?
         {

@@ -52,6 +52,7 @@ fn help() {
     );
     println!("  profiles");
     println!("  finish ID [--title TITLE] | title ID TITLE");
+    println!("  delete ID --confirm ID");
     println!("  jira ID KEY [--url URL]");
     println!("  implement ID [--agent NAME] [--branch BRANCH]");
     println!("  pr ID URL");
@@ -123,6 +124,19 @@ fn run() -> Result<()> {
                 eprintln!("Tab rename: {error}");
             }
             print_record(&record);
+        }
+        "delete" => {
+            let confirmation = flag(&mut args, "--confirm")?;
+            positional(&args, 1)?;
+            if confirmation.as_deref() != Some(args[0].as_str()) {
+                return Err("Deletion requires --confirm with the full matching item ID".into());
+            }
+            let record = store.delete(&args[0])?;
+            println!(
+                "Moved {} to {}",
+                record.display_title(),
+                store.path().join("trash").display()
+            );
         }
         "title" => {
             positional(&args, 2)?;

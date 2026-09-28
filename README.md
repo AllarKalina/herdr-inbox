@@ -6,6 +6,8 @@ A local Herdr inbox for moving an idea through spec, Jira, implementation, and d
 
 Each item is a JSON file in `~/Library/Application Support/herdr-inbox/items/`. New specs are Markdown files in `~/Library/Application Support/herdr-inbox/specs/` unless `--spec` points elsewhere. `HERDR_INBOX_HOME` overrides the data directory for backup or testing. The plugin has no hosted database, sync service, or background daemon. Jira and PR URLs are references to external services; linking them does not create anything remotely.
 
+To remove an item, select it and press `d`. The confirmation shows its title, ID, spec path, and which files will move. Type `DELETE ` followed by the first eight characters of that item's ID, then press Enter. Esc or any other phrase cancels. Deleted records move to `trash/items/` under the inbox data directory; inbox-owned specs move to `trash/specs/`. Specs linked from elsewhere stay in place. Open agent tabs and external Jira/PRs are unaffected. The files remain on disk for manual recovery.
+
 ## Install locally
 
 ```sh
@@ -46,8 +48,9 @@ For a local Codex trial, use `--repo ~/git/herdr-inbox/examples/mock-repo`. Its 
 ~/git/herdr-inbox/target/release/herdr-inbox jira <id> ABC-123 --url https://jira.example/browse/ABC-123
 ~/git/herdr-inbox/target/release/herdr-inbox implement <id> --agent implementor --branch feature/payment-retries
 ~/git/herdr-inbox/target/release/herdr-inbox pr <id> https://github.example/org/repo/pull/123
+~/git/herdr-inbox/target/release/herdr-inbox delete <id> --confirm <full-id>
 ```
 
 `start` remains available for creating a local record and Markdown file without launching an agent. `finish` marks the spec done and makes both Jira creation and implementation handoff available. Jira and implementation can proceed independently. `list --json` and `show <id> --json` give agents structured state. The TUI refreshes from disk every second, so CLI updates appear there without a server.
 
-TUI keys: `n` launch a new spec session; `a` add a local record; `e` open its Markdown file in `$EDITOR` (default `code`); `f` finish and name an untitled spec; `t` rename; `J` link Jira; `i` start implementation; `p` link draft PR; `j/k` navigate; `q` close.
+TUI keys: `n` launch a new spec session; `a` add a local record; `e` open its Markdown file in `$EDITOR` (default `code`); `f` finish and name an untitled spec; `t` rename; `J` link Jira; `i` start implementation; `p` link draft PR; `d` delete with confirmation; `j/k` navigate; `q` close.
