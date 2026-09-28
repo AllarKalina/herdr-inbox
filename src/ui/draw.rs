@@ -1,5 +1,5 @@
 use super::{App, Prompt};
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Margin};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{
     Block, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, TableState,
@@ -41,21 +41,20 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         ],
     )
     .header(
-        Row::new(["Name", "Spec", "Jira", "Dev", "PR"]).style(
+        Row::new([
+            Cell::from(format!("Name ({item_count})")),
+            Cell::from("Spec"),
+            Cell::from("Jira"),
+            Cell::from("Dev"),
+            Cell::from("PR"),
+        ])
+        .style(
             Style::default()
                 .fg(Color::Gray)
                 .add_modifier(Modifier::BOLD),
         ),
     )
     .column_spacing(2)
-    .block(
-        Block::default()
-            .title(format!(
-                " {item_count} item{} ",
-                if item_count == 1 { "" } else { "s" }
-            ))
-            .borders(Borders::ALL),
-    )
     .row_highlight_style(
         Style::default()
             .fg(Color::Black)
@@ -63,7 +62,14 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             .add_modifier(Modifier::BOLD),
     );
     let mut state = TableState::default().with_selected(app.current().map(|_| app.selected));
-    frame.render_stateful_widget(list, areas[0], &mut state);
+    frame.render_stateful_widget(
+        list,
+        areas[0].inner(Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &mut state,
+    );
 
     let detail = if let Some(record) = app.current() {
         format!(
