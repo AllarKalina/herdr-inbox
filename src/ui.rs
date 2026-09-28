@@ -1,10 +1,14 @@
+mod detail;
 mod draw;
+mod input;
 #[cfg(test)]
 mod tests;
+use input::{handle_key, handle_mouse};
 
 use crate::launch::{self, DEFAULT_WORKSPACE, Options, Profile};
 use crate::store::{Change, Record, Result, Store};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event};
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
@@ -12,7 +16,6 @@ use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use std::io::{self, stdout};
 use std::path::PathBuf;
-use std::process::Command;
 use std::time::Duration;
 
 enum Prompt {
@@ -41,6 +44,10 @@ enum Prompt {
     Jira {
         id: String,
     },
+    JiraUrl {
+        id: String,
+        key: String,
+    },
     Agent {
         id: String,
     },
@@ -67,6 +74,7 @@ impl Prompt {
             Self::FinishTitle { .. } => "Finished spec title",
             Self::Rename { .. } => "Spec title",
             Self::Jira { .. } => "Jira key",
+            Self::JiraUrl { .. } => "Jira URL (optional)",
             Self::Agent { .. } => "Agent name (optional)",
             Self::Branch { .. } => "Branch (optional)",
             Self::Pr { .. } => "Draft PR URL",
@@ -79,12 +87,64 @@ struct App {
     store: Store,
     records: Vec<Record>,
     selected: usize,
+    screen: Screen,
+    action_selected: usize,
+    reader_scroll: u16,
+    list_offset: usize,
     prompt: Option<Prompt>,
     input: String,
     choices: Vec<Profile>,
     choice_selected: Option<usize>,
     message: String,
     should_exit: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Screen {
+    List,
+    Detail,
+    Reader,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DetailAction {
+    Finish,
+    Jira,
+    Implement,
+    Pr,
+    ReviewPr,
+}
+
+impl DetailAction {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Finish => "Finish spec",
+            Self::Jira => "Link Jira",
+            Self::Implement => "Start implementation",
+            Self::Pr => "Link draft PR",
+            Self::ReviewPr => "Review draft PR",
+        }
+    }
+}
+
+fn detail_actions(record: &Record) -> Vec<DetailAction> {
+    if record.spec == "in_progress" {
+        return vec![DetailAction::Finish];
+    }
+    let mut actions = Vec::new();
+    if record.jira.status == "ready" {
+        actions.push(DetailAction::Jira);
+    }
+    if record.implementation.status == "ready" {
+        actions.push(DetailAction::Implement);
+    }
+    if record.pr.status == "waiting" && record.implementation.status == "in_progress" {
+        actions.push(DetailAction::Pr);
+    }
+    if record.pr.status == "draft" && record.pr.url.is_some() {
+        actions.push(DetailAction::ReviewPr);
+    }
+    actions
 }
 
 impl App {
@@ -94,6 +154,10 @@ impl App {
             store,
             records,
             selected: 0,
+            screen: Screen::List,
+            action_selected: 0,
+            reader_scroll: 0,
+            list_offset: 0,
             prompt: None,
             input: String::new(),
             choices: Vec::new(),
@@ -109,9 +173,19 @@ impl App {
             .get(self.selected)
             .map(|record| record.id.clone());
         self.records = self.store.list()?;
-        self.selected = id
-            .and_then(|id| self.records.iter().position(|record| record.id == id))
-            .unwrap_or(self.selected.min(self.records.len().saturating_sub(1)));
+        let still_present = id
+            .as_ref()
+            .and_then(|id| self.records.iter().position(|record| &record.id == id));
+        if still_present.is_none() && self.screen != Screen::List {
+            self.screen = Screen::List;
+            self.message = "Item no longer in inbox".into();
+        }
+        self.selected =
+            still_present.unwrap_or(self.selected.min(self.records.len().saturating_sub(1)));
+        self.action_selected = self.action_selected.min(
+            self.current()
+                .map_or(0, |record| detail_actions(record).len().saturating_sub(1)),
+        );
         Ok(())
     }
 
@@ -183,11 +257,14 @@ impl App {
                 self.message = "Spec renamed".into();
             }
             Prompt::Jira { id } if !value.is_empty() => {
+                self.begin(Prompt::JiraUrl { id, key: value });
+            }
+            Prompt::JiraUrl { id, key } => {
                 self.store.update(
                     &id,
                     Change::Jira {
-                        key: value,
-                        url: None,
+                        key,
+                        url: nonempty(value),
                     },
                 )?;
                 self.message = "Jira linked".into();
@@ -213,6 +290,7 @@ impl App {
             Prompt::Delete { id } => {
                 self.store.delete(&id)?;
                 self.message = "Item moved to local Trash".into();
+                self.screen = Screen::List;
             }
             _ => self.message = "Cancelled".into(),
         }
@@ -225,153 +303,13 @@ fn nonempty(value: String) -> Option<String> {
     if value.is_empty() { None } else { Some(value) }
 }
 
-fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
-    if key.kind != KeyEventKind::Press {
-        return Ok(false);
-    }
-    if let Some(selected) = app.choice_selected {
-        match key.code {
-            KeyCode::Esc => app.choice_selected = None,
-            KeyCode::Char('j') | KeyCode::Down => {
-                app.choice_selected = Some((selected + 1).min(app.choices.len() - 1))
-            }
-            KeyCode::Char('k') | KeyCode::Up => {
-                app.choice_selected = Some(selected.saturating_sub(1))
-            }
-            KeyCode::Enter => {
-                let profile = app.choices[selected];
-                app.choice_selected = None;
-                app.begin(Prompt::LaunchWorkspace { profile });
-            }
-            _ => {}
-        }
-        return Ok(false);
-    }
-    if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
-        match key.code {
-            KeyCode::Esc => {
-                app.prompt = None;
-                app.message = "Deletion cancelled".into();
-            }
-            KeyCode::Enter => app.submit()?,
-            _ => {}
-        }
-        return Ok(false);
-    }
-    if app.prompt.is_some() {
-        match key.code {
-            KeyCode::Esc => {
-                app.prompt = None;
-                app.input.clear();
-            }
-            KeyCode::Enter => {
-                app.submit()?;
-                return Ok(app.should_exit);
-            }
-            KeyCode::Backspace => {
-                app.input.pop();
-            }
-            KeyCode::Char(ch) => app.input.push(ch),
-            _ => {}
-        }
-        return Ok(false);
-    }
-    match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => return Ok(true),
-        KeyCode::Char('j') | KeyCode::Down => {
-            app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1))
-        }
-        KeyCode::Char('k') | KeyCode::Up => app.selected = app.selected.saturating_sub(1),
-        KeyCode::Char('n') => {
-            app.choices = launch::available_profiles();
-            if app.choices.is_empty() {
-                app.message = "No supported client found (install codex or claude)".into();
-            } else {
-                app.choice_selected = Some(0);
-            }
-        }
-        KeyCode::Char('a') => app.begin(Prompt::ManualTitle),
-        KeyCode::Char('f') => {
-            if let Some(record) = app.current() {
-                if record.title.is_empty() {
-                    app.begin(Prompt::FinishTitle {
-                        id: record.id.clone(),
-                    });
-                } else {
-                    let updated = app
-                        .store
-                        .update(&record.id, Change::Finish { title: None })?;
-                    let _ = launch::rename_tab(&updated);
-                    app.message = "Spec done; Jira and handoff ready".into();
-                }
-            }
-        }
-        KeyCode::Char('t') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Rename {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('J') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Jira {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('i') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Agent {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('p') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Pr {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('e') => {
-            if let Some(record) = app.current() {
-                open_editor(&record.spec_path)?;
-            }
-        }
-        KeyCode::Char('d') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Delete {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        _ => {}
-    }
-    app.refresh()?;
-    Ok(false)
-}
-
-fn open_editor(path: &std::path::Path) -> Result<()> {
-    disable_raw_mode()?;
-    crossterm::execute!(stdout(), LeaveAlternateScreen)?;
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "code".into());
-    let result = Command::new(editor).arg(path).status();
-    crossterm::execute!(stdout(), EnterAlternateScreen)?;
-    enable_raw_mode()?;
-    if !result?.success() {
-        return Err("Editor failed".into());
-    }
-    Ok(())
-}
-
 pub fn run(store: Store) -> Result<()> {
     enable_raw_mode()?;
-    crossterm::execute!(stdout(), EnterAlternateScreen)?;
+    crossterm::execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     let result = run_loop(&mut terminal, store);
     disable_raw_mode()?;
-    crossterm::execute!(stdout(), LeaveAlternateScreen)?;
+    crossterm::execute!(stdout(), DisableMouseCapture, LeaveAlternateScreen)?;
     result
 }
 
@@ -380,13 +318,19 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: Store)
     loop {
         app.refresh()?;
         terminal.draw(|frame| draw::draw(frame, &mut app))?;
-        if event::poll(Duration::from_secs(1))?
-            && let Event::Key(key) = event::read()?
-        {
-            match handle_key(&mut app, key) {
-                Ok(true) => break,
-                Ok(false) => {}
-                Err(error) => app.message = error.to_string(),
+        if event::poll(Duration::from_secs(1))? {
+            match event::read()? {
+                Event::Key(key) => match handle_key(&mut app, key) {
+                    Ok(true) => break,
+                    Ok(false) => {}
+                    Err(error) => app.message = error.to_string(),
+                },
+                Event::Mouse(mouse) => {
+                    if let Err(error) = handle_mouse(&mut app, mouse, terminal.size()?.height) {
+                        app.message = error.to_string();
+                    }
+                }
+                _ => {}
             }
         }
     }

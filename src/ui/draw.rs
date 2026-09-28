@@ -1,4 +1,4 @@
-use super::{App, Prompt};
+use super::{App, Prompt, Screen, detail};
 use ratatui::layout::{Constraint, Direction, Layout, Margin};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{
@@ -6,11 +6,16 @@ use ratatui::widgets::{
 };
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
+    if app.screen != Screen::List {
+        detail::draw(frame, app);
+        return;
+    }
+    let has_panel = app.prompt.is_some() || app.choice_selected.is_some();
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(5),
-            Constraint::Length(10),
+            Constraint::Length(if has_panel { 8 } else { 0 }),
             Constraint::Length(2),
         ])
         .split(frame.area());
@@ -61,49 +66,29 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             .bg(Color::Cyan)
             .add_modifier(Modifier::BOLD),
     );
-    let mut state = TableState::default().with_selected(app.current().map(|_| app.selected));
-    frame.render_stateful_widget(
-        list,
-        areas[0].inner(Margin {
-            horizontal: 1,
-            vertical: 1,
-        }),
-        &mut state,
-    );
+    let mut state = TableState::default()
+        .with_offset(app.list_offset)
+        .with_selected(app.current().map(|_| app.selected));
+    let list_area = areas[0].inner(Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+    frame.render_stateful_widget(list, list_area, &mut state);
+    app.list_offset = state.offset();
+    if app.records.is_empty() {
+        let hint = ratatui::layout::Rect::new(
+            list_area.x,
+            list_area.y.saturating_add(2),
+            list_area.width,
+            list_area.height.saturating_sub(2),
+        );
+        frame.render_widget(
+            Paragraph::new("No specs yet. Press n to start a session, or a to add a local item.")
+                .style(Style::default().fg(Color::Gray)),
+            hint,
+        );
+    }
 
-    let detail = if let Some(record) = app.current() {
-        format!(
-            "ID: {}\nRepo: {}\nSpec: {}\nJira: {}  Branch: {}\nSession: {}  Model: {}\nPR: {}\nNext: {}\nError: {}",
-            record.id,
-            record
-                .repo
-                .as_ref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| "—".into()),
-            record.spec_path.display(),
-            record.jira.key.as_deref().unwrap_or("—"),
-            record.implementation.branch.as_deref().unwrap_or("—"),
-            record
-                .launch
-                .as_ref()
-                .map(|launch| launch.status.as_str())
-                .unwrap_or("—"),
-            record
-                .launch
-                .as_ref()
-                .map(|launch| launch.model.as_str())
-                .unwrap_or("—"),
-            record.pr.url.as_deref().unwrap_or("—"),
-            record.next_actions().join(", "),
-            record
-                .launch
-                .as_ref()
-                .and_then(|launch| launch.error.as_deref())
-                .unwrap_or("—"),
-        )
-    } else {
-        "No items yet. Press n to start a spec.".into()
-    };
     if let Some(Prompt::Delete { id }) = &app.prompt {
         let detail = if let Some(record) = app.records.iter().find(|record| &record.id == id) {
             format!(
@@ -148,10 +133,10 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             );
         let mut state = ListState::default().with_selected(Some(selected));
         frame.render_stateful_widget(list, areas[1], &mut state);
-    } else {
+    } else if let Some(prompt) = &app.prompt {
         frame.render_widget(
-            Paragraph::new(detail)
-                .block(Block::default().title(" Selected ").borders(Borders::ALL)),
+            Paragraph::new(format!("{}: {}█", prompt.label(), app.input))
+                .block(Block::default().title(" Action ").borders(Borders::ALL)),
             areas[1],
         );
     }
@@ -164,23 +149,15 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     );
 }
 
-const COMMANDS: &str =
-    "n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · d delete · q quit";
+const COMMANDS: &str = "Enter open · n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · d delete · q quit";
 
 pub(super) fn footer_text(app: &App) -> String {
-    if let Some(selected) = app.choice_selected {
-        format!(
-            "{} selected · j/k choose · Enter continue · Esc cancel",
-            app.choices[selected].label()
-        )
+    if app.choice_selected.is_some() {
+        "j/k choose · Enter continue · Esc cancel".into()
     } else if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
         "Enter delete this item · Esc cancel".into()
-    } else if let Some(prompt) = &app.prompt {
-        format!(
-            "{}: {}█    Enter save · Esc cancel",
-            prompt.label(),
-            app.input
-        )
+    } else if app.prompt.is_some() {
+        "Enter save · Esc cancel".into()
     } else if !app.message.is_empty() {
         format!("{}\n{COMMANDS}", app.message)
     } else {

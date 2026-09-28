@@ -1,5 +1,5 @@
 use super::*;
-use crossterm::event::KeyModifiers;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::style::Color;
@@ -124,6 +124,172 @@ fn list_icons_show_completed_and_draft_stages() -> Result<()> {
         .unwrap();
     assert_eq!(row.matches("✓ done").count(), 2);
     assert_eq!(row.matches("◐ draft").count(), 2);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-detail-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    let record = store.start("Payment retries", None, None)?;
+    fs::write(
+        &record.spec_path,
+        "# Payment retries\n\nRetry only transient failures.\n",
+    )?;
+    let mut app = App::new(store)?;
+    let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
+
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.screen, Screen::Detail);
+    let mut terminal = Terminal::new(TestBackend::new(100, 35))?;
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    let rendered: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(rendered.contains("SPEC BRIEF"));
+    assert!(rendered.contains("Retry only transient failures"));
+    assert!(rendered.contains("QUEST PATH"));
+    assert!(rendered.contains("Finish spec"));
+
+    press(&mut app, KeyCode::Char('v'))?;
+    assert_eq!(app.screen, Screen::Reader);
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    let rendered: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(rendered.contains("FULL SPEC"));
+    assert!(rendered.contains("Retry only transient failures"));
+    press(&mut app, KeyCode::Esc)?;
+    assert_eq!(app.screen, Screen::Detail);
+    press(&mut app, KeyCode::Esc)?;
+    assert_eq!(app.screen, Screen::List);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn quest_actions_follow_the_real_parallel_stages() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-quest-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    store.start("Payment retries", None, None)?;
+    let mut app = App::new(store)?;
+    let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
+
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(
+        detail_actions(app.current().unwrap()),
+        vec![DetailAction::Finish]
+    );
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.current().unwrap().spec, "done");
+    assert_eq!(
+        detail_actions(app.current().unwrap()),
+        vec![DetailAction::Jira, DetailAction::Implement]
+    );
+    press(&mut app, KeyCode::Tab)?;
+    press(&mut app, KeyCode::Enter)?;
+    assert!(matches!(app.prompt, Some(Prompt::Agent { .. })));
+    press(&mut app, KeyCode::Enter)?;
+    assert!(matches!(app.prompt, Some(Prompt::Branch { .. })));
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.current().unwrap().implementation.status, "in_progress");
+    assert_eq!(
+        detail_actions(app.current().unwrap()),
+        vec![DetailAction::Jira, DetailAction::Pr]
+    );
+    handle_mouse(
+        &mut app,
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 15,
+            row: 30,
+            modifiers: KeyModifiers::NONE,
+        },
+        35,
+    )?;
+    assert!(matches!(app.prompt, Some(Prompt::Jira { .. })));
+    for ch in "ABC-123".chars() {
+        press(&mut app, KeyCode::Char(ch))?;
+    }
+    press(&mut app, KeyCode::Enter)?;
+    assert!(matches!(app.prompt, Some(Prompt::JiraUrl { .. })));
+    for ch in "https://jira.example/ABC-123".chars() {
+        press(&mut app, KeyCode::Char(ch))?;
+    }
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.current().unwrap().jira.key.as_deref(), Some("ABC-123"));
+    assert_eq!(
+        app.current().unwrap().jira.url.as_deref(),
+        Some("https://jira.example/ABC-123")
+    );
+    let id = app.current().unwrap().id.clone();
+    app.store.update(
+        &id,
+        Change::Pr {
+            url: "https://github.example/pr/1".into(),
+        },
+    )?;
+    app.refresh()?;
+    assert_eq!(
+        detail_actions(app.current().unwrap()),
+        vec![DetailAction::ReviewPr]
+    );
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn mouse_hover_selects_a_list_item_before_enter() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-mouse-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    store.start("First", None, None)?;
+    store.start("Second", None, None)?;
+    let mut app = App::new(store)?;
+    let second_id = app.records[1].id.clone();
+    handle_mouse(
+        &mut app,
+        MouseEvent {
+            kind: MouseEventKind::Moved,
+            column: 5,
+            row: 3,
+            modifiers: KeyModifiers::NONE,
+        },
+        30,
+    )?;
+    assert_eq!(app.current().unwrap().id, second_id);
+    handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
+    assert_eq!(app.screen, Screen::Detail);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn detail_delete_still_requires_confirmation_and_returns_to_list() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-detail-delete-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    store.start("Keep until confirmed", None, None)?;
+    let mut app = App::new(store)?;
+    let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
+
+    press(&mut app, KeyCode::Enter)?;
+    press(&mut app, KeyCode::Char('d'))?;
+    assert!(matches!(app.prompt, Some(Prompt::Delete { .. })));
+    press(&mut app, KeyCode::Esc)?;
+    assert_eq!(app.screen, Screen::Detail);
+    assert_eq!(app.store.list()?.len(), 1);
+    press(&mut app, KeyCode::Char('d'))?;
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.screen, Screen::List);
+    assert!(app.store.list()?.is_empty());
     fs::remove_dir_all(root)?;
     Ok(())
 }

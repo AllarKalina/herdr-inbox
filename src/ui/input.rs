@@ -1,0 +1,294 @@
+use super::{App, DetailAction, Prompt, Screen, detail_actions};
+use crate::launch;
+use crate::store::{Change, Result};
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
+use std::io::stdout;
+use std::process::Command;
+
+pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
+    if key.kind != KeyEventKind::Press {
+        return Ok(false);
+    }
+    if let Some(selected) = app.choice_selected {
+        match key.code {
+            KeyCode::Esc => app.choice_selected = None,
+            KeyCode::Char('j') | KeyCode::Down => {
+                app.choice_selected = Some((selected + 1).min(app.choices.len() - 1))
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                app.choice_selected = Some(selected.saturating_sub(1))
+            }
+            KeyCode::Enter => {
+                let profile = app.choices[selected];
+                app.choice_selected = None;
+                app.begin(Prompt::LaunchWorkspace { profile });
+            }
+            _ => {}
+        }
+        return Ok(false);
+    }
+    if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
+        match key.code {
+            KeyCode::Esc => {
+                app.prompt = None;
+                app.message = "Deletion cancelled".into();
+            }
+            KeyCode::Enter => app.submit()?,
+            _ => {}
+        }
+        return Ok(false);
+    }
+    if app.prompt.is_some() {
+        match key.code {
+            KeyCode::Esc => {
+                app.prompt = None;
+                app.input.clear();
+            }
+            KeyCode::Enter => {
+                app.submit()?;
+                return Ok(app.should_exit);
+            }
+            KeyCode::Backspace => {
+                app.input.pop();
+            }
+            KeyCode::Char(ch) => app.input.push(ch),
+            _ => {}
+        }
+        return Ok(false);
+    }
+    if app.screen == Screen::Reader {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('v') => app.screen = Screen::Detail,
+            KeyCode::Char('q') => return Ok(true),
+            KeyCode::Char('j') | KeyCode::Down => {
+                app.reader_scroll = app.reader_scroll.saturating_add(1)
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                app.reader_scroll = app.reader_scroll.saturating_sub(1)
+            }
+            KeyCode::PageDown => app.reader_scroll = app.reader_scroll.saturating_add(15),
+            KeyCode::PageUp => app.reader_scroll = app.reader_scroll.saturating_sub(15),
+            KeyCode::Char('g') => app.reader_scroll = 0,
+            KeyCode::Char('e') => {
+                if let Some(record) = app.current() {
+                    open_editor(&record.spec_path)?;
+                }
+            }
+            _ => {}
+        }
+        return Ok(false);
+    }
+    if app.screen == Screen::Detail {
+        let actions = app.current().map(detail_actions).unwrap_or_default();
+        match key.code {
+            KeyCode::Esc => app.screen = Screen::List,
+            KeyCode::Char('q') => return Ok(true),
+            KeyCode::Char('v') => {
+                app.reader_scroll = 0;
+                app.screen = Screen::Reader;
+            }
+            KeyCode::Char('e') => {
+                if let Some(record) = app.current() {
+                    open_editor(&record.spec_path)?;
+                }
+            }
+            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') if !actions.is_empty() => {
+                app.action_selected = (app.action_selected + 1) % actions.len();
+            }
+            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') if !actions.is_empty() => {
+                app.action_selected = (app.action_selected + actions.len() - 1) % actions.len();
+            }
+            KeyCode::Enter if !actions.is_empty() => {
+                start_detail_action(app, actions[app.action_selected])?;
+            }
+            KeyCode::Char('d') => {
+                if let Some(record) = app.current() {
+                    app.begin(Prompt::Delete {
+                        id: record.id.clone(),
+                    });
+                }
+            }
+            _ => {}
+        }
+        app.refresh()?;
+        return Ok(false);
+    }
+    match key.code {
+        KeyCode::Char('q') | KeyCode::Esc => return Ok(true),
+        KeyCode::Enter if app.current().is_some() => {
+            app.screen = Screen::Detail;
+            app.action_selected = 0;
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1))
+        }
+        KeyCode::Char('k') | KeyCode::Up => app.selected = app.selected.saturating_sub(1),
+        KeyCode::Char('n') => {
+            app.choices = launch::available_profiles();
+            if app.choices.is_empty() {
+                app.message = "No supported client found (install codex or claude)".into();
+            } else {
+                app.choice_selected = Some(0);
+            }
+        }
+        KeyCode::Char('a') => app.begin(Prompt::ManualTitle),
+        KeyCode::Char('f') => {
+            if let Some(record) = app.current() {
+                if record.title.is_empty() {
+                    app.begin(Prompt::FinishTitle {
+                        id: record.id.clone(),
+                    });
+                } else {
+                    let updated = app
+                        .store
+                        .update(&record.id, Change::Finish { title: None })?;
+                    let _ = launch::rename_tab(&updated);
+                    app.message = "Spec done; Jira and handoff ready".into();
+                }
+            }
+        }
+        KeyCode::Char('t') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Rename {
+                    id: record.id.clone(),
+                });
+            }
+        }
+        KeyCode::Char('J') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Jira {
+                    id: record.id.clone(),
+                });
+            }
+        }
+        KeyCode::Char('i') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Agent {
+                    id: record.id.clone(),
+                });
+            }
+        }
+        KeyCode::Char('p') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Pr {
+                    id: record.id.clone(),
+                });
+            }
+        }
+        KeyCode::Char('e') => {
+            if let Some(record) = app.current() {
+                open_editor(&record.spec_path)?;
+            }
+        }
+        KeyCode::Char('d') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Delete {
+                    id: record.id.clone(),
+                });
+            }
+        }
+        _ => {}
+    }
+    app.refresh()?;
+    Ok(false)
+}
+
+fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
+    let Some(record) = app.current() else {
+        return Ok(());
+    };
+    let id = record.id.clone();
+    match action {
+        DetailAction::Finish if record.title.is_empty() => app.begin(Prompt::FinishTitle { id }),
+        DetailAction::Finish => {
+            let updated = app.store.update(&id, Change::Finish { title: None })?;
+            let _ = launch::rename_tab(&updated);
+            app.message = "Spec complete; Jira and implementation unlocked".into();
+        }
+        DetailAction::Jira => app.begin(Prompt::Jira { id }),
+        DetailAction::Implement => app.begin(Prompt::Agent { id }),
+        DetailAction::Pr => app.begin(Prompt::Pr { id }),
+        DetailAction::ReviewPr => {
+            if let Some(url) = record.pr.url.as_deref() {
+                let result = Command::new("open").arg(url).status()?;
+                if !result.success() {
+                    return Err("Could not open draft PR".into());
+                }
+                app.message = "Opened draft PR".into();
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Result<()> {
+    if app.screen == Screen::Reader {
+        match mouse.kind {
+            MouseEventKind::ScrollDown => app.reader_scroll = app.reader_scroll.saturating_add(3),
+            MouseEventKind::ScrollUp => app.reader_scroll = app.reader_scroll.saturating_sub(3),
+            _ => {}
+        }
+        return Ok(());
+    }
+    if app.prompt.is_some() || app.choice_selected.is_some() {
+        return Ok(());
+    }
+    if app.screen == Screen::Detail {
+        if mouse.row == height.saturating_sub(5) {
+            let mut start = 13;
+            for (index, action) in app
+                .current()
+                .map(detail_actions)
+                .unwrap_or_default()
+                .iter()
+                .enumerate()
+            {
+                let end = start + action.label().len() as u16 + 4;
+                if mouse.column >= start && mouse.column < end {
+                    app.action_selected = index;
+                    if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+                        start_detail_action(app, *action)?;
+                        app.refresh()?;
+                    }
+                    break;
+                }
+                start = end + 2;
+            }
+        }
+        return Ok(());
+    }
+    match mouse.kind {
+        MouseEventKind::Moved | MouseEventKind::Down(MouseButton::Left) => {
+            let row = mouse.row as usize;
+            if row >= 2 && row < height.saturating_sub(3) as usize {
+                let index = app.list_offset + row - 2;
+                if index < app.records.len() {
+                    app.selected = index;
+                }
+            }
+        }
+        MouseEventKind::ScrollDown => {
+            app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1));
+        }
+        MouseEventKind::ScrollUp => app.selected = app.selected.saturating_sub(1),
+        _ => {}
+    }
+    Ok(())
+}
+
+fn open_editor(path: &std::path::Path) -> Result<()> {
+    disable_raw_mode()?;
+    crossterm::execute!(stdout(), DisableMouseCapture, LeaveAlternateScreen)?;
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "code".into());
+    let result = Command::new(editor).arg(path).status();
+    crossterm::execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+    enable_raw_mode()?;
+    if !result?.success() {
+        return Err("Editor failed".into());
+    }
+    Ok(())
+}
