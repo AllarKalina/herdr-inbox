@@ -1,4 +1,4 @@
-use crate::launch::{self, DEFAULT_MODEL, DEFAULT_WORKSPACE, Options};
+use crate::launch::{self, DEFAULT_WORKSPACE, Options, Profile};
 use crate::store::{Change, Record, Result, Store};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::terminal::{
@@ -19,18 +19,17 @@ enum Prompt {
     ManualRepo {
         title: String,
     },
-    LaunchWorkspace,
-    LaunchRepo {
-        workspace: String,
+    LaunchWorkspace {
+        profile: Profile,
     },
-    LaunchModel {
+    LaunchRepo {
+        profile: Profile,
         workspace: String,
-        repo: Option<PathBuf>,
     },
     LaunchTopic {
+        profile: Profile,
         workspace: String,
         repo: Option<PathBuf>,
-        model: String,
     },
     FinishTitle {
         id: String,
@@ -58,10 +57,9 @@ impl Prompt {
         match self {
             Self::ManualTitle => "New local spec title",
             Self::ManualRepo { .. } => "Repo path (blank for none)",
-            Self::LaunchWorkspace => "Workspace [AI herd]",
+            Self::LaunchWorkspace { .. } => "Workspace [ai-boiler-room]",
             Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
-            Self::LaunchModel { .. } => "Model [claude-opus-5-5]",
-            Self::LaunchTopic { .. } => "Topic for /grill-me (optional)",
+            Self::LaunchTopic { .. } => "Grilling topic (optional)",
             Self::FinishTitle { .. } => "Finished spec title",
             Self::Rename { .. } => "Spec title",
             Self::Jira { .. } => "Jira key",
@@ -78,6 +76,8 @@ struct App {
     selected: usize,
     prompt: Option<Prompt>,
     input: String,
+    choices: Vec<Profile>,
+    choice_selected: Option<usize>,
     message: String,
     should_exit: bool,
 }
@@ -91,6 +91,8 @@ impl App {
             selected: 0,
             prompt: None,
             input: String::new(),
+            choices: Vec::new(),
+            choice_selected: None,
             message: String::new(),
             should_exit: false,
         })
@@ -135,37 +137,29 @@ impl App {
                 let record = self.store.start(&title, repo, None)?;
                 self.message = format!("Started {}", record.id);
             }
-            Prompt::LaunchWorkspace => self.begin(Prompt::LaunchRepo {
+            Prompt::LaunchWorkspace { profile } => self.begin(Prompt::LaunchRepo {
+                profile,
                 workspace: if value.is_empty() {
                     DEFAULT_WORKSPACE.into()
                 } else {
                     value
                 },
             }),
-            Prompt::LaunchRepo { workspace } => self.begin(Prompt::LaunchModel {
+            Prompt::LaunchRepo { profile, workspace } => self.begin(Prompt::LaunchTopic {
+                profile,
                 workspace,
                 repo: nonempty(value).map(PathBuf::from),
             }),
-            Prompt::LaunchModel { workspace, repo } => self.begin(Prompt::LaunchTopic {
-                workspace,
-                repo,
-                model: if value.is_empty() {
-                    DEFAULT_MODEL.into()
-                } else {
-                    value
-                },
-            }),
             Prompt::LaunchTopic {
+                profile,
                 workspace,
                 repo,
-                model,
             } => {
                 let options = Options {
                     workspace,
                     repo,
-                    model,
                     topic: value,
-                    ..Options::default()
+                    ..Options::for_profile(profile)
                 };
                 let record = launch::start(&self.store, options)?;
                 self.message = format!("Launched spec session {}", record.id);
@@ -293,11 +287,39 @@ fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     } else {
         "No items yet. Press n to start a spec.".into()
     };
-    frame.render_widget(
-        Paragraph::new(detail).block(Block::default().title(" Selected ").borders(Borders::ALL)),
-        areas[1],
-    );
-    let footer = if let Some(prompt) = &app.prompt {
+    if let Some(selected) = app.choice_selected {
+        let choices = app
+            .choices
+            .iter()
+            .map(|profile| ListItem::new(profile.label()))
+            .collect::<Vec<_>>();
+        let list = List::new(choices)
+            .block(
+                Block::default()
+                    .title(" Choose client ")
+                    .borders(Borders::ALL),
+            )
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            );
+        let mut state = ListState::default().with_selected(Some(selected));
+        frame.render_stateful_widget(list, areas[1], &mut state);
+    } else {
+        frame.render_widget(
+            Paragraph::new(detail)
+                .block(Block::default().title(" Selected ").borders(Borders::ALL)),
+            areas[1],
+        );
+    }
+    let footer = if let Some(selected) = app.choice_selected {
+        format!(
+            "{} selected · j/k choose · Enter continue · Esc cancel",
+            app.choices[selected].label()
+        )
+    } else if let Some(prompt) = &app.prompt {
         format!(
             "{}: {}█    Enter save · Esc cancel",
             prompt.label(),
@@ -321,6 +343,24 @@ fn short(value: &str) -> &str {
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     if key.kind != KeyEventKind::Press {
+        return Ok(false);
+    }
+    if let Some(selected) = app.choice_selected {
+        match key.code {
+            KeyCode::Esc => app.choice_selected = None,
+            KeyCode::Char('j') | KeyCode::Down => {
+                app.choice_selected = Some((selected + 1).min(app.choices.len() - 1))
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                app.choice_selected = Some(selected.saturating_sub(1))
+            }
+            KeyCode::Enter => {
+                let profile = app.choices[selected];
+                app.choice_selected = None;
+                app.begin(Prompt::LaunchWorkspace { profile });
+            }
+            _ => {}
+        }
         return Ok(false);
     }
     if app.prompt.is_some() {
@@ -347,7 +387,14 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1))
         }
         KeyCode::Char('k') | KeyCode::Up => app.selected = app.selected.saturating_sub(1),
-        KeyCode::Char('n') => app.begin(Prompt::LaunchWorkspace),
+        KeyCode::Char('n') => {
+            app.choices = launch::available_profiles();
+            if app.choices.is_empty() {
+                app.message = "No supported client found (install codex or claude)".into();
+            } else {
+                app.choice_selected = Some(0);
+            }
+        }
         KeyCode::Char('a') => app.begin(Prompt::ManualTitle),
         KeyCode::Char('f') => {
             if let Some(record) = app.current() {

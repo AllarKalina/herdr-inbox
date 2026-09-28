@@ -41,6 +41,8 @@ pub struct Record {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Launch {
     pub status: String,
+    #[serde(default)]
+    pub harness: String,
     pub workspace: String,
     pub workspace_id: Option<String>,
     pub tab_id: Option<String>,
@@ -285,7 +287,7 @@ impl Store {
                     }
                     record.title = title.trim().to_owned();
                 }
-                Change::Launch(launch) => record.launch = Some(launch),
+                Change::Launch(launch) => record.launch = Some(*launch),
             }
             record.updated_at = timestamp();
             self.write(&record)?;
@@ -316,7 +318,7 @@ pub enum Change {
     Title {
         title: String,
     },
-    Launch(Launch),
+    Launch(Box<Launch>),
     Jira {
         key: String,
         url: Option<String>,

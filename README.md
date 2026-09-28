@@ -18,21 +18,24 @@ The action opens an 85%-size Herdr popup. `Cmd+I` opens it with the personal Gho
 
 ## New spec session
 
-Press `n` in the inbox. It asks for the target workspace (default `AI herd`), optional repo directory, Claude model (default `claude-opus-5-5`), and optional topic. It creates an untitled inbox item, opens a temporary `Spec · <id>` tab in that workspace, starts Claude Code at high effort with bypass permissions, and submits `/grill-me` as the first prompt. The prompt tells Claude where to write the Markdown spec and how to give the item its final title when the grilling session ends. The inbox popup closes on successful launch so the new tab is visible.
+Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
 
-The target Herdr workspace, Claude Code executable, and `/grill-me` skill must already exist in the environment where you run this. A missing workspace or Claude executable leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection; the plugin never silently closes a working session.
+The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude starts with bypass permissions; Codex receives write access to the local inbox data directory. A missing workspace or client leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
 
 CLI equivalent:
 
 ```sh
-~/git/herdr-inbox/target/release/herdr-inbox launch --workspace "AI herd" --repo ~/git/my-service --model claude-opus-5-5 --topic "Improve payment retries"
+~/git/herdr-inbox/target/release/herdr-inbox profiles
+~/git/herdr-inbox/target/release/herdr-inbox launch --profile codex --workspace ai-boiler-room --repo ~/git/my-service --topic "Improve payment retries"
 ```
 
-Use `--effort` to change effort or `--ask-permissions` to disable the bypass default for one launch. The title is supplied after the spec is written:
+`--profile opus` selects Claude. `--model` and `--effort` override a profile's defaults; `--ask-permissions` disables Claude's bypass default for one launch. The title is supplied after the spec is written:
 
 ```sh
 ~/git/herdr-inbox/target/release/herdr-inbox finish <id> --title "Payment retry handling"
 ```
+
+For a local Codex trial, use `--repo ~/git/herdr-inbox/examples/mock-repo`. Its [mock grill-me skill](examples/mock-repo/.agents/skills/grill-me/SKILL.md) asks two scoping questions and writes a short test spec. It does not create Jira tickets or PRs. Use your real skill in work repos.
 
 ## Workflow
 

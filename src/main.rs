@@ -35,8 +35,8 @@ fn print_record(record: &Record) {
     println!("  Spec file: {}", record.spec_path.display());
     if let Some(launch) = &record.launch {
         println!(
-            "  Session: {}  Model: {}  Workspace: {}",
-            launch.status, launch.model, launch.workspace
+            "  Session: {}  Client: {}  Model: {}  Effort: {}  Workspace: {}",
+            launch.status, launch.harness, launch.model, launch.effort, launch.workspace
         );
         if let Some(error) = &launch.error {
             println!("  Launch error: {error}");
@@ -48,8 +48,9 @@ fn help() {
     println!("herdr-inbox — local spec-to-PR inbox");
     println!("  start TITLE [--repo PATH] [--spec PATH]");
     println!(
-        "  launch [--workspace LABEL] [--repo PATH] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]"
+        "  launch [--profile opus|codex] [--workspace LABEL] [--repo PATH] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]"
     );
+    println!("  profiles");
     println!("  finish ID [--title TITLE] | title ID TITLE");
     println!("  jira ID KEY [--url URL]");
     println!("  implement ID [--agent NAME] [--branch BRANCH]");
@@ -66,6 +67,12 @@ fn run() -> Result<()> {
     let command = args.remove(0);
     let store = Store::new(Store::default_path()?);
     match command.as_str() {
+        "profiles" => {
+            positional(&args, 0)?;
+            for profile in launch::available_profiles() {
+                println!("{}  {}", profile.id(), profile.label());
+            }
+        }
         "path" => {
             positional(&args, 0)?;
             println!("{}", store.path().display());
@@ -83,7 +90,11 @@ fn run() -> Result<()> {
             print_record(&store.start(&args[0], repo, spec)?);
         }
         "launch" => {
-            let mut options = launch::Options::default();
+            let profile = flag(&mut args, "--profile")?
+                .map(|value| launch::Profile::parse(&value))
+                .transpose()?
+                .unwrap_or(launch::Profile::Opus);
+            let mut options = launch::Options::for_profile(profile);
             if let Some(value) = flag(&mut args, "--workspace")? {
                 options.workspace = value;
             }

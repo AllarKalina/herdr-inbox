@@ -3,12 +3,74 @@ use serde_json::Value;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
+use std::thread;
+use std::time::{Duration, Instant};
 
-pub const DEFAULT_WORKSPACE: &str = "AI herd";
+pub const DEFAULT_WORKSPACE: &str = "ai-boiler-room";
 pub const DEFAULT_MODEL: &str = "claude-opus-5-5";
 pub const DEFAULT_EFFORT: &str = "high";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Profile {
+    Opus,
+    Codex,
+}
+
+impl Profile {
+    pub fn parse(value: &str) -> Result<Self> {
+        match value {
+            "opus" => Ok(Self::Opus),
+            "codex" => Ok(Self::Codex),
+            _ => Err(format!("Unknown profile: {value} (choose opus or codex)").into()),
+        }
+    }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Opus => "opus",
+            Self::Codex => "codex",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Opus => "Claude · Opus 5.5 · High",
+            Self::Codex => "Codex · GPT-6-Sol · High",
+        }
+    }
+
+    fn executable(self) -> &'static str {
+        match self {
+            Self::Opus => "claude",
+            Self::Codex => "codex",
+        }
+    }
+
+    fn kind(self) -> &'static str {
+        self.executable()
+    }
+
+    fn skill(self) -> &'static str {
+        match self {
+            Self::Opus => "/grill-me",
+            Self::Codex => "$grill-me",
+        }
+    }
+
+    pub fn available(self) -> bool {
+        executable_on_path(self.executable())
+    }
+}
+
+pub fn available_profiles() -> Vec<Profile> {
+    [Profile::Opus, Profile::Codex]
+        .into_iter()
+        .filter(|profile| profile.available())
+        .collect()
+}
+
 pub struct Options {
+    pub profile: Profile,
     pub workspace: String,
     pub repo: Option<PathBuf>,
     pub model: String,
@@ -20,12 +82,27 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
+            profile: Profile::Opus,
             workspace: DEFAULT_WORKSPACE.into(),
             repo: None,
             model: DEFAULT_MODEL.into(),
             effort: DEFAULT_EFFORT.into(),
             topic: String::new(),
             bypass_permissions: true,
+        }
+    }
+}
+
+impl Options {
+    pub fn for_profile(profile: Profile) -> Self {
+        Self {
+            profile,
+            model: match profile {
+                Profile::Opus => DEFAULT_MODEL,
+                Profile::Codex => "gpt-6-sol",
+            }
+            .into(),
+            ..Self::default()
         }
     }
 }
@@ -53,6 +130,22 @@ impl Herdr {
             return Err(format!("Herdr {} failed: {}", args.join(" "), error.trim()).into());
         }
         Ok(serde_json::from_slice(&output.stdout)?)
+    }
+
+    fn start_agent(&self, args: &[&str]) -> Result<Value> {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match self.call(args) {
+                Ok(value) => return Ok(value),
+                Err(error)
+                    if error.to_string().contains("agent_pane_busy")
+                        && Instant::now() < deadline =>
+                {
+                    thread::sleep(Duration::from_millis(250));
+                }
+                Err(error) => return Err(error),
+            }
+        }
     }
 
     fn workspace(&self, label: &str) -> Result<String> {
@@ -103,12 +196,12 @@ fn required_string<'a>(value: &'a Value, path: &[&str]) -> Result<&'a str> {
         .ok_or_else(|| format!("Herdr response missing {}", path.join(".")).into())
 }
 
-fn prompt(record: &Record, topic: &str) -> Result<String> {
+fn prompt(record: &Record, topic: &str, profile: Profile) -> Result<String> {
     let executable = env::current_exe()?;
     let lead = if topic.trim().is_empty() {
-        "/grill-me".to_string()
+        profile.skill().to_string()
     } else {
-        format!("/grill-me {}", topic.trim())
+        format!("{} {}", profile.skill(), topic.trim())
     };
     Ok(format!(
         "{lead}\n\nThis session is inbox item {}. The title is intentionally unset until the spec is complete. Write the final Markdown spec to {}. When finished, choose a concise title and run: {} finish {} --title \"<title>\". Do not mark the spec done before the file is complete.",
@@ -120,14 +213,18 @@ fn prompt(record: &Record, topic: &str) -> Result<String> {
 }
 
 fn mark(store: &Store, record: &Record, launch: &Launch) -> Result<Record> {
-    store.update(&record.id, Change::Launch(launch.clone()))
+    store.update(&record.id, Change::Launch(Box::new(launch.clone())))
 }
 
 pub fn start(store: &Store, mut options: Options) -> Result<Record> {
     let herdr = Herdr::new()?;
     let workspace_id = herdr.workspace(&options.workspace)?;
-    if !executable_on_path("claude") {
-        return Err("Claude Code is not installed or not on Herdr's PATH".into());
+    if !options.profile.available() {
+        return Err(format!(
+            "{} is not installed or not on Herdr's PATH",
+            options.profile.executable()
+        )
+        .into());
     }
     options.repo = options.repo.map(absolute).transpose()?;
     if let Some(repo) = &options.repo
@@ -142,6 +239,7 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
     let record = store.start_untitled(options.repo.clone())?;
     let mut launch = Launch {
         status: "starting".into(),
+        harness: options.profile.id().into(),
         workspace: options.workspace,
         workspace_id: Some(workspace_id.clone()),
         tab_id: None,
@@ -152,7 +250,7 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
         prompt: String::new(),
         error: None,
     };
-    launch.prompt = prompt(&record, &options.topic)?;
+    launch.prompt = prompt(&record, &options.topic, options.profile)?;
     mark(store, &record, &launch)?;
     let result = (|| -> Result<()> {
         let label = format!("Spec · {}", &record.id[..8]);
@@ -185,19 +283,32 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
             "start",
             &agent,
             "--kind",
-            "claude",
+            options.profile.kind(),
             "--pane",
             pane,
             "--",
-            "--model",
-            &launch.model,
-            "--effort",
-            &launch.effort,
         ];
-        if options.bypass_permissions {
-            args.extend(["--permission-mode", "bypassPermissions"]);
+        let effort_config = format!("model_reasoning_effort=\"{}\"", launch.effort);
+        let data_dir = store.path().to_string_lossy().to_string();
+        match options.profile {
+            Profile::Opus => {
+                args.extend(["--model", &launch.model, "--effort", &launch.effort]);
+                if options.bypass_permissions {
+                    args.extend(["--permission-mode", "bypassPermissions"]);
+                }
+            }
+            Profile::Codex => args.extend([
+                "-m",
+                &launch.model,
+                "-c",
+                &effort_config,
+                "-s",
+                "workspace-write",
+                "--add-dir",
+                &data_dir,
+            ]),
         }
-        herdr.call(&args)?;
+        herdr.start_agent(&args)?;
         launch.agent = Some(agent.clone());
         launch.status = "agent_started".into();
         mark(store, &record, &launch)?;
