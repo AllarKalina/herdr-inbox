@@ -1,7 +1,9 @@
 use super::{App, Prompt};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{
+    Block, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, TableState,
+};
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     let areas = Layout::default()
@@ -12,33 +14,53 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             Constraint::Length(2),
         ])
         .split(frame.area());
-    let rows: Vec<ListItem> = app
+    let rows: Vec<Row> = app
         .records
         .iter()
         .map(|record| {
-            ListItem::new(format!(
-                "{:<7} {:<7} {:<8} {:<6} {}",
-                short(&record.spec),
-                short(&record.jira.status),
-                short(&record.implementation.status),
-                short(&record.pr.status),
-                record.display_title(),
-            ))
+            Row::new([
+                Cell::from(record.display_title().to_owned()),
+                Cell::from(short(&record.spec)),
+                Cell::from(short(&record.jira.status)),
+                Cell::from(short(&record.implementation.status)),
+                Cell::from(short(&record.pr.status)),
+            ])
         })
         .collect();
-    let list = List::new(rows)
-        .block(
-            Block::default()
-                .title(format!(" Inbox · {} items ", app.records.len()))
-                .borders(Borders::ALL),
-        )
-        .highlight_style(
+    let item_count = app.records.len();
+    let list = Table::new(
+        rows,
+        [
+            Constraint::Fill(1),
+            Constraint::Length(7),
+            Constraint::Length(7),
+            Constraint::Length(7),
+            Constraint::Length(7),
+        ],
+    )
+    .header(
+        Row::new(["Name", "Spec", "Jira", "Dev", "PR"]).style(
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
+                .fg(Color::Gray)
                 .add_modifier(Modifier::BOLD),
-        );
-    let mut state = ListState::default().with_selected(app.current().map(|_| app.selected));
+        ),
+    )
+    .column_spacing(2)
+    .block(
+        Block::default()
+            .title(format!(
+                " {item_count} item{} ",
+                if item_count == 1 { "" } else { "s" }
+            ))
+            .borders(Borders::ALL),
+    )
+    .row_highlight_style(
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
+    let mut state = TableState::default().with_selected(app.current().map(|_| app.selected));
     frame.render_stateful_widget(list, areas[0], &mut state);
 
     let detail = if let Some(record) = app.current() {

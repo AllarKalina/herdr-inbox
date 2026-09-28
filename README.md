@@ -53,4 +53,6 @@ For a local Codex trial, use `--repo ~/git/herdr-inbox/examples/mock-repo`. Its 
 
 `start` remains available for creating a local record and Markdown file without launching an agent. `finish` marks the spec done and makes both Jira creation and implementation handoff available. Jira and implementation can proceed independently. `list --json` and `show <id> --json` give agents structured state. The TUI refreshes from disk every second, so CLI updates appear there without a server.
 
+The inbox list shows each spec name first, followed by fixed Spec, Jira, Dev, and PR status columns at the right edge. Long names truncate within their column instead of shifting the statuses.
+
 TUI keys: `n` launch a new spec session; `a` add a local record; `e` open its Markdown file in `$EDITOR` (default `code`); `f` finish and name an untitled spec; `t` rename; `J` link Jira; `i` start implementation; `p` link draft PR; `d` delete with confirmation; `j/k` navigate; `q` close. Status messages appear above the shortcut list, so the shortcuts remain visible after an action.

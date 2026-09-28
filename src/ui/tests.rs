@@ -1,5 +1,7 @@
 use super::*;
 use crossterm::event::KeyModifiers;
+use ratatui::Terminal;
+use ratatui::backend::TestBackend;
 use std::fs;
 use uuid::Uuid;
 
@@ -30,6 +32,50 @@ fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
             .join(format!("{}.json", record.id))
             .is_file()
     );
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-list-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    store.start("Short", None, None)?;
+    store.start(
+        "Long title that stretches well beyond the available name column width",
+        None,
+        None,
+    )?;
+    let mut app = App::new(store)?;
+
+    for width in [54, 100] {
+        let mut terminal = Terminal::new(TestBackend::new(width, 24))?;
+        terminal.draw(|frame| draw::draw(frame, &mut app))?;
+        let lines: Vec<String> = terminal
+            .backend()
+            .buffer()
+            .content()
+            .chunks(width as usize)
+            .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
+            .collect();
+        assert!(lines[0].contains("2 items"));
+        assert!(!lines[0].contains("Inbox"));
+        assert!(
+            lines[1].contains("Name") && lines[1].contains("Spec") && lines[1].contains("Jira")
+        );
+        let rows: Vec<&String> = lines
+            .iter()
+            .filter(|line| line.contains("working"))
+            .collect();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].find("working"), rows[1].find("working"));
+        assert!(
+            rows.iter()
+                .all(|row| row.rfind("waiting").unwrap() > width as usize - 15)
+        );
+        assert!(rows.iter().any(|row| row.contains("Short")));
+        assert!(rows.iter().any(|row| row.contains("Long title")));
+    }
     fs::remove_dir_all(root)?;
     Ok(())
 }
