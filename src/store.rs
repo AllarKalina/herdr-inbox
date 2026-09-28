@@ -34,10 +34,41 @@ pub struct Record {
     pub jira: Link,
     pub implementation: Implementation,
     pub pr: Link,
+    #[serde(default)]
+    pub launch: Option<Launch>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Launch {
+    pub status: String,
+    pub workspace: String,
+    pub workspace_id: Option<String>,
+    pub tab_id: Option<String>,
+    pub pane_id: Option<String>,
+    pub agent: Option<String>,
+    pub model: String,
+    pub effort: String,
+    pub prompt: String,
+    pub error: Option<String>,
 }
 
 impl Record {
+    pub fn display_title(&self) -> &str {
+        if self.title.is_empty() {
+            "Untitled spec"
+        } else {
+            &self.title
+        }
+    }
+
     pub fn next_actions(&self) -> Vec<&'static str> {
+        if self
+            .launch
+            .as_ref()
+            .is_some_and(|launch| launch.status == "failed")
+        {
+            return vec!["Inspect launch error"];
+        }
         if self.spec == "in_progress" {
             return vec!["Finish spec"];
         }
@@ -110,6 +141,20 @@ impl Store {
         if title.is_empty() {
             return Err("Title cannot be empty".into());
         }
+        self.create(title, repo, spec, true)
+    }
+
+    pub fn start_untitled(&self, repo: Option<PathBuf>) -> Result<Record> {
+        self.create("", repo, None, false)
+    }
+
+    fn create(
+        &self,
+        title: &str,
+        repo: Option<PathBuf>,
+        spec: Option<PathBuf>,
+        create_spec: bool,
+    ) -> Result<Record> {
         self.locked(|| {
             let id = Uuid::new_v4().to_string();
             let path = match spec {
@@ -119,7 +164,7 @@ impl Store {
             if let Some(parent) = path.parent() {
                 ensure_dir(parent)?;
             }
-            if !path.exists() {
+            if create_spec && !path.exists() {
                 let mut file = OpenOptions::new()
                     .write(true)
                     .create_new(true)
@@ -152,6 +197,7 @@ impl Store {
                     key: None,
                     url: None,
                 },
+                launch: None,
             };
             self.write(&record)?;
             Ok(record)
@@ -189,9 +235,18 @@ impl Store {
         self.locked(|| {
             let mut record = self.get(id)?;
             match change {
-                Change::Finish => {
+                Change::Finish { title } => {
                     if record.spec != "in_progress" {
                         return Err("Spec is already finished".into());
+                    }
+                    if let Some(title) = title {
+                        if title.trim().is_empty() {
+                            return Err("Title cannot be empty".into());
+                        }
+                        record.title = title.trim().to_owned();
+                    }
+                    if record.title.is_empty() {
+                        return Err("Give the spec a title before finishing".into());
                     }
                     if !record.spec_path.is_file() {
                         return Err("Spec file is missing".into());
@@ -224,6 +279,13 @@ impl Store {
                     record.pr.status = "draft".into();
                     record.pr.url = Some(url);
                 }
+                Change::Title { title } => {
+                    if title.trim().is_empty() {
+                        return Err("Title cannot be empty".into());
+                    }
+                    record.title = title.trim().to_owned();
+                }
+                Change::Launch(launch) => record.launch = Some(launch),
             }
             record.updated_at = timestamp();
             self.write(&record)?;
@@ -248,7 +310,13 @@ impl Store {
 }
 
 pub enum Change {
-    Finish,
+    Finish {
+        title: Option<String>,
+    },
+    Title {
+        title: String,
+    },
+    Launch(Launch),
     Jira {
         key: String,
         url: Option<String>,
@@ -284,7 +352,11 @@ fn expand_home(path: PathBuf) -> Result<PathBuf> {
     absolute(path)
 }
 
-fn absolute(path: PathBuf) -> Result<PathBuf> {
+pub fn absolute(path: PathBuf) -> Result<PathBuf> {
+    if let Ok(rest) = path.strip_prefix("~") {
+        let home = std::env::var_os("HOME").ok_or("HOME is not set")?;
+        return Ok(PathBuf::from(home).join(rest));
+    }
     if path.is_absolute() {
         Ok(path)
     } else {
@@ -340,7 +412,7 @@ mod tests {
                 .is_err()
         );
 
-        let finished = store.update(&started.id, Change::Finish)?;
+        let finished = store.update(&started.id, Change::Finish { title: None })?;
         assert_eq!(
             finished.next_actions(),
             vec!["Create Jira ticket", "Hand spec to implementor"]
@@ -385,6 +457,36 @@ mod tests {
         let record = store.start("Existing", None, Some(spec.clone()))?;
         assert_eq!(fs::read_to_string(&spec)?, "Existing work\n");
         assert_eq!(record.spec_path, spec);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
+        let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
+        let store = Store::new(root.clone());
+        let record = store.start_untitled(None)?;
+        assert_eq!(record.display_title(), "Untitled spec");
+        assert!(!record.spec_path.exists());
+        assert!(
+            store
+                .update(
+                    &record.id,
+                    Change::Finish {
+                        title: Some("Final name".into())
+                    }
+                )
+                .is_err()
+        );
+        fs::write(&record.spec_path, "# Final name\n\nReal spec\n")?;
+        let done = store.update(
+            &record.id,
+            Change::Finish {
+                title: Some("Final name".into()),
+            },
+        )?;
+        assert_eq!(done.title, "Final name");
+        assert_eq!(done.spec, "done");
         fs::remove_dir_all(root)?;
         Ok(())
     }

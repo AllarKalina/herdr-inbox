@@ -14,7 +14,25 @@ herdr plugin link ~/git/herdr-inbox
 herdr plugin action invoke personal.inbox.open
 ```
 
-The action opens an 85%-size Herdr popup. You can also run `~/git/herdr-inbox/target/release/herdr-inbox tui` in any terminal. No keybinding is claimed by default.
+The action opens an 85%-size Herdr popup. `Cmd+I` opens it with the personal Ghostty/Herdr config. You can also run `~/git/herdr-inbox/target/release/herdr-inbox tui` in any terminal.
+
+## New spec session
+
+Press `n` in the inbox. It asks for the target workspace (default `AI herd`), optional repo directory, Claude model (default `claude-opus-5-5`), and optional topic. It creates an untitled inbox item, opens a temporary `Spec · <id>` tab in that workspace, starts Claude Code at high effort with bypass permissions, and submits `/grill-me` as the first prompt. The prompt tells Claude where to write the Markdown spec and how to give the item its final title when the grilling session ends. The inbox popup closes on successful launch so the new tab is visible.
+
+The target Herdr workspace, Claude Code executable, and `/grill-me` skill must already exist in the environment where you run this. A missing workspace or Claude executable leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection; the plugin never silently closes a working session.
+
+CLI equivalent:
+
+```sh
+~/git/herdr-inbox/target/release/herdr-inbox launch --workspace "AI herd" --repo ~/git/my-service --model claude-opus-5-5 --topic "Improve payment retries"
+```
+
+Use `--effort` to change effort or `--ask-permissions` to disable the bypass default for one launch. The title is supplied after the spec is written:
+
+```sh
+~/git/herdr-inbox/target/release/herdr-inbox finish <id> --title "Payment retry handling"
+```
 
 ## Workflow
 
@@ -27,6 +45,6 @@ The action opens an 85%-size Herdr popup. You can also run `~/git/herdr-inbox/ta
 ~/git/herdr-inbox/target/release/herdr-inbox pr <id> https://github.example/org/repo/pull/123
 ```
 
-`start` creates the record and a Markdown file, then marks the spec in progress. `finish` marks the spec done and makes both Jira creation and implementation handoff available. Jira and implementation can proceed independently. `list --json` and `show <id> --json` give agents structured state. The TUI refreshes from disk every second, so CLI updates appear there without a server.
+`start` remains available for creating a local record and Markdown file without launching an agent. `finish` marks the spec done and makes both Jira creation and implementation handoff available. Jira and implementation can proceed independently. `list --json` and `show <id> --json` give agents structured state. The TUI refreshes from disk every second, so CLI updates appear there without a server.
 
-TUI keys: `n` start a spec; `e` open its Markdown file in `$EDITOR` (default `code`); `f` finish; `J` link Jira; `i` start implementation; `p` link draft PR; `j/k` navigate; `q` close.
+TUI keys: `n` launch a new spec session; `a` add a local record; `e` open its Markdown file in `$EDITOR` (default `code`); `f` finish and name an untitled spec; `t` rename; `J` link Jira; `i` start implementation; `p` link draft PR; `j/k` navigate; `q` close.

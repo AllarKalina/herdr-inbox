@@ -1,3 +1,4 @@
+use crate::launch::{self, DEFAULT_MODEL, DEFAULT_WORKSPACE, Options};
 use crate::store::{Change, Record, Result, Store};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::terminal::{
@@ -14,19 +15,55 @@ use std::process::Command;
 use std::time::Duration;
 
 enum Prompt {
-    Title,
-    Repo { title: String },
-    Jira { id: String },
-    Agent { id: String },
-    Branch { id: String, agent: Option<String> },
-    Pr { id: String },
+    ManualTitle,
+    ManualRepo {
+        title: String,
+    },
+    LaunchWorkspace,
+    LaunchRepo {
+        workspace: String,
+    },
+    LaunchModel {
+        workspace: String,
+        repo: Option<PathBuf>,
+    },
+    LaunchTopic {
+        workspace: String,
+        repo: Option<PathBuf>,
+        model: String,
+    },
+    FinishTitle {
+        id: String,
+    },
+    Rename {
+        id: String,
+    },
+    Jira {
+        id: String,
+    },
+    Agent {
+        id: String,
+    },
+    Branch {
+        id: String,
+        agent: Option<String>,
+    },
+    Pr {
+        id: String,
+    },
 }
 
 impl Prompt {
     fn label(&self) -> &'static str {
         match self {
-            Self::Title => "New spec title",
-            Self::Repo { .. } => "Repo path (blank for none)",
+            Self::ManualTitle => "New local spec title",
+            Self::ManualRepo { .. } => "Repo path (blank for none)",
+            Self::LaunchWorkspace => "Workspace [AI herd]",
+            Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
+            Self::LaunchModel { .. } => "Model [claude-opus-5-5]",
+            Self::LaunchTopic { .. } => "Topic for /grill-me (optional)",
+            Self::FinishTitle { .. } => "Finished spec title",
+            Self::Rename { .. } => "Spec title",
             Self::Jira { .. } => "Jira key",
             Self::Agent { .. } => "Agent name (optional)",
             Self::Branch { .. } => "Branch (optional)",
@@ -42,6 +79,7 @@ struct App {
     prompt: Option<Prompt>,
     input: String,
     message: String,
+    should_exit: bool,
 }
 
 impl App {
@@ -54,6 +92,7 @@ impl App {
             prompt: None,
             input: String::new(),
             message: String::new(),
+            should_exit: false,
         })
     }
 
@@ -84,8 +123,10 @@ impl App {
         };
         let value = std::mem::take(&mut self.input).trim().to_string();
         match prompt {
-            Prompt::Title if !value.is_empty() => self.begin(Prompt::Repo { title: value }),
-            Prompt::Repo { title } => {
+            Prompt::ManualTitle if !value.is_empty() => {
+                self.begin(Prompt::ManualRepo { title: value })
+            }
+            Prompt::ManualRepo { title } => {
                 let repo = if value.is_empty() {
                     None
                 } else {
@@ -93,6 +134,54 @@ impl App {
                 };
                 let record = self.store.start(&title, repo, None)?;
                 self.message = format!("Started {}", record.id);
+            }
+            Prompt::LaunchWorkspace => self.begin(Prompt::LaunchRepo {
+                workspace: if value.is_empty() {
+                    DEFAULT_WORKSPACE.into()
+                } else {
+                    value
+                },
+            }),
+            Prompt::LaunchRepo { workspace } => self.begin(Prompt::LaunchModel {
+                workspace,
+                repo: nonempty(value).map(PathBuf::from),
+            }),
+            Prompt::LaunchModel { workspace, repo } => self.begin(Prompt::LaunchTopic {
+                workspace,
+                repo,
+                model: if value.is_empty() {
+                    DEFAULT_MODEL.into()
+                } else {
+                    value
+                },
+            }),
+            Prompt::LaunchTopic {
+                workspace,
+                repo,
+                model,
+            } => {
+                let options = Options {
+                    workspace,
+                    repo,
+                    model,
+                    topic: value,
+                    ..Options::default()
+                };
+                let record = launch::start(&self.store, options)?;
+                self.message = format!("Launched spec session {}", record.id);
+                self.should_exit = true;
+            }
+            Prompt::FinishTitle { id } if !value.is_empty() => {
+                let record = self
+                    .store
+                    .update(&id, Change::Finish { title: Some(value) })?;
+                let _ = launch::rename_tab(&record);
+                self.message = "Spec done; Jira and handoff ready".into();
+            }
+            Prompt::Rename { id } if !value.is_empty() => {
+                let record = self.store.update(&id, Change::Title { title: value })?;
+                let _ = launch::rename_tab(&record);
+                self.message = "Spec renamed".into();
             }
             Prompt::Jira { id } if !value.is_empty() => {
                 self.store.update(
@@ -138,7 +227,7 @@ fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(5),
-            Constraint::Length(8),
+            Constraint::Length(10),
             Constraint::Length(2),
         ])
         .split(frame.area());
@@ -152,7 +241,7 @@ fn draw(frame: &mut ratatui::Frame, app: &mut App) {
                 short(&record.jira.status),
                 short(&record.implementation.status),
                 short(&record.pr.status),
-                record.title,
+                record.display_title(),
             ))
         })
         .collect();
@@ -173,7 +262,7 @@ fn draw(frame: &mut ratatui::Frame, app: &mut App) {
 
     let detail = if let Some(record) = app.current() {
         format!(
-            "ID: {}\nRepo: {}\nSpec: {}\nJira: {}  Branch: {}\nPR: {}\nNext: {}",
+            "ID: {}\nRepo: {}\nSpec: {}\nJira: {}  Branch: {}\nSession: {}  Model: {}\nPR: {}\nNext: {}\nError: {}",
             record.id,
             record
                 .repo
@@ -183,8 +272,23 @@ fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             record.spec_path.display(),
             record.jira.key.as_deref().unwrap_or("—"),
             record.implementation.branch.as_deref().unwrap_or("—"),
+            record
+                .launch
+                .as_ref()
+                .map(|launch| launch.status.as_str())
+                .unwrap_or("—"),
+            record
+                .launch
+                .as_ref()
+                .map(|launch| launch.model.as_str())
+                .unwrap_or("—"),
             record.pr.url.as_deref().unwrap_or("—"),
             record.next_actions().join(", "),
+            record
+                .launch
+                .as_ref()
+                .and_then(|launch| launch.error.as_deref())
+                .unwrap_or("—"),
         )
     } else {
         "No items yet. Press n to start a spec.".into()
@@ -202,7 +306,7 @@ fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     } else if !app.message.is_empty() {
         app.message.clone()
     } else {
-        "n new · e edit · f finish · J Jira · i implement · p PR · j/k move · q quit".into()
+        "n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · q quit".into()
     };
     frame.render_widget(Paragraph::new(footer), areas[2]);
 }
@@ -225,7 +329,10 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.prompt = None;
                 app.input.clear();
             }
-            KeyCode::Enter => app.submit()?,
+            KeyCode::Enter => {
+                app.submit()?;
+                return Ok(app.should_exit);
+            }
             KeyCode::Backspace => {
                 app.input.pop();
             }
@@ -240,11 +347,28 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1))
         }
         KeyCode::Char('k') | KeyCode::Up => app.selected = app.selected.saturating_sub(1),
-        KeyCode::Char('n') => app.begin(Prompt::Title),
+        KeyCode::Char('n') => app.begin(Prompt::LaunchWorkspace),
+        KeyCode::Char('a') => app.begin(Prompt::ManualTitle),
         KeyCode::Char('f') => {
             if let Some(record) = app.current() {
-                app.store.update(&record.id, Change::Finish)?;
-                app.message = "Spec done; Jira and handoff ready".into();
+                if record.title.is_empty() {
+                    app.begin(Prompt::FinishTitle {
+                        id: record.id.clone(),
+                    });
+                } else {
+                    let updated = app
+                        .store
+                        .update(&record.id, Change::Finish { title: None })?;
+                    let _ = launch::rename_tab(&updated);
+                    app.message = "Spec done; Jira and handoff ready".into();
+                }
+            }
+        }
+        KeyCode::Char('t') => {
+            if let Some(record) = app.current() {
+                app.begin(Prompt::Rename {
+                    id: record.id.clone(),
+                });
             }
         }
         KeyCode::Char('J') => {

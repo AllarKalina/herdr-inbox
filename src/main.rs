@@ -1,3 +1,4 @@
+mod launch;
 mod store;
 mod ui;
 
@@ -25,19 +26,31 @@ fn positional(args: &[String], count: usize) -> Result<()> {
 }
 
 fn print_record(record: &Record) {
-    println!("{}  {}", record.id, record.title);
+    println!("{}  {}", record.id, record.display_title());
     println!(
         "  Spec: {}  Jira: {}  Implementation: {}  PR: {}",
         record.spec, record.jira.status, record.implementation.status, record.pr.status
     );
     println!("  Next: {}", record.next_actions().join(", "));
     println!("  Spec file: {}", record.spec_path.display());
+    if let Some(launch) = &record.launch {
+        println!(
+            "  Session: {}  Model: {}  Workspace: {}",
+            launch.status, launch.model, launch.workspace
+        );
+        if let Some(error) = &launch.error {
+            println!("  Launch error: {error}");
+        }
+    }
 }
 
 fn help() {
     println!("herdr-inbox — local spec-to-PR inbox");
     println!("  start TITLE [--repo PATH] [--spec PATH]");
-    println!("  finish ID");
+    println!(
+        "  launch [--workspace LABEL] [--repo PATH] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]"
+    );
+    println!("  finish ID [--title TITLE] | title ID TITLE");
     println!("  jira ID KEY [--url URL]");
     println!("  implement ID [--agent NAME] [--branch BRANCH]");
     println!("  pr ID URL");
@@ -69,9 +82,49 @@ fn run() -> Result<()> {
             positional(&args, 1)?;
             print_record(&store.start(&args[0], repo, spec)?);
         }
+        "launch" => {
+            let mut options = launch::Options::default();
+            if let Some(value) = flag(&mut args, "--workspace")? {
+                options.workspace = value;
+            }
+            options.repo = flag(&mut args, "--repo")?.map(PathBuf::from);
+            if let Some(value) = flag(&mut args, "--model")? {
+                options.model = value;
+            }
+            if let Some(value) = flag(&mut args, "--effort")? {
+                options.effort = value;
+            }
+            if let Some(value) = flag(&mut args, "--topic")? {
+                options.topic = value;
+            }
+            if let Some(index) = args.iter().position(|arg| arg == "--ask-permissions") {
+                args.remove(index);
+                options.bypass_permissions = false;
+            }
+            positional(&args, 0)?;
+            print_record(&launch::start(&store, options)?);
+        }
         "finish" => {
+            let title = flag(&mut args, "--title")?;
             positional(&args, 1)?;
-            print_record(&store.update(&args[0], Change::Finish)?);
+            let record = store.update(&args[0], Change::Finish { title })?;
+            if let Err(error) = launch::rename_tab(&record) {
+                eprintln!("Tab rename: {error}");
+            }
+            print_record(&record);
+        }
+        "title" => {
+            positional(&args, 2)?;
+            let record = store.update(
+                &args[0],
+                Change::Title {
+                    title: args[1].clone(),
+                },
+            )?;
+            if let Err(error) = launch::rename_tab(&record) {
+                eprintln!("Tab rename: {error}");
+            }
+            print_record(&record);
         }
         "jira" => {
             let url = flag(&mut args, "--url")?;
