@@ -1,5 +1,5 @@
 use super::{App, Prompt};
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Margin};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{
     Block, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, TableState,
@@ -62,7 +62,14 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             .add_modifier(Modifier::BOLD),
     );
     let mut state = TableState::default().with_selected(app.current().map(|_| app.selected));
-    frame.render_stateful_widget(list, areas[0], &mut state);
+    frame.render_stateful_widget(
+        list,
+        areas[0].inner(Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &mut state,
+    );
 
     let detail = if let Some(record) = app.current() {
         format!(
@@ -148,7 +155,13 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             areas[1],
         );
     }
-    frame.render_widget(Paragraph::new(footer_text(app)), areas[2]);
+    frame.render_widget(
+        Paragraph::new(footer_text(app)),
+        areas[2].inner(Margin {
+            horizontal: 1,
+            vertical: 0,
+        }),
+    );
 }
 
 const COMMANDS: &str =
