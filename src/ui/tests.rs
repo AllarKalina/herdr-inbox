@@ -59,10 +59,8 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
             .chunks(width as usize)
             .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
             .collect();
-        assert!(lines[0].trim().is_empty());
-        assert!(
-            lines[1].contains("Name (2)") && lines[1].contains("Spec") && lines[1].contains("Jira")
-        );
+        assert!(lines[0].contains("Name (2)"));
+        assert!(lines[0].contains("Spec") && lines[0].contains("Jira"));
         let rows: Vec<&String> = lines
             .iter()
             .filter(|line| line.contains("● active"))
