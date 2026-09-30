@@ -31,9 +31,9 @@ components:
     textColor: "{colors.surface-one}"
     typography: "{typography.terminal-emphasis}"
   action-selected:
-    backgroundColor: "{colors.teal}"
-    textColor: "{colors.surface-one}"
+    textColor: "{colors.teal}"
     typography: "{typography.terminal-emphasis}"
+    textDecoration: underline
   breadcrumb-current:
     textColor: "{colors.teal}"
     typography: "{typography.terminal-emphasis}"
@@ -41,8 +41,8 @@ components:
     textColor: "{colors.subtext-zero}"
     typography: "{typography.terminal}"
   milestone-selected:
-    backgroundColor: "{colors.teal}"
-    textColor: "{colors.surface-one}"
+    ringColor: "{colors.teal}"
+    backgroundColor: transparent
     typography: "{typography.terminal-emphasis}"
   confirmation-panel:
     textColor: "{colors.blue}"
@@ -65,7 +65,7 @@ components:
 
 **Creative North Star: "The Quest Ledger"**
 
-The inbox is a compact terminal ledger with just enough quest language to make real progress feel visible. One continuous canvas carries the list, spec, milestones, and next move. A bright selected row or action identifies the current target; the rest stays quiet enough for reading.
+The inbox is a compact terminal ledger with just enough quest language to make real progress feel visible. One continuous canvas carries the list, spec, milestones, and next move. A teal ring identifies the inspected milestone; a small star and underlined action identify its next move. The list retains its bright selected row while the detail view stays unfilled and quiet enough for reading.
 
 The current personal setup pairs the Rust TUI with Catppuccin Mocha in Ghostty and Herdr. Ratatui emits terminal color roles, not these hex values directly. The frontmatter records how those roles resolve in Allar's current Ghostty profile; another terminal theme may change their appearance. The terminal owns the translucent background and font, while the inbox owns layout, hierarchy, and state styling.
 
@@ -73,7 +73,7 @@ The current personal setup pairs the Rust TUI with Catppuccin Mocha in Ghostty a
 
 - Flat, transparent-feeling canvas with no decorative inset card.
 - Monospaced, cell-aligned information with a flexible name column and fixed status columns.
-- A mint-teal selection, semantic status colors, and words beside every icon.
+- Teal milestone rings and starred actions, semantic status colors, and words beside every icon.
 - A straight vertical milestone path whose selected stage owns the nearby actions, without points or badges.
 
 ## Colors
@@ -82,7 +82,7 @@ The active Ghostty profile supplies the Catppuccin Mocha palette. Its source is 
 
 ### Primary
 
-- **Teal:** the selected row or action background, the current breadcrumb title, and active progress. Dark Surface One text sits on a teal selection.
+- **Teal:** the selected inbox row background, current breadcrumb title, active progress, selected milestone ring, and selected action text. Dark Surface One text sits on the list selection; detail controls keep the transparent canvas.
 
 ### Secondary
 
@@ -114,19 +114,19 @@ The list uses a flexible name column followed by four fixed eight-cell status co
 
 The detail view has a two-cell horizontal and one-cell vertical outer inset. A breadcrumb sits above the main content. At a body width of 78 columns, the spec takes the left side and the interactive `PROGRESS` rail occupies 36 columns on the right, separated by a two-column gap. Below that breakpoint, the rail moves under the spec. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
 
-Milestone nodes share column seven. A rail at least 25 rows tall gives each stage a fixed six-row slot: one header, one context row, and four reserved control rows beginning at column nine. Empty control space remains reserved when another stage is selected. Shorter rails keep all four nodes in a fixed 16-column overview, a two-column gap, and a stationary control area starting at column 18. That area identifies the selected stage and shows its context, actions, or prompt; narrow labels and hints wrap. At 40 × 18 and larger, all four milestones remain visible. Selecting a stage, inspecting a prerequisite, or opening a prompt never moves the milestone nodes, spec preview, or footer.
+Milestone centers share column seven and begin two rows below `PROGRESS`. Every node reserves five columns by three rows, including an idle node, so selecting it cannot move its neighbors. A rail at least 26 rows tall gives each stage a fixed six-row slot, with context, status words, and controls beginning at column 11. Empty control space remains reserved when another stage is selected. Shorter rails keep all four nodes in a fixed 18-column overview, a two-column gap, and a stationary control area starting at column 20. That area identifies the selected stage, reserves four context rows beginning three rows below `PROGRESS`, and begins actions seven rows below `PROGRESS`; narrow labels and hints wrap. SPEC leaves its context blank: harness, space, session, and redundant completion metadata do not belong in this rail. At 40 × 18 and larger, all four milestones remain visible. Selecting a stage, inspecting a prerequisite, or opening a prompt never moves the milestone nodes, spec preview, or footer.
 
 The full reader replaces the detail content with the document. Its breadcrumb keeps `Inbox / item / FULL SPEC`; the text scrolls only to the last rendered line plus two blank rows. Footer guidance is short: one-line `j/k` scrolling and ten-line `Shift+J/K` jumps.
 
 ## Elevation & Depth
 
-The inbox has no shadow vocabulary. Depth comes from the host terminal's translucent surface (Ghostty opacity `0.95` and blur setting `20`), the selected teal highlight, and occasional structural borders on choice or confirmation prompts. Regular list and detail content stays on the same background plane.
+The inbox has no shadow vocabulary. Depth comes from the host terminal's translucent surface (Ghostty opacity `0.95` and blur setting `20`), the selected list highlight, a teal milestone ring, and occasional structural borders on choice or confirmation prompts. Regular list and detail content stays on the same background plane.
 
 **The Flat Ledger Rule.** Use spacing, alignment, text weight, and selection state before adding a border. Reserve a full border for a prompt that interrupts the normal flow.
 
 ## Shapes
 
-The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular milestone nodes share a single vertical `│` spine; their labels and states align beside it. Only the selected milestone's label takes a teal fill, preserving the node and state's semantic colors. Selected actions use a teal button highlight. The standard inbox list and detail view have no surrounding card border. Client-choice prompts use a plain rectangular border; milestone prompts occupy the existing reserved control area.
+The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular milestone nodes share a single vertical `│` spine; their labels and states align beside it. The selected node gains a teal ring drawn as a five-column, three-row Braille Canvas circle around its semantic status center. Stage labels stay unfilled. Selected actions use `✦` with bold, underlined teal text; other actions use blue text with two leading blank cells. No arrows or opaque button fills are added. The standard inbox list and detail view have no surrounding card border. Client-choice prompts use a plain rectangular border; milestone prompts occupy the existing reserved control area.
 
 ## Components
 
@@ -140,15 +140,15 @@ The breadcrumb retains the full path while coloring only the current location te
 
 ### Milestone navigation
 
-SPEC, JIRA, DEV, and PR sit on one straight vertical spine. Each circular node has an adjacent label and explicit state, so completed, ready, active, and locked stages can be scanned together. Selection is independent of completion: the teal highlight identifies the stage being inspected while its state remains readable.
+SPEC, JIRA, DEV, and PR sit on one straight vertical spine. Each circular node has an adjacent label and explicit state, so completed, ready, active, and locked stages can be scanned together. Selection is independent of completion: the teal ring identifies the stage being inspected while its semantic center and state remain readable. The complete five-by-three node area is clickable.
 
 Opening an item selects its next actionable milestone. Use `j/k` or Up/Down to move through the four milestones; a mouse click selects a stage. When the recommended stage advances, selection follows it only if the previous recommended stage was selected; a manually selected earlier stage stays selected. Locked stages can be inspected and explain their prerequisite. A linked Jira ticket is a hard dependency for starting implementation; implementation unlocks draft PR linking.
 
 ### Milestone actions
 
-On roomy rails, actions stack directly beneath the selected milestone's context in its reserved four-row area; the spine continues beside them. Other stages keep exactly the same spacing, whether selected or idle. On compact rails, the selected stage heading and controls occupy a stationary area beside the complete milestone overview. This keeps controls associated with their stage without moving the path. The first action is the primary next move; `Tab`, `h/l`, or Left/Right cycle available actions, and Enter runs the selected action. Clicking an action runs it.
+On roomy rails, actions stack beneath the selected milestone in its reserved control area; context is shown for Jira, development, and PR only. The spine continues beside the controls. Other stages keep exactly the same spacing, whether selected or idle. On compact rails, the selected stage heading and controls occupy a stationary area beside the complete milestone overview. This keeps controls associated with their stage without moving the path. The first action is the primary next move; `Tab`, `h/l`, or Left/Right cycle available actions, and Enter runs the selected action. Clicking an action runs it.
 
-SPEC offers reading and editing alongside finishing an unfinished spec. JIRA offers linking when ready, then opening and updating a linked ticket. DEV offers starting implementation when ready, then updating its details while implementation is active or a draft exists. PR offers linking when ready, then reviewing and updating the draft PR. Locked stages explain the missing prerequisite in their control area instead of offering an enabled progression action. Completed stages retain useful read, open, edit, or update actions. Feedback and compact navigation hints remain in the view footer: `j/k stage · Tab action · Enter act · r read · Esc back`.
+SPEC offers **Seal the spec**, **Read the scroll**, and **Refine the spec**. JIRA offers **Bind Jira ticket**, then **Visit Jira ticket** and **Update Jira link**. DEV offers **Log dev quest**, then **Update dev quest**; these record the agent and branch and do not launch an implementer. PR offers **Bind draft PR**, then **Review draft PR** and **Update PR link**. Labels add a personal quest motif without implying nonexistent automation. Locked stages explain the missing prerequisite in their control area instead of offering an enabled progression action. Success copy celebrates real transitions, such as a sealed spec and unlocked Jira step. Feedback and compact navigation hints remain in the view footer: `j/k stage · Tab action · Enter act · r read · Esc back`.
 
 ### Prompts
 
@@ -159,7 +159,7 @@ Text entry and deletion confirmation replace the selected milestone's controls i
 ### Do:
 
 - **Do** preserve the host's transparent background and terminal font.
-- **Do** keep selected rows and actions visually consistent.
+- **Do** use teal to connect the list selection, milestone ring, and starred action.
 - **Do** keep all milestone nodes on one spine and place actions with their selected stage.
 - **Do** reserve control space so navigation and prompts leave the layout steady.
 - **Do** align status columns even when a spec title is long.

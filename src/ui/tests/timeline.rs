@@ -245,8 +245,17 @@ fn timeline_nodes_share_one_column_and_clicks_select_without_acting() -> Result<
         assert!(fixture.app.prompt.is_none());
     }
     let buffer = terminal.backend().buffer();
+    let selected_y = milestones
+        .iter()
+        .find(|(stage, _)| *stage == Milestone::Jira)
+        .unwrap()
+        .1
+        .y;
     for pair in milestones.windows(2) {
         for y in pair[0].1.y + 1..pair[1].1.y {
+            if y.abs_diff(selected_y) <= 1 {
+                continue;
+            }
             assert_eq!(buffer[(node_x, y)].symbol(), "│");
         }
     }
@@ -378,23 +387,38 @@ fn small_terminal_keeps_every_milestone_and_spec_action_visible() -> Result<()> 
         .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
         .collect();
     assert_eq!(fixture.app.milestone_hitboxes.len(), 4);
-    for label in [
-        "SPEC   ◉ active",
-        "JIRA   ○ wait",
-        "DEV    ○ locked",
-        "PR     ○ locked",
+    for (label, status) in [
+        ("SPEC", "active"),
+        ("JIRA", "wait"),
+        ("DEV", "locked"),
+        ("PR", "locked"),
     ] {
         assert!(
-            lines.iter().any(|line| line.contains(label)),
+            lines
+                .iter()
+                .any(|line| line.contains(label) && line.contains(status)),
             "missing {label}"
         );
     }
     assert_eq!(fixture.app.action_hitboxes.len(), 3);
-    for action in ["Finish spec", "Read full spec", "Edit spec"] {
-        assert!(
-            lines.iter().any(|line| line.contains(action)),
-            "missing {action}"
-        );
+    for (area, action) in fixture.app.action_hitboxes.iter().zip([
+        "Seal the spec",
+        "Read the scroll",
+        "Refine the spec",
+    ]) {
+        let buffer = terminal.backend().buffer();
+        let text = (area.y..area.bottom())
+            .map(|y| {
+                (area.x..area.right())
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(text.contains(action), "missing {action}");
     }
     assert!(
         fixture

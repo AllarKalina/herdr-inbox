@@ -3,10 +3,11 @@ use crate::store::Record;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
+use ratatui::widgets::canvas::{Canvas, Circle};
 use ratatui::widgets::{Paragraph, Wrap};
 
 const NODE_COLUMN: u16 = 7;
-const CONTENT_COLUMN: u16 = 9;
+const CONTENT_COLUMN: u16 = 11;
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area: Rect) {
     app.milestone_hitboxes.clear();
@@ -18,34 +19,29 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
     );
     let selected = app.milestone_selected;
     // Geometry depends only on the viewport, never on selection or prompt content.
-    let compact = area.height < 25;
+    let compact = area.height < 26;
     let stride = if compact {
-        area.height.saturating_sub(2).saturating_div(3).max(1)
+        area.height.saturating_sub(4).saturating_div(3).max(1)
     } else {
         6
     };
     for (index, stage) in Milestone::ALL.iter().enumerate() {
-        let y = area.y + 1 + index as u16 * stride;
+        let y = area.y + 2 + index as u16 * stride;
         if y >= area.bottom() {
             break;
         }
         let (node, word, color) = appearance(stage.status(record));
         let is_selected = *stage == selected;
-        let label_style = if is_selected {
-            selection_style()
-        } else {
-            Style::default().fg(color)
-        };
         let label = Line::from(vec![
-            Span::styled(format!("{:<4}", stage.label()), label_style),
+            Span::styled(format!("{:<4}", stage.label()), Style::default().fg(color)),
             Span::raw("   "),
-            Span::styled(format!("{node} {word}"), Style::default().fg(color)),
+            Span::styled(format!("{node}   {word}"), Style::default().fg(color)),
         ]);
         let hitbox = Rect::new(
             area.x,
             y,
             if compact {
-                16.min(area.width)
+                18.min(area.width)
             } else {
                 area.width
             },
@@ -82,7 +78,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
         }
     }
     if compact {
-        let panel_x = (area.x + 18).min(area.right());
+        let panel_x = (area.x + 20).min(area.right());
         let panel_width = area.right().saturating_sub(panel_x);
         frame.render_widget(
             Paragraph::new(format!("{} ACTIONS", selected.label())).style(muted),
@@ -97,7 +93,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
             Paragraph::new(context)
                 .style(muted)
                 .wrap(Wrap { trim: false }),
-            Rect::new(panel_x, area.y + 2, panel_width, 3),
+            Rect::new(panel_x, area.y + 3, panel_width, 4),
         );
         draw_actions(
             frame,
@@ -105,11 +101,38 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
             record,
             Rect::new(
                 panel_x,
-                area.y + 5,
+                area.y + 7,
                 panel_width,
-                area.height.saturating_sub(5),
+                area.height.saturating_sub(7),
             ),
             2,
+        );
+    }
+    if let Some((_, selected_area)) = app
+        .milestone_hitboxes
+        .iter()
+        .find(|(stage, _)| *stage == selected)
+    {
+        // A terminal-native circle, drawn inside space reserved for every stage.
+        // Overlay only the focus ring; retain the semantic status at its center.
+        frame.render_widget(
+            Canvas::default()
+                .x_bounds([-1.0, 1.0])
+                .y_bounds([-1.0, 1.0])
+                .paint(|context| {
+                    context.draw(&Circle {
+                        x: 0.0,
+                        y: 0.0,
+                        radius: 0.9,
+                        color: Color::Cyan,
+                    })
+                }),
+            Rect::new(area.x + NODE_COLUMN - 2, selected_area.y - 1, 5, 3),
+        );
+        let (node, _, color) = appearance(selected.status(record));
+        frame.render_widget(
+            Paragraph::new(node).style(Style::default().fg(color)),
+            Rect::new(area.x + NODE_COLUMN, selected_area.y, 1, 1),
         );
     }
 }
@@ -143,7 +166,7 @@ fn draw_actions(
             break;
         }
         let selected = index == app.action_selected;
-        let label = format!(" {} {} ", if selected { "▸" } else { "·" }, action.label());
+        let label = format!("{}{}", if selected { "✦ " } else { "  " }, action.label());
         let width = (label.chars().count() as u16).min(area.width);
         let style = if selected {
             selection_style()
@@ -189,7 +212,7 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
             if app.store.manages_spec(record) {
                 "Enter delete · Esc cancel".into()
             } else {
-                "Linked spec stays in place.".into()
+                "Linked spec stays intact.".into()
             },
         ]
     } else {
@@ -217,9 +240,8 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
 
 fn selection_style() -> Style {
     Style::default()
-        .fg(Color::Black)
-        .bg(Color::Cyan)
-        .add_modifier(Modifier::BOLD)
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
 }
 
 fn appearance(status: &str) -> (&'static str, &'static str, Color) {

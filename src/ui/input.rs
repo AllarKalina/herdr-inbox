@@ -184,7 +184,7 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
         DetailAction::Finish => {
             let updated = app.store.update(&id, Change::Finish { title: None })?;
             let _ = launch::rename_tab(&updated);
-            app.message = "Spec complete; link Jira to unlock implementation".into();
+            app.message = "Spec sealed. Jira is unlocked.".into();
         }
         DetailAction::Jira => app.begin(Prompt::Jira { id }),
         DetailAction::Implement => app.begin(Prompt::Agent { id }),
@@ -249,7 +249,11 @@ pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Res
             MouseEventKind::ScrollUp => app.move_milestone(false),
             MouseEventKind::Down(MouseButton::Left) => {
                 if let Some((stage, _)) = app.milestone_hitboxes.iter().find(|(_, area)| {
-                    mouse.row == area.y && mouse.column >= area.x && mouse.column < area.right()
+                    (mouse.row == area.y && mouse.column >= area.x && mouse.column < area.right())
+                        || (mouse.column >= area.x + 5
+                            && mouse.column <= area.x + 9
+                            && mouse.row >= area.y.saturating_sub(1)
+                            && mouse.row <= area.y + 1)
                 }) {
                     app.select_milestone(*stage);
                     return Ok(());

@@ -89,23 +89,7 @@ impl Milestone {
 
     pub(super) fn context(self, record: &Record) -> String {
         match self {
-            Self::Spec => record.launch.as_ref().map_or_else(
-                || {
-                    if record.spec == "done" {
-                        "Spec complete"
-                    } else {
-                        "Writing spec"
-                    }
-                    .into()
-                },
-                |launch| {
-                    if launch.status == "failed" {
-                        "Launch failed".into()
-                    } else {
-                        format!("{} · {}", launch.workspace, launch.harness)
-                    }
-                },
-            ),
+            Self::Spec => String::new(),
             Self::Jira => record.jira.key.clone().unwrap_or_else(|| {
                 if record.jira.status == "ready" {
                     "Ticket needed"
@@ -121,7 +105,7 @@ impl Milestone {
                 .or_else(|| record.implementation.agent.clone())
                 .unwrap_or_else(|| {
                     match record.implementation_stage() {
-                        "ready" => "Ready to start",
+                        "ready" => "Record agent and branch",
                         "in_progress" => "Implementation in progress",
                         "draft_pr" => "Implementation recorded",
                         _ => "Needs Jira",

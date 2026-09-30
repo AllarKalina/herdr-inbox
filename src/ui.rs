@@ -122,16 +122,16 @@ enum DetailAction {
 impl DetailAction {
     fn label(self) -> &'static str {
         match self {
-            Self::Finish => "Finish spec",
-            Self::Jira => "Link Jira",
-            Self::Implement => "Start implementation",
-            Self::Pr => "Link draft PR",
+            Self::Finish => "Seal the spec",
+            Self::Jira => "Bind Jira ticket",
+            Self::Implement => "Log dev quest",
+            Self::Pr => "Bind draft PR",
             Self::ReviewPr => "Review draft PR",
-            Self::ReadSpec => "Read full spec",
-            Self::EditSpec => "Edit spec",
-            Self::OpenJira => "Open Jira ticket",
+            Self::ReadSpec => "Read the scroll",
+            Self::EditSpec => "Refine the spec",
+            Self::OpenJira => "Visit Jira ticket",
             Self::UpdateJira => "Update Jira link",
-            Self::UpdateImplementation => "Update implementation",
+            Self::UpdateImplementation => "Update dev quest",
             Self::UpdatePr => "Update PR link",
         }
     }
@@ -270,7 +270,7 @@ impl App {
                     .store
                     .update(&id, Change::Finish { title: Some(value) })?;
                 let _ = launch::rename_tab(&record);
-                self.message = "Spec done; link Jira to unlock implementation".into();
+                self.message = "Spec sealed. Jira is unlocked.".into();
             }
             Prompt::Jira { id } if !value.is_empty() => {
                 let url = self.store.get(&id)?.jira.url.unwrap_or_default();
@@ -285,7 +285,7 @@ impl App {
                         url: nonempty(value),
                     },
                 )?;
-                self.message = "Jira linked".into();
+                self.message = "Jira bound. Development is unlocked.".into();
             }
             Prompt::Agent { id } => {
                 let branch = self
@@ -308,11 +308,11 @@ impl App {
                         branch: nonempty(value),
                     },
                 )?;
-                self.message = "Implementation started".into();
+                self.message = "Dev quest logged. Agent and branch recorded.".into();
             }
             Prompt::Pr { id } if !value.is_empty() => {
                 self.store.update(&id, Change::Pr { url: value })?;
-                self.message = "Draft PR linked".into();
+                self.message = "Draft PR bound. Ready for review.".into();
             }
             Prompt::Delete { id } => {
                 self.store.delete(&id)?;

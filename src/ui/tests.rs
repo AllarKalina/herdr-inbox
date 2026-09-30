@@ -6,6 +6,7 @@ use ratatui::style::Color;
 use std::fs;
 use uuid::Uuid;
 
+mod delight;
 mod proximity;
 mod quest;
 mod timeline;
@@ -194,7 +195,7 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     assert!(!rendered.contains("v full spec"));
     assert!(rendered.contains("Retry only transient failures"));
     assert!(rendered.contains("PROGRESS"));
-    assert!(rendered.contains("Finish spec"));
+    assert!(rendered.contains("Seal the spec"));
     assert!(!rendered.contains("STAGE & LINKS"));
     assert!(!rendered.contains("Local spec"));
     let lines: Vec<String> = terminal
@@ -213,16 +214,16 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     assert_eq!(heading_column, content_column);
     assert!(progress_column > content_column + 30);
     let milestone_rows: Vec<usize> = [
-        "SPEC   ◉ active",
-        "JIRA   ○ wait",
-        "DEV    ○ locked",
-        "PR     ○ locked",
+        ("SPEC", "active"),
+        ("JIRA", "wait"),
+        ("DEV", "locked"),
+        ("PR", "locked"),
     ]
     .iter()
-    .map(|milestone| {
+    .map(|(label, status)| {
         lines
             .iter()
-            .position(|line| line.contains(milestone))
+            .position(|line| line.contains(label) && line.contains(status))
             .unwrap()
     })
     .collect();

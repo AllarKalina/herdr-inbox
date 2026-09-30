@@ -42,7 +42,7 @@ fn progress_timeline_keeps_linked_evidence_visible() -> Result<()> {
     handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let lines = rendered(&mut app, 100, 35)?;
     assert!(lines.iter().any(|line| line.contains("PAY-123")));
-    assert!(lines.iter().any(|line| line.contains("DEV    ● done")));
+    assert!(lines.iter().any(|line| line.contains("DEV    ●   done")));
     assert!(
         lines
             .iter()
@@ -67,10 +67,10 @@ fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
     handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let lines = rendered(&mut app, 60, 24)?;
     assert!(lines.iter().any(|line| line.contains("PROGRESS")));
-    assert!(lines.iter().any(|line| line.contains("DEV    ○ locked")));
+    assert!(lines.iter().any(|line| line.contains("DEV    ○   locked")));
     assert!(lines.iter().any(|line| line.contains("SPEC ACTIONS")));
     assert!(!lines.iter().any(|line| line.contains("NEXT MOVE")));
-    assert!(lines.iter().any(|line| line.contains("Finish spec")));
+    assert!(lines.iter().any(|line| line.contains("Seal the spec")));
     assert!(
         lines
             .iter()
