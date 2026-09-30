@@ -173,7 +173,7 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
         .collect();
     assert!(rendered.contains("SPEC"));
     assert!(!rendered.contains("SPEC BRIEF"));
-    assert!(!rendered.contains("v read"));
+    assert!(!rendered.contains("v full spec"));
     assert!(rendered.contains("Retry only transient failures"));
     assert!(rendered.contains("QUEST PATH"));
     assert!(rendered.contains("Finish spec"));
@@ -199,6 +199,8 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     assert_eq!(heading_column, quest_column);
 
     press(&mut app, KeyCode::Char('v'))?;
+    assert_eq!(app.screen, Screen::Detail);
+    press(&mut app, KeyCode::Char('r'))?;
     assert_eq!(app.screen, Screen::Reader);
     terminal.draw(|frame| draw::draw(frame, &mut app))?;
     let rendered: String = terminal
@@ -209,8 +211,9 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
         .map(|cell| cell.symbol())
         .collect();
     assert!(rendered.contains("FULL SPEC"));
+    assert!(rendered.contains("← Inbox  /  Payment retries  /  FULL SPEC"));
     assert!(rendered.contains("Retry only transient failures"));
-    press(&mut app, KeyCode::Esc)?;
+    press(&mut app, KeyCode::Char('r'))?;
     assert_eq!(app.screen, Screen::Detail);
     press(&mut app, KeyCode::Esc)?;
     assert_eq!(app.screen, Screen::List);
@@ -230,7 +233,7 @@ fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result
     let mut app = App::new(store)?;
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
     press(&mut app, KeyCode::Enter)?;
-    press(&mut app, KeyCode::Char('v'))?;
+    press(&mut app, KeyCode::Char('r'))?;
     let mut terminal = Terminal::new(TestBackend::new(40, 16))?;
     terminal.draw(|frame| draw::draw(frame, &mut app))?;
     assert!(app.reader_max_scroll > 0);

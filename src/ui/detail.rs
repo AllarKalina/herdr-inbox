@@ -140,7 +140,7 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Re
         Paragraph::new(vec![
             Line::from(spans),
             Line::from(
-                "Tab select · Enter act · v full spec · e edit · d delete · Esc list · q quit",
+                "Tab select · Enter act · r full spec · e edit · d delete · Esc list · q quit",
             )
             .style(Style::default().fg(Color::Gray)),
             Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)),
@@ -163,11 +163,19 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
         ])
         .split(body);
     frame.render_widget(
-        Paragraph::new(format!("← {}  /  FULL SPEC", record.display_title())).style(
-            Style::default()
-                .fg(Color::LightCyan)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Paragraph::new(Line::from(vec![
+            Span::styled("← Inbox  /  ", Style::default().fg(Color::Gray)),
+            Span::styled(
+                record.display_title().to_owned(),
+                Style::default().fg(Color::Gray),
+            ),
+            Span::styled(
+                "  /  FULL SPEC",
+                Style::default()
+                    .fg(Color::LightCyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ])),
         areas[0],
     );
     let paragraph = Paragraph::new(spec_text(record)).wrap(Wrap { trim: false });
@@ -184,7 +192,7 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     app.reader_scroll = app.reader_scroll.min(app.reader_max_scroll);
     frame.render_widget(paragraph.scroll((app.reader_scroll, 0)), areas[1]);
     frame.render_widget(
-        Paragraph::new("j/k scroll · PgUp/PgDn page · g top · e edit · Esc detail · q quit")
+        Paragraph::new("j/k scroll · PgUp/PgDn page · g top · e edit · r/Esc detail · q quit")
             .style(Style::default().fg(Color::Gray)),
         areas[2],
     );

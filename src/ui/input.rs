@@ -62,7 +62,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     }
     if app.screen == Screen::Reader {
         match key.code {
-            KeyCode::Esc | KeyCode::Char('v') => app.screen = Screen::Detail,
+            KeyCode::Esc | KeyCode::Char('r') => app.screen = Screen::Detail,
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('j') | KeyCode::Down => {
                 app.reader_scroll = app
@@ -95,7 +95,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         match key.code {
             KeyCode::Esc => app.screen = Screen::List,
             KeyCode::Char('q') => return Ok(true),
-            KeyCode::Char('v') => {
+            KeyCode::Char('r') => {
                 app.reader_scroll = 0;
                 app.reader_max_scroll = 0;
                 app.screen = Screen::Reader;
