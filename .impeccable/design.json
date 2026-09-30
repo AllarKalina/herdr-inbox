@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T19:04:38.673Z",
+  "title": "Design System: Personal Inbox",
+  "extensions": {
+    "colorMeta": {
+      "mocha-base": {
+        "role": "neutral",
+        "displayName": "Mocha Base",
+        "canonical": "#1e1e2e",
+        "tonalRamp": [
+          "color-mix(in oklch, #1e1e2e 15%, #11111b)",
+          "color-mix(in oklch, #1e1e2e 35%, #11111b)",
+          "color-mix(in oklch, #1e1e2e 55%, #11111b)",
+          "color-mix(in oklch, #1e1e2e 75%, #11111b)",
+          "#1e1e2e",
+          "color-mix(in oklch, #1e1e2e 75%, #f5f5fa)",
+          "color-mix(in oklch, #1e1e2e 50%, #f5f5fa)",
+          "color-mix(in oklch, #1e1e2e 25%, #f5f5fa)"
+        ]
+      },
+      "surface-one": {
+        "role": "neutral",
+        "displayName": "Surface One",
+        "canonical": "#45475a",
+        "tonalRamp": [
+          "color-mix(in oklch, #45475a 15%, #11111b)",
+          "color-mix(in oklch, #45475a 35%, #11111b)",
+          "color-mix(in oklch, #45475a 55%, #11111b)",
+          "color-mix(in oklch, #45475a 75%, #11111b)",
+          "#45475a",
+          "color-mix(in oklch, #45475a 75%, #f5f5fa)",
+          "color-mix(in oklch, #45475a 50%, #f5f5fa)",
+          "color-mix(in oklch, #45475a 25%, #f5f5fa)"
+        ]
+      },
+      "surface-two": {
+        "role": "neutral",
+        "displayName": "Surface Two",
+        "canonical": "#585b70",
+        "tonalRamp": [
+          "color-mix(in oklch, #585b70 15%, #11111b)",
+          "color-mix(in oklch, #585b70 35%, #11111b)",
+          "color-mix(in oklch, #585b70 55%, #11111b)",
+          "color-mix(in oklch, #585b70 75%, #11111b)",
+          "#585b70",
+          "color-mix(in oklch, #585b70 75%, #f5f5fa)",
+          "color-mix(in oklch, #585b70 50%, #f5f5fa)",
+          "color-mix(in oklch, #585b70 25%, #f5f5fa)"
+        ]
+      },
+      "subtext-zero": {
+        "role": "neutral",
+        "displayName": "Subtext Zero",
+        "canonical": "#a6adc8",
+        "tonalRamp": [
+          "color-mix(in oklch, #a6adc8 15%, #11111b)",
+          "color-mix(in oklch, #a6adc8 35%, #11111b)",
+          "color-mix(in oklch, #a6adc8 55%, #11111b)",
+          "color-mix(in oklch, #a6adc8 75%, #11111b)",
+          "#a6adc8",
+          "color-mix(in oklch, #a6adc8 75%, #f5f5fa)",
+          "color-mix(in oklch, #a6adc8 50%, #f5f5fa)",
+          "color-mix(in oklch, #a6adc8 25%, #f5f5fa)"
+        ]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Blue",
+        "canonical": "#89b4fa",
+        "tonalRamp": [
+          "color-mix(in oklch, #89b4fa 15%, #11111b)",
+          "color-mix(in oklch, #89b4fa 35%, #11111b)",
+          "color-mix(in oklch, #89b4fa 55%, #11111b)",
+          "color-mix(in oklch, #89b4fa 75%, #11111b)",
+          "#89b4fa",
+          "color-mix(in oklch, #89b4fa 75%, #f5f5fa)",
+          "color-mix(in oklch, #89b4fa 50%, #f5f5fa)",
+          "color-mix(in oklch, #89b4fa 25%, #f5f5fa)"
+        ]
+      },
+      "teal": {
+        "role": "primary",
+        "displayName": "Teal",
+        "canonical": "#94e2d5",
+        "tonalRamp": [
+          "color-mix(in oklch, #94e2d5 15%, #11111b)",
+          "color-mix(in oklch, #94e2d5 35%, #11111b)",
+          "color-mix(in oklch, #94e2d5 55%, #11111b)",
+          "color-mix(in oklch, #94e2d5 75%, #11111b)",
+          "#94e2d5",
+          "color-mix(in oklch, #94e2d5 75%, #f5f5fa)",
+          "color-mix(in oklch, #94e2d5 50%, #f5f5fa)",
+          "color-mix(in oklch, #94e2d5 25%, #f5f5fa)"
+        ]
+      },
+      "green": {
+        "role": "tertiary",
+        "displayName": "Green",
+        "canonical": "#a6e3a1",
+        "tonalRamp": [
+          "color-mix(in oklch, #a6e3a1 15%, #11111b)",
+          "color-mix(in oklch, #a6e3a1 35%, #11111b)",
+          "color-mix(in oklch, #a6e3a1 55%, #11111b)",
+          "color-mix(in oklch, #a6e3a1 75%, #11111b)",
+          "#a6e3a1",
+          "color-mix(in oklch, #a6e3a1 75%, #f5f5fa)",
+          "color-mix(in oklch, #a6e3a1 50%, #f5f5fa)",
+          "color-mix(in oklch, #a6e3a1 25%, #f5f5fa)"
+        ]
+      },
+      "yellow": {
+        "role": "tertiary",
+        "displayName": "Yellow",
+        "canonical": "#f9e2af",
+        "tonalRamp": [
+          "color-mix(in oklch, #f9e2af 15%, #11111b)",
+          "color-mix(in oklch, #f9e2af 35%, #11111b)",
+          "color-mix(in oklch, #f9e2af 55%, #11111b)",
+          "color-mix(in oklch, #f9e2af 75%, #11111b)",
+          "#f9e2af",
+          "color-mix(in oklch, #f9e2af 75%, #f5f5fa)",
+          "color-mix(in oklch, #f9e2af 50%, #f5f5fa)",
+          "color-mix(in oklch, #f9e2af 25%, #f5f5fa)"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Red",
+        "canonical": "#f38ba8",
+        "tonalRamp": [
+          "color-mix(in oklch, #f38ba8 15%, #11111b)",
+          "color-mix(in oklch, #f38ba8 35%, #11111b)",
+          "color-mix(in oklch, #f38ba8 55%, #11111b)",
+          "color-mix(in oklch, #f38ba8 75%, #11111b)",
+          "#f38ba8",
+          "color-mix(in oklch, #f38ba8 75%, #f5f5fa)",
+          "color-mix(in oklch, #f38ba8 50%, #f5f5fa)",
+          "color-mix(in oklch, #f38ba8 25%, #f5f5fa)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "terminal": {
+        "displayName": "Terminal",
+        "purpose": "One-cell-grid body and data."
+      },
+      "terminal-emphasis": {
+        "displayName": "Terminal Emphasis",
+        "purpose": "Selected states and current breadcrumb."
+      }
+    },
+    "shadows": [],
+    "motion": []
+  },
+  "components": [
+    {
+      "name": "Inbox row",
+      "kind": "custom",
+      "refersTo": "inbox-row-selected",
+      "description": "Flexible title with four fixed status cells; hover and keyboard focus use the selected teal state.",
+      "html": "<div class=\"ds-inbox-row\" tabindex=\"0\"><span>Leaderboard MVP</span><span>✓ done</span><span>→ ready</span><span>○ locked</span><span>○ locked</span></div>",
+      "css": ".ds-inbox-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,8ch);gap:2ch;overflow:hidden;font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#89b4fa;background:transparent}.ds-inbox-row span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ds-inbox-row:hover,.ds-inbox-row:focus-visible{background:#94e2d5;color:#45475a;font-weight:700;outline:none}"
+    },
+    {
+      "name": "Selected next move",
+      "kind": "button",
+      "refersTo": "action-selected",
+      "description": "Current next action uses the same teal and dark text as the selected inbox row.",
+      "html": "<button class=\"ds-action-selected\">▸ Link Jira</button>",
+      "css": ".ds-action-selected{border:0;border-radius:0;background:#94e2d5;color:#45475a;padding:0 1ch;font:700 16px \"JetBrainsMono Nerd Font Mono\",monospace}.ds-action-selected:hover,.ds-action-selected:focus-visible{outline:1px solid #89b4fa;outline-offset:1px}.ds-action-selected:active{background:#a6e3a1}"
+    },
+    {
+      "name": "Current breadcrumb",
+      "kind": "nav",
+      "refersTo": "breadcrumb-current",
+      "description": "Full path remains visible; only the current location takes teal emphasis.",
+      "html": "<nav class=\"ds-breadcrumb\"><span>← Inbox&nbsp; / &nbsp;Leaderboard MVP&nbsp; / &nbsp;</span><strong>FULL SPEC</strong></nav>",
+      "css": ".ds-breadcrumb{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#a6adc8;background:transparent;white-space:nowrap}.ds-breadcrumb strong{font-weight:700;color:#94e2d5}"
+    },
+    {
+      "name": "Progress waterfall",
+      "kind": "custom",
+      "refersTo": "progress-path",
+      "description": "Text-cell branches keep the four dependent milestones in reading order.",
+      "html": "<div class=\"ds-progress\"><div>PROGRESS</div><div>✓ SPEC done</div><div>│</div><div>└─ ✓ JIRA done</div><div>&nbsp;&nbsp; │</div><div>&nbsp;&nbsp; └─ → DEV ready</div><div>&nbsp;&nbsp;&nbsp;&nbsp; │</div><div>&nbsp;&nbsp;&nbsp;&nbsp; └─ ○ PR locked</div></div>",
+      "css": ".ds-progress{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#a6adc8;background:transparent;white-space:pre}.ds-progress div:nth-child(2),.ds-progress div:nth-child(4){color:#a6e3a1}.ds-progress div:nth-child(6){color:#89b4fa}.ds-progress div:nth-child(8){color:#585b70}"
+    },
+    {
+      "name": "Ready status",
+      "kind": "custom",
+      "refersTo": "status-ready",
+      "description": "The arrow and word reinforce the ready color.",
+      "html": "<span class=\"ds-status-ready\">→ ready</span>",
+      "css": ".ds-status-ready{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#89b4fa;background:transparent;white-space:nowrap}"
+    },
+    {
+      "name": "Confirmation panel",
+      "kind": "card",
+      "refersTo": "confirmation-panel",
+      "description": "A border is reserved for the destructive confirmation interruption.",
+      "html": "<div class=\"ds-confirmation\"><strong>Confirm deletion</strong><div>Delete Leaderboard MVP?</div><div>Enter delete · Esc cancel</div></div>",
+      "css": ".ds-confirmation{border:1px solid #89b4fa;border-radius:0;background:transparent;color:#89b4fa;padding:1ch;font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace}.ds-confirmation strong{display:block;font-weight:700}.ds-confirmation:focus-within{border-color:#94e2d5}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quest Ledger",
+    "overview": "The inbox is a compact terminal ledger with just enough quest language to make real progress feel visible. One continuous canvas carries the list, spec, milestones, and next move. A bright selected row or action identifies the current target; the rest stays quiet enough for reading.\n\nThe current personal setup pairs the Rust TUI with Catppuccin Mocha in Ghostty and Herdr. Ratatui emits terminal color roles, not these hex values directly. The frontmatter records how those roles resolve in Allar's current Ghostty profile; another terminal theme may change their appearance. The terminal owns the translucent background and font, while the inbox owns layout, hierarchy, and state styling.",
+    "keyCharacteristics": [
+      "Flat, transparent-feeling canvas with no decorative inset card.",
+      "Monospaced, cell-aligned information with a flexible name column and fixed status columns.",
+      "A mint-teal selection, semantic status colors, and words beside every icon.",
+      "A top-down progress tree and a visible next action, without points or badges."
+    ],
+    "rules": [
+      {
+        "name": "The Host Owns the Canvas Rule",
+        "body": "Never paint an opaque full-screen rectangle merely to recreate Mocha Base. The existing Ghostty profile uses a translucent background; Herdr's panel background is reset.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Pair Rule",
+        "body": "Pair each semantic color with its existing icon and word, such as `✓ done`, `→ ready`, or `○ locked`.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Grid Rule",
+        "body": "Keep labels, values, icons, and tree branches aligned to terminal cells. Do not introduce proportional type inside the TUI.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Ledger Rule",
+        "body": "Use spacing, alignment, text weight, and selection state before adding a border. Reserve a full border for a prompt that interrupts the normal flow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve the host's transparent background and terminal font.",
+      "Do keep selected rows and actions visually consistent.",
+      "Do align status columns even when a spec title is long.",
+      "Do show locked prerequisites and a readable label beside every status icon."
+    ],
+    "donts": [
+      "Don't introduce opaque full-screen fills, nested cards, or decorative shadows.",
+      "Don't imply progress with fake XP, points, or badges.",
+      "Don't hard-code Ghostty's hex values into the Rust UI; use terminal color roles so the TUI remains usable in another terminal."
+    ]
+  }
+}
