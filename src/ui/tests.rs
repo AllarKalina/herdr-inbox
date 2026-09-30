@@ -9,6 +9,7 @@ use uuid::Uuid;
 mod delight;
 mod proximity;
 mod quest;
+mod refinement;
 mod timeline;
 
 #[test]
@@ -384,7 +385,7 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
         vec![
             DetailAction::Finish,
             DetailAction::ReadSpec,
-            DetailAction::EditSpec
+            DetailAction::RefineSpec
         ]
     );
     press(&mut app, KeyCode::Enter)?;

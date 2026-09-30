@@ -36,6 +36,8 @@ pub struct Record {
     pub pr: Link,
     #[serde(default)]
     pub launch: Option<Launch>,
+    #[serde(default)]
+    pub previous_launches: Vec<Launch>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,7 +67,7 @@ impl Record {
 
     pub fn implementation_stage(&self) -> &str {
         match self.implementation.status.as_str() {
-            "waiting" | "ready" if self.jira.status == "created" => "ready",
+            "waiting" | "ready" if self.spec == "done" && self.jira.status == "created" => "ready",
             "waiting" | "ready" => "locked",
             status => status,
         }
@@ -74,7 +76,9 @@ impl Record {
     pub fn pr_stage(&self) -> &str {
         match self.pr.status.as_str() {
             "waiting" | "ready"
-                if self.jira.status == "created" && self.implementation.status == "in_progress" =>
+                if self.spec == "done"
+                    && self.jira.status == "created"
+                    && self.implementation.status == "in_progress" =>
             {
                 "ready"
             }
@@ -225,6 +229,7 @@ impl Store {
                     url: None,
                 },
                 launch: None,
+                previous_launches: Vec::new(),
             };
             self.write(&record)?;
             Ok(record)
@@ -279,8 +284,9 @@ impl Store {
                         return Err("Spec file is missing".into());
                     }
                     record.spec = "done".into();
-                    record.jira.status = "ready".into();
-                    record.implementation.status = "waiting".into();
+                    if record.jira.status == "waiting" {
+                        record.jira.status = "ready".into();
+                    }
                 }
                 Change::Jira { key, url } => {
                     if record.spec != "done" {
@@ -335,6 +341,13 @@ impl Store {
                     record.title = title.trim().to_owned();
                 }
                 Change::Launch(launch) => record.launch = Some(*launch),
+                Change::BeginRefinement(launch) => {
+                    if let Some(previous) = record.launch.take() {
+                        record.previous_launches.push(previous);
+                    }
+                    record.launch = Some(*launch);
+                }
+                Change::RefineSpec => record.spec = "in_progress".into(),
             }
             record.updated_at = timestamp();
             self.write(&record)?;
@@ -393,6 +406,8 @@ pub enum Change {
         title: String,
     },
     Launch(Box<Launch>),
+    BeginRefinement(Box<Launch>),
+    RefineSpec,
     Jira {
         key: String,
         url: Option<String>,

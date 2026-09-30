@@ -54,12 +54,39 @@ fn help() {
         "  launch [--profile opus|codex] [--workspace LABEL] [--repo PATH] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]"
     );
     println!("  profiles");
+    println!("  refine ID [same options as launch]");
     println!("  finish ID [--title TITLE] | title ID TITLE");
     println!("  delete ID --confirm ID");
     println!("  jira ID KEY [--url URL]");
     println!("  implement ID [--agent NAME] [--branch BRANCH]");
     println!("  pr ID URL");
     println!("  list [--json] | show ID [--json] | path | tui | open");
+}
+
+fn launch_options(args: &mut Vec<String>) -> Result<launch::Options> {
+    let profile = flag(args, "--profile")?
+        .map(|value| launch::Profile::parse(&value))
+        .transpose()?
+        .unwrap_or(launch::Profile::Opus);
+    let mut options = launch::Options::for_profile(profile);
+    if let Some(value) = flag(args, "--workspace")? {
+        options.workspace = value;
+    }
+    options.repo = flag(args, "--repo")?.map(PathBuf::from);
+    if let Some(value) = flag(args, "--model")? {
+        options.model = value;
+    }
+    if let Some(value) = flag(args, "--effort")? {
+        options.effort = value;
+    }
+    if let Some(value) = flag(args, "--topic")? {
+        options.topic = value;
+    }
+    if let Some(index) = args.iter().position(|arg| arg == "--ask-permissions") {
+        args.remove(index);
+        options.bypass_permissions = false;
+    }
+    Ok(options)
 }
 
 fn run() -> Result<()> {
@@ -94,30 +121,14 @@ fn run() -> Result<()> {
             print_record(&store.start(&args[0], repo, spec)?);
         }
         "launch" => {
-            let profile = flag(&mut args, "--profile")?
-                .map(|value| launch::Profile::parse(&value))
-                .transpose()?
-                .unwrap_or(launch::Profile::Opus);
-            let mut options = launch::Options::for_profile(profile);
-            if let Some(value) = flag(&mut args, "--workspace")? {
-                options.workspace = value;
-            }
-            options.repo = flag(&mut args, "--repo")?.map(PathBuf::from);
-            if let Some(value) = flag(&mut args, "--model")? {
-                options.model = value;
-            }
-            if let Some(value) = flag(&mut args, "--effort")? {
-                options.effort = value;
-            }
-            if let Some(value) = flag(&mut args, "--topic")? {
-                options.topic = value;
-            }
-            if let Some(index) = args.iter().position(|arg| arg == "--ask-permissions") {
-                args.remove(index);
-                options.bypass_permissions = false;
-            }
+            let options = launch_options(&mut args)?;
             positional(&args, 0)?;
             print_record(&launch::start(&store, options)?);
+        }
+        "refine" => {
+            let options = launch_options(&mut args)?;
+            positional(&args, 1)?;
+            print_record(&launch::refine(&store, &args[0], options)?);
         }
         "finish" => {
             let title = flag(&mut args, "--title")?;

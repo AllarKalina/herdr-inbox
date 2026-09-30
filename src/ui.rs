@@ -93,6 +93,7 @@ struct App {
     input: String,
     choices: Vec<Profile>,
     choice_selected: Option<usize>,
+    choice_purpose: ChoicePurpose,
     message: String,
     should_exit: bool,
 }
@@ -104,6 +105,12 @@ enum Screen {
     Reader,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum ChoicePurpose {
+    NewSpec,
+    Refine { id: String },
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DetailAction {
     Finish,
@@ -112,7 +119,7 @@ enum DetailAction {
     Pr,
     ReviewPr,
     ReadSpec,
-    EditSpec,
+    RefineSpec,
     OpenJira,
     UpdateJira,
     UpdateImplementation,
@@ -128,7 +135,7 @@ impl DetailAction {
             Self::Pr => "Bind draft PR",
             Self::ReviewPr => "Review draft PR",
             Self::ReadSpec => "Read the scroll",
-            Self::EditSpec => "Refine the spec",
+            Self::RefineSpec => "Refine the spec",
             Self::OpenJira => "Visit Jira ticket",
             Self::UpdateJira => "Update Jira link",
             Self::UpdateImplementation => "Update dev quest",
@@ -164,6 +171,7 @@ impl App {
             input: String::new(),
             choices: Vec::new(),
             choice_selected: None,
+            choice_purpose: ChoicePurpose::NewSpec,
             message: String::new(),
             should_exit: false,
         })
@@ -229,6 +237,21 @@ impl App {
     fn begin(&mut self, prompt: Prompt) {
         self.prompt = Some(prompt);
         self.input.clear();
+    }
+
+    fn choose_client(&mut self, purpose: ChoicePurpose, choices: Vec<Profile>) {
+        self.choice_purpose = purpose;
+        self.choices = choices;
+        self.choice_selected = if self.choices.is_empty() {
+            None
+        } else {
+            Some(0)
+        };
+        self.message = if self.choices.is_empty() {
+            "No supported client found (install codex or claude)".into()
+        } else {
+            String::new()
+        };
     }
 
     fn submit(&mut self) -> Result<()> {

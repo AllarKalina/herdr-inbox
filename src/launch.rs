@@ -1,6 +1,11 @@
 use crate::store::{Change, Launch, Record, Result, Store, absolute};
 use serde_json::Value;
 use std::env;
+use std::fs;
+use uuid::Uuid;
+
+mod prompts;
+mod session;
 use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
@@ -127,7 +132,12 @@ impl Herdr {
         let output = Command::new(&self.binary).args(args).output()?;
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Herdr {} failed: {}", args.join(" "), error.trim()).into());
+            let operation = if args.starts_with(&["agent", "prompt"]) {
+                "agent prompt".into()
+            } else {
+                args.join(" ")
+            };
+            return Err(format!("Herdr {operation} failed: {}", error.trim()).into());
         }
         Ok(serde_json::from_slice(&output.stdout)?)
     }
@@ -196,22 +206,6 @@ fn required_string<'a>(value: &'a Value, path: &[&str]) -> Result<&'a str> {
         .ok_or_else(|| format!("Herdr response missing {}", path.join(".")).into())
 }
 
-fn prompt(record: &Record, topic: &str, profile: Profile) -> Result<String> {
-    let executable = env::current_exe()?;
-    let lead = if topic.trim().is_empty() {
-        profile.skill().to_string()
-    } else {
-        format!("{} {}", profile.skill(), topic.trim())
-    };
-    Ok(format!(
-        "{lead}\n\nThis session is inbox item {}. The title is intentionally unset until the spec is complete. Write the final Markdown spec to {}. When finished, choose a concise title and run: {} finish {} --title \"<title>\". Do not mark the spec done before the file is complete.",
-        record.id,
-        record.spec_path.display(),
-        executable.display(),
-        record.id,
-    ))
-}
-
 fn mark(store: &Store, record: &Record, launch: &Launch) -> Result<Record> {
     store.update(&record.id, Change::Launch(Box::new(launch.clone())))
 }
@@ -240,88 +234,120 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
     let mut launch = Launch {
         status: "starting".into(),
         harness: options.profile.id().into(),
-        workspace: options.workspace,
+        workspace: options.workspace.clone(),
         workspace_id: Some(workspace_id.clone()),
         tab_id: None,
         pane_id: None,
         agent: None,
-        model: options.model,
-        effort: options.effort,
+        model: options.model.clone(),
+        effort: options.effort.clone(),
         prompt: String::new(),
         error: None,
     };
-    launch.prompt = prompt(&record, &options.topic, options.profile)?;
+    launch.prompt = prompts::initial(&record, &options.topic, options.profile, store.path())?;
     mark(store, &record, &launch)?;
-    let result = (|| -> Result<()> {
-        let label = format!("Spec · {}", &record.id[..8]);
-        let mut args = vec![
-            "tab",
-            "create",
-            "--workspace",
-            &workspace_id,
-            "--label",
-            &label,
-            "--focus",
-        ];
-        let repo_string = options
-            .repo
-            .as_ref()
-            .map(|path| path.to_string_lossy().to_string());
-        if let Some(repo) = &repo_string {
-            args.extend(["--cwd", repo]);
-        }
-        let tab = herdr.call(&args)?;
-        launch.tab_id = Some(required_string(&tab, &["result", "tab", "tab_id"])?.into());
-        launch.pane_id = Some(required_string(&tab, &["result", "root_pane", "pane_id"])?.into());
-        launch.status = "tab_opened".into();
-        mark(store, &record, &launch)?;
+    complete(
+        store,
+        &herdr,
+        &record,
+        &mut launch,
+        &options,
+        session::Target {
+            label: format!("Spec · {}", &record.id[..8]),
+            agent: format!("spec_{}", &record.id[..8]),
+            refinement: false,
+        },
+    )
+}
 
-        let agent = format!("spec_{}", &record.id[..8]);
-        let pane = launch.pane_id.as_deref().ok_or("Missing pane ID")?;
-        let mut args = vec![
-            "agent",
-            "start",
-            &agent,
-            "--kind",
-            options.profile.kind(),
-            "--pane",
-            pane,
-            "--",
-        ];
-        let effort_config = format!("model_reasoning_effort=\"{}\"", launch.effort);
-        let data_dir = store.path().to_string_lossy().to_string();
-        match options.profile {
-            Profile::Opus => {
-                args.extend(["--model", &launch.model, "--effort", &launch.effort]);
-                if options.bypass_permissions {
-                    args.extend(["--permission-mode", "bypassPermissions"]);
-                }
-            }
-            Profile::Codex => args.extend([
-                "-m",
-                &launch.model,
-                "-c",
-                &effort_config,
-                "-s",
-                "workspace-write",
-                "--add-dir",
-                &data_dir,
-            ]),
-        }
-        herdr.start_agent(&args)?;
-        launch.agent = Some(agent.clone());
-        launch.status = "agent_started".into();
-        mark(store, &record, &launch)?;
-        herdr.call(&["agent", "prompt", &agent, &launch.prompt])?;
-        launch.status = "prompt_sent".into();
-        mark(store, &record, &launch)?;
-        herdr.call(&["workspace", "focus", &workspace_id])?;
-        Ok(())
-    })();
-    if let Err(error) = result {
+pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
+    let record = store.get(id)?;
+    preflight_spec(&record)?;
+    options.repo = options
+        .repo
+        .or_else(|| record.repo.clone())
+        .map(absolute)
+        .transpose()?;
+    if let Some(repo) = &options.repo
+        && !repo.is_dir()
+    {
+        return Err(format!("Repo directory does not exist: {}", repo.display()).into());
+    }
+    if options.model.trim().is_empty() || options.effort.trim().is_empty() {
+        return Err("Model and effort cannot be empty".into());
+    }
+    if !options.profile.available() {
+        return Err(format!(
+            "{} is not installed or not on Herdr's PATH",
+            options.profile.executable()
+        )
+        .into());
+    }
+    let herdr = Herdr::new()?;
+    let workspace_id = herdr.workspace(&options.workspace)?;
+    let mut launch = Launch {
+        status: "starting".into(),
+        harness: options.profile.id().into(),
+        workspace: options.workspace.clone(),
+        workspace_id: Some(workspace_id),
+        tab_id: None,
+        pane_id: None,
+        agent: None,
+        model: options.model.clone(),
+        effort: options.effort.clone(),
+        prompt: prompts::refinement(
+            &record,
+            &options.topic,
+            options.profile,
+            store.path(),
+            options.repo.as_deref(),
+        )?,
+        error: None,
+    };
+    let session_id = Uuid::new_v4().simple().to_string();
+    store.update(id, Change::BeginRefinement(Box::new(launch.clone())))?;
+    complete(
+        store,
+        &herdr,
+        &record,
+        &mut launch,
+        &options,
+        session::Target {
+            label: format!("Refine · {} · {}", record.display_title(), &session_id[..8]),
+            agent: format!("refine_{}", &session_id[..24]),
+            refinement: true,
+        },
+    )
+}
+
+fn preflight_spec(record: &Record) -> Result<()> {
+    if !record.spec_path.is_file() {
+        return Err(format!("Spec file is missing: {}", record.spec_path.display()).into());
+    }
+    let text = fs::read_to_string(&record.spec_path).map_err(|error| {
+        format!(
+            "Cannot read spec file {}: {error}",
+            record.spec_path.display()
+        )
+    })?;
+    if text.trim().is_empty() {
+        return Err(format!("Spec file is empty: {}", record.spec_path.display()).into());
+    }
+    Ok(())
+}
+
+fn complete(
+    store: &Store,
+    herdr: &Herdr,
+    record: &Record,
+    launch: &mut Launch,
+    options: &Options,
+    target: session::Target,
+) -> Result<Record> {
+    if let Err(error) = session::run(store, herdr, record, launch, options, &target) {
         launch.status = "failed".into();
         launch.error = Some(error.to_string());
-        mark(store, &record, &launch)?;
+        mark(store, record, launch)?;
         return Err(error);
     }
     store.get(&record.id)
@@ -354,6 +380,26 @@ mod tests {
         ]}});
         assert_eq!(workspace_id(&response, "AI herd")?, "w2");
         assert!(workspace_id(&response, "ai herd").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn refinement_missing_or_blank_spec_leaves_record_unchanged() -> Result<()> {
+        let root = env::temp_dir().join(format!("herdr-refine-preflight-{}", Uuid::new_v4()));
+        let store = Store::new(root.clone());
+        let record = store.start("Existing", None, None)?;
+        store.update(&record.id, Change::Finish { title: None })?;
+        let item = root.join("items").join(format!("{}.json", record.id));
+        let before = fs::read(&item)?;
+        fs::remove_file(&record.spec_path)?;
+        let error = refine(&store, &record.id, Options::default()).unwrap_err();
+        assert!(error.to_string().contains("Spec file is missing"));
+        assert_eq!(fs::read(&item)?, before);
+        fs::write(&record.spec_path, " \n\t")?;
+        let error = refine(&store, &record.id, Options::default()).unwrap_err();
+        assert!(error.to_string().contains("Spec file is empty"));
+        assert_eq!(fs::read(&item)?, before);
+        fs::remove_dir_all(root)?;
         Ok(())
     }
 }

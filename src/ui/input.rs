@@ -1,4 +1,4 @@
-use super::{App, DetailAction, Milestone, Prompt, Screen};
+use super::{App, ChoicePurpose, DetailAction, Milestone, Prompt, Screen};
 use crate::launch;
 use crate::store::{Change, Result};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
@@ -24,12 +24,21 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
             KeyCode::Enter => {
                 let profile = app.choices[selected];
-                app.choice_selected = None;
-                app.begin(Prompt::LaunchWorkspace { profile });
+                match app.choice_purpose.clone() {
+                    ChoicePurpose::NewSpec => {
+                        app.choice_selected = None;
+                        app.begin(Prompt::LaunchWorkspace { profile });
+                    }
+                    ChoicePurpose::Refine { id } => {
+                        launch::refine(&app.store, &id, launch::Options::for_profile(profile))?;
+                        app.choice_selected = None;
+                        app.should_exit = true;
+                    }
+                }
             }
             _ => {}
         }
-        return Ok(false);
+        return Ok(app.should_exit);
     }
     if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
         match key.code {
@@ -154,12 +163,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         }
         KeyCode::Char('k') | KeyCode::Up => app.selected = app.selected.saturating_sub(1),
         KeyCode::Char('n') => {
-            app.choices = launch::available_profiles();
-            if app.choices.is_empty() {
-                app.message = "No supported client found (install codex or claude)".into();
-            } else {
-                app.choice_selected = Some(0);
-            }
+            app.choose_client(ChoicePurpose::NewSpec, launch::available_profiles());
         }
         KeyCode::Char('d') => {
             if let Some(record) = app.current() {
@@ -194,7 +198,9 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
             app.reader_max_scroll = 0;
             app.screen = Screen::Reader;
         }
-        DetailAction::EditSpec => open_editor(&record.spec_path)?,
+        DetailAction::RefineSpec => {
+            app.choose_client(ChoicePurpose::Refine { id }, launch::available_profiles());
+        }
         DetailAction::OpenJira => {
             if let Some(url) = record.jira.url.as_deref() {
                 open_url(url)?;

@@ -51,7 +51,7 @@ impl Milestone {
                 if record.spec == "in_progress" {
                     actions.push(DetailAction::Finish);
                 }
-                actions.extend([DetailAction::ReadSpec, DetailAction::EditSpec]);
+                actions.extend([DetailAction::ReadSpec, DetailAction::RefineSpec]);
                 actions
             }
             Self::Jira if record.jira.status == "created" => {
