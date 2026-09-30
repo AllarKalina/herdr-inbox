@@ -18,17 +18,21 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
 }
 
 fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
-    let body = frame.area().inner(Margin {
+    let mut body = frame.area().inner(Margin {
         horizontal: 2,
         vertical: 1,
     });
+    // Reclaim the bottom inset on short terminals to keep the progress controls visible.
+    if body.height < 20 {
+        body.height = body.height.saturating_add(1);
+    }
     let compact = body.width < 78;
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(if body.height < 24 { 1 } else { 2 }),
             Constraint::Min(8),
-            Constraint::Length(if body.height < 20 { 1 } else { 2 }),
+            Constraint::Length(if body.height < 20 { 2 } else { 3 }),
         ])
         .split(body);
     let title = Line::from(vec![
@@ -68,12 +72,8 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     }
     frame.render_widget(
         Paragraph::new(vec![
-            Line::from(if body.width < 52 {
-                "j/k stage · Tab · Enter · Esc back"
-            } else {
-                "j/k stage · Tab action · Enter act · r read · Esc back"
-            })
-            .style(Style::default().fg(Color::Gray)),
+            Line::default(),
+            Line::from("j/k stage · Tab action · r read").style(Style::default().fg(Color::Gray)),
             Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)),
         ]),
         areas[2],

@@ -74,7 +74,7 @@ fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
     assert!(
         lines
             .iter()
-            .any(|line| line.contains("j/k stage · Tab action · Enter act"))
+            .any(|line| line.contains("j/k stage · Tab action · r read"))
     );
     let button = app.action_hitboxes[0];
     assert!(button.x + button.width <= 60);
