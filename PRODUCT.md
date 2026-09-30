@@ -10,7 +10,7 @@ Allar uses this local Herdr popup to track a spec from a grilling session throug
 
 ## Product Purpose
 
-Keep the spec and its next concrete actions in one place. The list answers what needs attention; opening an item reveals the brief, stage details, links, and available actions.
+Keep the spec and its next concrete actions in one place. The list answers what needs attention; opening an item reveals the brief, quest path, and available actions.
 
 ## Brand Personality
 

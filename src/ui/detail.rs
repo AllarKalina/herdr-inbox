@@ -23,7 +23,7 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &App, record: &Record) {
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),
+            Constraint::Length(2),
             Constraint::Min(8),
             Constraint::Length(7),
             Constraint::Length(4),
@@ -38,37 +38,8 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &App, record: &Record) {
                 .add_modifier(Modifier::BOLD),
         ),
     ]);
-    frame.render_widget(
-        Paragraph::new(vec![
-            title,
-            Line::from(format!(
-                "{}  ·  {}",
-                status_label(&record.spec),
-                record
-                    .repo
-                    .as_ref()
-                    .map_or("Local spec".into(), |path| path.display().to_string())
-            ))
-            .style(Style::default().fg(Color::Gray)),
-        ]),
-        areas[0],
-    );
-
-    if areas[1].width >= 84 {
-        let columns = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(62), Constraint::Percentage(38)])
-            .split(areas[1]);
-        draw_spec(frame, record, columns[0]);
-        draw_facts(frame, record, columns[1]);
-    } else {
-        let rows = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-            .split(areas[1]);
-        draw_spec(frame, record, rows[0]);
-        draw_facts(frame, record, rows[1]);
-    }
+    frame.render_widget(Paragraph::new(title), areas[0]);
+    draw_spec(frame, record, areas[1]);
     draw_quest(frame, record, areas[2]);
     draw_actions(frame, app, record, areas[3]);
 }
@@ -84,68 +55,10 @@ fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
         Paragraph::new(preview)
             .block(Block::default().title(" SPEC BRIEF  ·  v read  ·  e edit "))
             .wrap(Wrap { trim: false }),
-        area.inner(Margin {
+        Rect::new(area.x, area.y, area.width.min(86), area.height).inner(Margin {
             horizontal: 1,
             vertical: 0,
         }),
-    );
-}
-
-fn draw_facts(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
-    let launch = record.launch.as_ref();
-    let facts = [
-        format!("Spec     {}", status_label(&record.spec)),
-        format!(
-            "Jira     {}  {}",
-            status_label(&record.jira.status),
-            record.jira.key.as_deref().unwrap_or("")
-        ),
-        format!("         {}", record.jira.url.as_deref().unwrap_or("")),
-        format!(
-            "Dev      {}  {}",
-            status_label(&record.implementation.status),
-            record.implementation.agent.as_deref().unwrap_or("")
-        ),
-        format!(
-            "Branch   {}",
-            record.implementation.branch.as_deref().unwrap_or("—")
-        ),
-        format!("PR       {}", status_label(&record.pr.status)),
-        format!("         {}", record.pr.url.as_deref().unwrap_or("")),
-        format!(
-            "Repo     {}",
-            record
-                .repo
-                .as_ref()
-                .map_or("—".into(), |path| path.display().to_string())
-        ),
-        format!(
-            "Client   {} {}",
-            launch.map_or("—", |item| item.harness.as_str()),
-            launch.map_or("", |item| item.model.as_str())
-        ),
-        format!(
-            "Session  {}",
-            launch.map_or("—", |item| item.status.as_str())
-        ),
-        format!(
-            "Space    {}",
-            launch.map_or("—", |item| item.workspace.as_str())
-        ),
-        launch
-            .and_then(|item| item.error.as_deref())
-            .map_or(String::new(), |error| format!("Error    {error}")),
-    ];
-    let lines = facts
-        .into_iter()
-        .filter(|line| !line.trim().is_empty())
-        .collect::<Vec<_>>()
-        .join("\n");
-    frame.render_widget(
-        Paragraph::new(lines)
-            .block(Block::default().title(" STAGE & LINKS "))
-            .wrap(Wrap { trim: false }),
-        area,
     );
 }
 

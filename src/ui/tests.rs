@@ -175,6 +175,8 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     assert!(rendered.contains("Retry only transient failures"));
     assert!(rendered.contains("QUEST PATH"));
     assert!(rendered.contains("Finish spec"));
+    assert!(!rendered.contains("STAGE & LINKS"));
+    assert!(!rendered.contains("Local spec"));
 
     press(&mut app, KeyCode::Char('v'))?;
     assert_eq!(app.screen, Screen::Reader);
