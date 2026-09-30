@@ -53,12 +53,9 @@ fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
         .join("\n");
     frame.render_widget(
         Paragraph::new(preview)
-            .block(Block::default().title(" SPEC BRIEF  ·  v read  ·  e edit "))
+            .block(Block::default().title("SPEC"))
             .wrap(Wrap { trim: false }),
-        Rect::new(area.x, area.y, area.width.min(86), area.height).inner(Margin {
-            horizontal: 1,
-            vertical: 0,
-        }),
+        Rect::new(area.x, area.y, area.width.min(86), area.height),
     );
 }
 

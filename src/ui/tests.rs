@@ -171,12 +171,32 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
         .iter()
         .map(|cell| cell.symbol())
         .collect();
-    assert!(rendered.contains("SPEC BRIEF"));
+    assert!(rendered.contains("SPEC"));
+    assert!(!rendered.contains("SPEC BRIEF"));
+    assert!(!rendered.contains("v read"));
     assert!(rendered.contains("Retry only transient failures"));
     assert!(rendered.contains("QUEST PATH"));
     assert!(rendered.contains("Finish spec"));
     assert!(!rendered.contains("STAGE & LINKS"));
     assert!(!rendered.contains("Local spec"));
+    let lines: Vec<String> = terminal
+        .backend()
+        .buffer()
+        .content()
+        .chunks(100)
+        .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
+        .collect();
+    let heading_column = lines.iter().find_map(|line| line.find("SPEC")).unwrap();
+    let content_column = lines
+        .iter()
+        .find_map(|line| line.find("# Payment retries"))
+        .unwrap();
+    let quest_column = lines
+        .iter()
+        .find_map(|line| line.find("QUEST PATH"))
+        .unwrap();
+    assert_eq!(heading_column, content_column);
+    assert_eq!(heading_column, quest_column);
 
     press(&mut app, KeyCode::Char('v'))?;
     assert_eq!(app.screen, Screen::Reader);
