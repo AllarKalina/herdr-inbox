@@ -1,6 +1,6 @@
 id = "personal.inbox"
 name = "Personal Inbox"
-version = "0.7.0"
+version = "0.7.1"
 min_herdr_version = "0.9.1"
 description = "Local spec-to-PR workflow inbox"
 platforms = ["macos"]

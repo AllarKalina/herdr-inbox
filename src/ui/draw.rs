@@ -34,7 +34,6 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             ])
         })
         .collect();
-    let item_count = app.records.len();
     let list = Table::new(
         rows,
         [
@@ -47,7 +46,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     )
     .header(
         Row::new([
-            Cell::from(format!("Name ({item_count})")),
+            Cell::from(""),
             Cell::from("Spec"),
             Cell::from("Jira"),
             Cell::from("Dev"),

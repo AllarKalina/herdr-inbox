@@ -60,7 +60,7 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
             .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
             .collect();
         assert!(lines[0].trim().is_empty());
-        assert!(lines[1].starts_with(" Name (2)"));
+        assert!(!lines[1].contains("Name"));
         assert!(lines[1].contains("Spec") && lines[1].contains("Jira"));
         let rows: Vec<&String> = lines
             .iter()
