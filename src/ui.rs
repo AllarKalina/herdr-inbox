@@ -19,10 +19,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 enum Prompt {
-    ManualTitle,
-    ManualRepo {
-        title: String,
-    },
     LaunchWorkspace {
         profile: Profile,
     },
@@ -36,9 +32,6 @@ enum Prompt {
         repo: Option<PathBuf>,
     },
     FinishTitle {
-        id: String,
-    },
-    Rename {
         id: String,
     },
     Jira {
@@ -66,13 +59,10 @@ enum Prompt {
 impl Prompt {
     fn label(&self) -> &'static str {
         match self {
-            Self::ManualTitle => "New local spec title",
-            Self::ManualRepo { .. } => "Repo path (blank for none)",
             Self::LaunchWorkspace { .. } => "Workspace [ai-boiler-room]",
             Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
             Self::LaunchTopic { .. } => "Grilling topic (optional)",
             Self::FinishTitle { .. } => "Finished spec title",
-            Self::Rename { .. } => "Spec title",
             Self::Jira { .. } => "Jira key",
             Self::JiraUrl { .. } => "Jira URL (optional)",
             Self::Agent { .. } => "Agent name (optional)",
@@ -204,18 +194,6 @@ impl App {
         };
         let value = std::mem::take(&mut self.input).trim().to_string();
         match prompt {
-            Prompt::ManualTitle if !value.is_empty() => {
-                self.begin(Prompt::ManualRepo { title: value })
-            }
-            Prompt::ManualRepo { title } => {
-                let repo = if value.is_empty() {
-                    None
-                } else {
-                    Some(PathBuf::from(value))
-                };
-                let record = self.store.start(&title, repo, None)?;
-                self.message = format!("Started {}", record.id);
-            }
             Prompt::LaunchWorkspace { profile } => self.begin(Prompt::LaunchRepo {
                 profile,
                 workspace: if value.is_empty() {
@@ -250,11 +228,6 @@ impl App {
                     .update(&id, Change::Finish { title: Some(value) })?;
                 let _ = launch::rename_tab(&record);
                 self.message = "Spec done; Jira and handoff ready".into();
-            }
-            Prompt::Rename { id } if !value.is_empty() => {
-                let record = self.store.update(&id, Change::Title { title: value })?;
-                let _ = launch::rename_tab(&record);
-                self.message = "Spec renamed".into();
             }
             Prompt::Jira { id } if !value.is_empty() => {
                 self.begin(Prompt::JiraUrl { id, key: value });

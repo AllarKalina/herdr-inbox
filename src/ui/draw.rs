@@ -82,7 +82,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             list_area.height.saturating_sub(2),
         );
         frame.render_widget(
-            Paragraph::new("No specs yet. Press n to start a session, or a to add a local item.")
+            Paragraph::new("No specs yet. Press n to start a spec session.")
                 .style(Style::default().fg(Color::Gray)),
             hint,
         );
@@ -148,7 +148,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     );
 }
 
-const COMMANDS: &str = "Enter open · n new · a local · e edit · f finish · t title · J Jira · i dev · p PR · d delete · q quit";
+const COMMANDS: &str = "Enter open · n new · d delete";
 
 pub(super) fn footer_text(app: &App) -> String {
     if app.choice_selected.is_some() {

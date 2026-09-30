@@ -27,12 +27,32 @@ fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
     assert!(app.store.list()?.is_empty());
     let footer = draw::footer_text(&app);
     assert!(footer.starts_with("Item moved to local Trash\n"));
-    assert!(footer.contains("d delete · q quit"));
+    assert!(footer.contains("Enter open · n new · d delete"));
     assert!(
         root.join("trash/items")
             .join(format!("{}.json", record.id))
             .is_file()
     );
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-list-keys-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    let record = store.start("Keep in progress", None, None)?;
+    let mut app = App::new(store)?;
+
+    for key in ['a', 'f', 't', 'J', 'i', 'p', 'q'] {
+        assert!(!handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char(key), KeyModifiers::NONE)
+        )?);
+        assert!(app.prompt.is_none());
+    }
+    assert_eq!(app.store.get(&record.id)?.spec, "in_progress");
+    assert_eq!(draw::footer_text(&app), "Enter open · n new · d delete");
     fs::remove_dir_all(root)?;
     Ok(())
 }

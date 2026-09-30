@@ -118,7 +118,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         return Ok(false);
     }
     match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => return Ok(true),
+        KeyCode::Esc => return Ok(true),
         KeyCode::Enter if app.current().is_some() => {
             app.screen = Screen::Detail;
             app.action_selected = 0;
@@ -133,55 +133,6 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.message = "No supported client found (install codex or claude)".into();
             } else {
                 app.choice_selected = Some(0);
-            }
-        }
-        KeyCode::Char('a') => app.begin(Prompt::ManualTitle),
-        KeyCode::Char('f') => {
-            if let Some(record) = app.current() {
-                if record.title.is_empty() {
-                    app.begin(Prompt::FinishTitle {
-                        id: record.id.clone(),
-                    });
-                } else {
-                    let updated = app
-                        .store
-                        .update(&record.id, Change::Finish { title: None })?;
-                    let _ = launch::rename_tab(&updated);
-                    app.message = "Spec done; Jira and handoff ready".into();
-                }
-            }
-        }
-        KeyCode::Char('t') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Rename {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('J') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Jira {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('i') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Agent {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('p') => {
-            if let Some(record) = app.current() {
-                app.begin(Prompt::Pr {
-                    id: record.id.clone(),
-                });
-            }
-        }
-        KeyCode::Char('e') => {
-            if let Some(record) = app.current() {
-                open_editor(&record.spec_path)?;
             }
         }
         KeyCode::Char('d') => {
