@@ -91,25 +91,65 @@ fn assert_continuous_spine(app: &App, terminal: &Terminal<TestBackend>) {
     }
 }
 
+fn coordinates(app: &App) -> Vec<(Milestone, ratatui::layout::Rect)> {
+    app.milestone_hitboxes.clone()
+}
+
+fn actions_origin(app: &App) -> (u16, u16) {
+    let first = node(app, Milestone::Spec);
+    let owner = node(app, app.milestone_selected);
+    if roomy(app) {
+        (owner.x + 9, owner.y + 2)
+    } else {
+        (first.x + 18, first.y + 4)
+    }
+}
+
+fn roomy(app: &App) -> bool {
+    node(app, Milestone::Spec).width > 16
+}
+
+fn panel_text(terminal: &Terminal<TestBackend>, x: u16, y: u16, height: u16) -> String {
+    let buffer = terminal.backend().buffer();
+    (y..y + height)
+        .map(|line| {
+            (x..buffer.area.width - 2)
+                .map(|column| buffer[(column, line)].symbol())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[test]
-fn actions_expand_beside_only_their_selected_milestone_at_every_size() -> Result<()> {
+fn selecting_milestones_keeps_nodes_fixed_and_actions_nearby() -> Result<()> {
     for (width, height) in [(40, 18), (60, 24), (100, 35)] {
         for stage in [0, 1, 2, 3, 4] {
             let mut fixture = Fixture::new(stage)?;
+            render(&mut fixture.app, width, height)?;
+            let fixed = coordinates(&fixture.app);
             for (index, milestone) in Milestone::ALL.into_iter().enumerate() {
                 fixture.app.select_milestone(milestone);
                 let terminal = render(&mut fixture.app, width, height)?;
                 assert_continuous_spine(&fixture.app, &terminal);
+                assert_eq!(coordinates(&fixture.app), fixed);
                 let owner = node(&fixture.app, milestone);
                 let actions = fixture.app.actions();
                 assert_eq!(fixture.app.action_hitboxes.len(), actions.len());
-                for (offset, (area, action)) in
-                    fixture.app.action_hitboxes.iter().zip(&actions).enumerate()
-                {
-                    assert_eq!(area.x, owner.x + 9);
-                    assert_eq!(area.y, owner.y + 2 + offset as u16);
-                    assert!(row(&terminal, area.y).contains(action.label()));
-                    if let Some(next) = Milestone::ALL.get(index + 1) {
+                let (x, mut y) = actions_origin(&fixture.app);
+                for (area, action) in fixture.app.action_hitboxes.iter().zip(&actions) {
+                    assert_eq!(area.x, x);
+                    assert_eq!(area.y, y);
+                    assert!(
+                        panel_text(&terminal, area.x, area.y, area.height).contains(action.label())
+                    );
+                    y += if roomy(&fixture.app) { 1 } else { 2 };
+                    if roomy(&fixture.app)
+                        && let Some(next) = Milestone::ALL.get(index + 1)
+                    {
                         assert!(area.bottom() <= node(&fixture.app, *next).y);
                     }
                 }
@@ -132,12 +172,15 @@ fn inline_mouse_buttons_execute_the_selected_milestones_action() -> Result<()> {
         let index = usize::from(matches!(milestone, Milestone::Jira | Milestone::Pr));
         render(&mut fixture.app, 40, 18)?;
         let area = fixture.app.action_hitboxes[index];
+        if milestone == Milestone::Dev {
+            assert_eq!(area.height, 2, "implementation action wraps at 40 columns");
+        }
         handle_mouse(
             &mut fixture.app,
             MouseEvent {
                 kind: MouseEventKind::Moved,
                 column: area.x + 1,
-                row: area.y,
+                row: area.bottom() - 1,
                 modifiers: KeyModifiers::NONE,
             },
             18,
@@ -150,7 +193,7 @@ fn inline_mouse_buttons_execute_the_selected_milestones_action() -> Result<()> {
             MouseEvent {
                 kind: MouseEventKind::Down(MouseButton::Left),
                 column: area.x + 1,
-                row: area.y,
+                row: area.bottom() - 1,
                 modifiers: KeyModifiers::NONE,
             },
             18,
@@ -177,8 +220,8 @@ fn locked_milestones_show_local_prerequisites_instead_of_actions() -> Result<()>
         let terminal = render(&mut fixture.app, 40, 18)?;
         assert_continuous_spine(&fixture.app, &terminal);
         assert!(fixture.app.action_hitboxes.is_empty());
-        let owner = node(&fixture.app, milestone);
-        assert!(row(&terminal, owner.y + 1).contains(hint));
+        let first = node(&fixture.app, Milestone::Spec);
+        assert!(panel_text(&terminal, first.x + 18, first.y + 1, 3).contains(hint));
         press(&mut fixture.app, KeyCode::Enter)?;
         assert!(fixture.app.prompt.is_none());
         assert_eq!(fixture.app.current().unwrap().spec, "in_progress");
@@ -192,19 +235,24 @@ fn prompts_replace_local_actions_and_keep_other_milestones_visible() -> Result<(
         for milestone in [Milestone::Jira, Milestone::Dev, Milestone::Pr] {
             let mut fixture = Fixture::new(4)?;
             fixture.app.select_milestone(milestone);
+            render(&mut fixture.app, width, height)?;
+            let fixed = coordinates(&fixture.app);
             fixture.app.action_selected = usize::from(milestone != Milestone::Dev);
             press(&mut fixture.app, KeyCode::Enter)?;
             let label = fixture.app.prompt.as_ref().unwrap().label();
             let terminal = render(&mut fixture.app, width, height)?;
             assert_continuous_spine(&fixture.app, &terminal);
+            assert_eq!(coordinates(&fixture.app), fixed);
             assert!(fixture.app.action_hitboxes.is_empty());
-            let owner = node(&fixture.app, milestone);
-            assert!(row(&terminal, owner.y + 2).contains(label));
-            assert!(row(&terminal, owner.y + 4).contains("Enter save · Esc cancel"));
+            let (x, y) = actions_origin(&fixture.app);
+            let prompt = panel_text(&terminal, x, y, if roomy(&fixture.app) { 4 } else { 8 });
+            assert!(prompt.contains(label.split(" (optional)").next().unwrap()));
+            assert!(prompt.contains("Enter save · Esc cancel"));
             press(&mut fixture.app, KeyCode::Esc)?;
             render(&mut fixture.app, width, height)?;
             assert!(!fixture.app.action_hitboxes.is_empty());
             assert_eq!(fixture.app.milestone_selected, milestone);
+            assert_eq!(coordinates(&fixture.app), fixed);
         }
     }
     Ok(())
@@ -218,8 +266,8 @@ fn long_inline_input_keeps_the_typed_suffix_and_cursor_visible() -> Result<()> {
     press(&mut fixture.app, KeyCode::Enter)?;
     fixture.app.input = format!("{}-VISIBLE-END", "discardable-prefix".repeat(10));
     let terminal = render(&mut fixture.app, 40, 18)?;
-    let owner = node(&fixture.app, Milestone::Jira);
-    let input_row = row(&terminal, owner.y + 3);
+    let (_, y) = actions_origin(&fixture.app);
+    let input_row = row(&terminal, y + 1);
     assert!(input_row.contains("-VISIBLE-END█"));
     assert!(!input_row.contains("discardable-prefix"));
     assert_continuous_spine(&fixture.app, &terminal);
@@ -232,12 +280,17 @@ fn delete_confirmation_stays_beside_the_selected_stage_until_cancelled() -> Resu
         for milestone in Milestone::ALL {
             let mut fixture = Fixture::new(4)?;
             fixture.app.select_milestone(milestone);
+            render(&mut fixture.app, width, height)?;
+            let fixed = coordinates(&fixture.app);
             press(&mut fixture.app, KeyCode::Char('d'))?;
             let terminal = render(&mut fixture.app, width, height)?;
             assert_continuous_spine(&fixture.app, &terminal);
-            let owner = node(&fixture.app, milestone);
-            assert!(row(&terminal, owner.y + 2).contains("Delete Payment retries?"));
-            assert!(row(&terminal, owner.y + 4).contains("Enter delete · Esc cancel"));
+            assert_eq!(coordinates(&fixture.app), fixed);
+            let (x, y) = actions_origin(&fixture.app);
+            let prompt = panel_text(&terminal, x, y, if roomy(&fixture.app) { 4 } else { 8 });
+            assert!(prompt.contains("Delete Payment"));
+            assert!(prompt.contains('?'));
+            assert!(prompt.contains("Enter delete · Esc cancel"));
             assert!(fixture.app.action_hitboxes.is_empty());
             assert_eq!(fixture.app.store.list()?.len(), 1);
             press(&mut fixture.app, KeyCode::Esc)?;
@@ -245,6 +298,7 @@ fn delete_confirmation_stays_beside_the_selected_stage_until_cancelled() -> Resu
             assert_eq!(fixture.app.milestone_selected, milestone);
             assert_eq!(fixture.app.store.list()?.len(), 1);
             assert!(!fixture.app.action_hitboxes.is_empty());
+            assert_eq!(coordinates(&fixture.app), fixed);
         }
     }
     Ok(())
@@ -260,13 +314,54 @@ fn linked_spec_confirmation_fits_without_hiding_later_nodes() -> Result<()> {
         root,
     };
     press(&mut fixture.app, KeyCode::Enter)?;
-    press(&mut fixture.app, KeyCode::Char('d'))?;
-    let terminal = render(&mut fixture.app, 40, 18)?;
-    assert_continuous_spine(&fixture.app, &terminal);
-    let owner = node(&fixture.app, Milestone::Spec);
-    assert!(row(&terminal, owner.y + 4).contains("Linked spec stays in place."));
-    assert!(row(&terminal, owner.y + 5).contains("Enter delete · Esc cancel"));
-    press(&mut fixture.app, KeyCode::Esc)?;
+    for (width, height) in [(40, 18), (60, 24), (100, 35)] {
+        for milestone in Milestone::ALL {
+            fixture.app.select_milestone(milestone);
+            render(&mut fixture.app, width, height)?;
+            let fixed = coordinates(&fixture.app);
+            press(&mut fixture.app, KeyCode::Char('d'))?;
+            let terminal = render(&mut fixture.app, width, height)?;
+            assert_continuous_spine(&fixture.app, &terminal);
+            assert_eq!(coordinates(&fixture.app), fixed);
+            let (x, y) = actions_origin(&fixture.app);
+            let prompt = panel_text(&terminal, x, y, if roomy(&fixture.app) { 4 } else { 8 });
+            assert!(prompt.contains("Linked spec stays in place."));
+            assert!(prompt.contains("Enter delete · Esc cancel"));
+            press(&mut fixture.app, KeyCode::Esc)?;
+            render(&mut fixture.app, width, height)?;
+            assert_eq!(coordinates(&fixture.app), fixed);
+        }
+    }
     assert!(record.spec_path.is_file());
+    Ok(())
+}
+
+#[test]
+fn workflow_changes_do_not_reposition_milestones() -> Result<()> {
+    for (width, height) in [(40, 18), (60, 24), (100, 35)] {
+        let mut fixture = Fixture::new(0)?;
+        render(&mut fixture.app, width, height)?;
+        let fixed = coordinates(&fixture.app);
+        let id = fixture.app.current().unwrap().id.clone();
+        for change in [
+            Change::Finish { title: None },
+            Change::Jira {
+                key: "PAY-123".into(),
+                url: None,
+            },
+            Change::Implement {
+                agent: None,
+                branch: None,
+            },
+            Change::Pr {
+                url: "https://github.example/org/repo/pull/42".into(),
+            },
+        ] {
+            fixture.app.store.update(&id, change)?;
+            fixture.app.refresh()?;
+            render(&mut fixture.app, width, height)?;
+            assert_eq!(coordinates(&fixture.app), fixed);
+        }
+    }
     Ok(())
 }

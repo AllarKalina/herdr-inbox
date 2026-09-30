@@ -67,7 +67,8 @@ fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
     handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let lines = rendered(&mut app, 60, 24)?;
     assert!(lines.iter().any(|line| line.contains("PROGRESS")));
-    assert!(lines.iter().any(|line| line.contains("Needs Jira")));
+    assert!(lines.iter().any(|line| line.contains("DEV    ○ locked")));
+    assert!(lines.iter().any(|line| line.contains("SPEC ACTIONS")));
     assert!(!lines.iter().any(|line| line.contains("NEXT MOVE")));
     assert!(lines.iter().any(|line| line.contains("Finish spec")));
     assert!(

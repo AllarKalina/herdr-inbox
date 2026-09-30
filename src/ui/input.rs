@@ -258,7 +258,8 @@ pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Res
             _ => {}
         }
         if let Some(index) = app.action_hitboxes.iter().position(|area| {
-            mouse.row == area.y
+            mouse.row >= area.y
+                && mouse.row < area.bottom()
                 && mouse.column >= area.x
                 && mouse.column < area.x.saturating_add(area.width)
         }) {

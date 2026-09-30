@@ -112,7 +112,9 @@ All content shares one terminal cell grid. Uppercase labels such as `SPEC` and `
 
 The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
 
-The detail view has a two-cell horizontal and one-cell vertical outer inset. A breadcrumb sits above the main content. At a body width of 78 columns, the spec takes the left side and the interactive `PROGRESS` rail occupies 36 columns on the right, separated by a two-column gap. Milestone nodes share column seven; context and controls begin at column nine. The selected milestone expands inline: its context, then its action buttons, then the next node. The connecting spine continues through this expansion. Below that breakpoint, the compact rail moves under the spec. At 40 × 18 and larger, all four milestones remain visible; short terminals reduce the space between nodes and prioritize the rail. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
+The detail view has a two-cell horizontal and one-cell vertical outer inset. A breadcrumb sits above the main content. At a body width of 78 columns, the spec takes the left side and the interactive `PROGRESS` rail occupies 36 columns on the right, separated by a two-column gap. Below that breakpoint, the rail moves under the spec. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
+
+Milestone nodes share column seven. A rail at least 25 rows tall gives each stage a fixed six-row slot: one header, one context row, and four reserved control rows beginning at column nine. Empty control space remains reserved when another stage is selected. Shorter rails keep all four nodes in a fixed 16-column overview, a two-column gap, and a stationary control area starting at column 18. That area identifies the selected stage and shows its context, actions, or prompt; narrow labels and hints wrap. At 40 × 18 and larger, all four milestones remain visible. Selecting a stage, inspecting a prerequisite, or opening a prompt never moves the milestone nodes, spec preview, or footer.
 
 The full reader replaces the detail content with the document. Its breadcrumb keeps `Inbox / item / FULL SPEC`; the text scrolls only to the last rendered line plus two blank rows. Footer guidance is short: one-line `j/k` scrolling and ten-line `Shift+J/K` jumps.
 
@@ -124,7 +126,7 @@ The inbox has no shadow vocabulary. Depth comes from the host terminal's translu
 
 ## Shapes
 
-The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular milestone nodes share a single vertical `│` spine; their labels, states, and context align beside it. Only the selected milestone's label takes a teal fill, preserving the node and state's semantic colors. Selected actions use a teal button highlight. The standard inbox list and detail view have no surrounding card border. Client-choice prompts use a plain rectangular border; milestone prompts expand inline.
+The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular milestone nodes share a single vertical `│` spine; their labels and states align beside it. Only the selected milestone's label takes a teal fill, preserving the node and state's semantic colors. Selected actions use a teal button highlight. The standard inbox list and detail view have no surrounding card border. Client-choice prompts use a plain rectangular border; milestone prompts occupy the existing reserved control area.
 
 ## Components
 
@@ -144,13 +146,13 @@ Opening an item selects its next actionable milestone. Use `j/k` or Up/Down to m
 
 ### Milestone actions
 
-The selected milestone expands directly beneath its own context, before the next milestone. Its actions stack as individual buttons aligned with the context; the spine continues beside them. Other milestones retain their compact overview, so the actions belong visibly to one stage. The first action is the primary next move; `Tab`, `h/l`, or Left/Right cycle available actions, and Enter runs the selected action. Clicking an action runs it.
+On roomy rails, actions stack directly beneath the selected milestone's context in its reserved four-row area; the spine continues beside them. Other stages keep exactly the same spacing, whether selected or idle. On compact rails, the selected stage heading and controls occupy a stationary area beside the complete milestone overview. This keeps controls associated with their stage without moving the path. The first action is the primary next move; `Tab`, `h/l`, or Left/Right cycle available actions, and Enter runs the selected action. Clicking an action runs it.
 
-SPEC offers reading and editing alongside finishing an unfinished spec. JIRA offers linking when ready, then opening and updating a linked ticket. DEV offers starting implementation when ready, then updating its details while implementation is active or a draft exists. PR offers linking when ready, then reviewing and updating the draft PR. Locked stages explain the missing prerequisite locally beneath their label instead of offering an enabled progression action. Completed stages retain useful read, open, edit, or update actions. Feedback and compact navigation hints remain in the view footer: `j/k stage · Tab action · Enter act · r read · Esc back`.
+SPEC offers reading and editing alongside finishing an unfinished spec. JIRA offers linking when ready, then opening and updating a linked ticket. DEV offers starting implementation when ready, then updating its details while implementation is active or a draft exists. PR offers linking when ready, then reviewing and updating the draft PR. Locked stages explain the missing prerequisite in their control area instead of offering an enabled progression action. Completed stages retain useful read, open, edit, or update actions. Feedback and compact navigation hints remain in the view footer: `j/k stage · Tab action · Enter act · r read · Esc back`.
 
 ### Prompts
 
-Text entry and deletion confirmation replace the selected milestone's button rows in place. Input scrolls horizontally to keep its trailing cursor visible. A confirmation names the target, explains what moves to local Trash, and gives explicit Enter and Esc outcomes. The remaining milestone nodes stay visible to preserve orientation.
+Text entry and deletion confirmation replace the selected milestone's controls in the same reserved area. Input scrolls horizontally to keep its trailing cursor visible. Narrow action labels and confirmation hints wrap within the control area. A confirmation names the target, explains what moves to local Trash, and gives explicit Enter and Esc outcomes. All milestone nodes retain their positions throughout entry, confirmation, and cancellation.
 
 ## Do's and Don'ts
 
@@ -159,6 +161,7 @@ Text entry and deletion confirmation replace the selected milestone's button row
 - **Do** preserve the host's transparent background and terminal font.
 - **Do** keep selected rows and actions visually consistent.
 - **Do** keep all milestone nodes on one spine and place actions with their selected stage.
+- **Do** reserve control space so navigation and prompts leave the layout steady.
 - **Do** align status columns even when a spec title is long.
 - **Do** show locked prerequisites and a readable label beside every status icon.
 

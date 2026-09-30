@@ -16,25 +16,16 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
         Paragraph::new("PROGRESS").style(muted),
         Rect::new(area.x, area.y, area.width, 1),
     );
-    let content_width = area.width.saturating_sub(CONTENT_COLUMN);
     let selected = app.milestone_selected;
-    let actions_height = if app.prompt.is_some() {
-        prompt_lines(app, record, content_width).len() as u16
+    // Geometry depends only on the viewport, never on selection or prompt content.
+    let compact = area.height < 25;
+    let stride = if compact {
+        area.height.saturating_sub(2).saturating_div(3).max(1)
     } else {
-        app.actions().len() as u16
+        6
     };
-    let guidance_height = if app.prompt.is_none() && app.actions().is_empty() {
-        Paragraph::new(selected.guidance(record))
-            .wrap(Wrap { trim: false })
-            .line_count(content_width)
-            .clamp(1, 2) as u16
-    } else {
-        1
-    };
-    let required = 9 + actions_height + guidance_height.saturating_sub(1);
-    let spacer = u16::from(area.height >= required + 3);
-    let mut y = area.y + 1;
     for (index, stage) in Milestone::ALL.iter().enumerate() {
+        let y = area.y + 1 + index as u16 * stride;
         if y >= area.bottom() {
             break;
         }
@@ -50,58 +41,104 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
             Span::raw("   "),
             Span::styled(format!("{node} {word}"), Style::default().fg(color)),
         ]);
-        let hitbox = Rect::new(area.x, y, area.width, 1);
+        let hitbox = Rect::new(
+            area.x,
+            y,
+            if compact {
+                16.min(area.width)
+            } else {
+                area.width
+            },
+            1,
+        );
         frame.render_widget(Paragraph::new(label), hitbox);
         app.milestone_hitboxes.push((*stage, hitbox));
-        y += 1;
-        let context_height = if is_selected { guidance_height } else { 1 };
-        let context = if is_selected && app.actions().is_empty() && app.prompt.is_none() {
-            stage.guidance(record).to_owned()
+        if !compact {
+            let content_width = area.width.saturating_sub(CONTENT_COLUMN);
+            frame.render_widget(
+                Paragraph::new(fit_label(&stage.context(record), content_width as usize))
+                    .style(muted),
+                Rect::new(area.x + CONTENT_COLUMN, y + 1, content_width, 1),
+            );
+            if is_selected {
+                draw_actions(
+                    frame,
+                    app,
+                    record,
+                    Rect::new(area.x + CONTENT_COLUMN, y + 2, content_width, 4),
+                    1,
+                );
+            }
+        }
+        if index < 3 {
+            let connector_height = stride
+                .saturating_sub(1)
+                .min(area.bottom().saturating_sub(y + 1));
+            frame.render_widget(
+                Paragraph::new(vec![Line::from("│"); connector_height as usize])
+                    .style(Style::default().fg(Color::DarkGray)),
+                Rect::new(area.x + NODE_COLUMN, y + 1, 1, connector_height),
+            );
+        }
+    }
+    if compact {
+        let panel_x = (area.x + 18).min(area.right());
+        let panel_width = area.right().saturating_sub(panel_x);
+        frame.render_widget(
+            Paragraph::new(format!("{} ACTIONS", selected.label())).style(muted),
+            Rect::new(panel_x, area.y + 1, panel_width, 1),
+        );
+        let context = if app.actions().is_empty() && app.prompt.is_none() {
+            selected.guidance(record).to_owned()
         } else {
-            fit_label(&stage.context(record), content_width as usize)
+            selected.context(record)
         };
         frame.render_widget(
             Paragraph::new(context)
                 .style(muted)
                 .wrap(Wrap { trim: false }),
-            Rect::new(
-                area.x + CONTENT_COLUMN,
-                y,
-                content_width,
-                context_height.min(area.bottom().saturating_sub(y)),
-            ),
+            Rect::new(panel_x, area.y + 2, panel_width, 3),
         );
-        let block_start = y;
-        y += context_height;
-        if is_selected {
-            let available = Rect::new(
-                area.x + CONTENT_COLUMN,
-                y,
-                content_width,
-                area.bottom().saturating_sub(y),
-            );
-            draw_actions(frame, app, record, available);
-            y += actions_height;
-        }
-        if index < 3 {
-            y += spacer;
-            let connector_height = y.min(area.bottom()).saturating_sub(block_start);
-            frame.render_widget(
-                Paragraph::new(vec![Line::from("│"); connector_height as usize])
-                    .style(Style::default().fg(Color::DarkGray)),
-                Rect::new(area.x + NODE_COLUMN, block_start, 1, connector_height),
-            );
-        }
+        draw_actions(
+            frame,
+            app,
+            record,
+            Rect::new(
+                panel_x,
+                area.y + 5,
+                panel_width,
+                area.height.saturating_sub(5),
+            ),
+            2,
+        );
     }
 }
 
-fn draw_actions(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area: Rect) {
+fn draw_actions(
+    frame: &mut ratatui::Frame,
+    app: &mut App,
+    record: &Record,
+    area: Rect,
+    slot_height: u16,
+) {
     if app.prompt.is_some() {
-        frame.render_widget(Paragraph::new(prompt_lines(app, record, area.width)), area);
+        frame.render_widget(
+            Paragraph::new(prompt_lines(app, record, area.width)).wrap(Wrap { trim: false }),
+            area,
+        );
         return;
     }
-    for (index, action) in app.actions().iter().enumerate() {
-        let y = area.y + index as u16;
+    let actions = app.actions();
+    if actions.is_empty() && slot_height == 1 {
+        frame.render_widget(
+            Paragraph::new(app.milestone_selected.guidance(record))
+                .style(Style::default().fg(Color::Gray))
+                .wrap(Wrap { trim: false }),
+            area,
+        );
+    }
+    for (index, action) in actions.iter().enumerate() {
+        let y = area.y + index as u16 * slot_height;
         if y >= area.bottom() {
             break;
         }
@@ -113,8 +150,22 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area
         } else {
             Style::default().fg(Color::LightBlue)
         };
-        let hitbox = Rect::new(area.x, y, width, 1);
-        frame.render_widget(Paragraph::new(label).style(style), hitbox);
+        let height = Paragraph::new(label.as_str())
+            .wrap(Wrap { trim: false })
+            .line_count(width)
+            .min(usize::from(slot_height)) as u16;
+        let hitbox = Rect::new(
+            area.x,
+            y,
+            width,
+            height.min(area.bottom().saturating_sub(y)),
+        );
+        frame.render_widget(
+            Paragraph::new(label)
+                .style(style)
+                .wrap(Wrap { trim: false }),
+            hitbox,
+        );
         app.action_hitboxes.push(hitbox);
     }
 }
