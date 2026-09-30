@@ -65,12 +65,20 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             KeyCode::Esc | KeyCode::Char('v') => app.screen = Screen::Detail,
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('j') | KeyCode::Down => {
-                app.reader_scroll = app.reader_scroll.saturating_add(1)
+                app.reader_scroll = app
+                    .reader_scroll
+                    .saturating_add(1)
+                    .min(app.reader_max_scroll)
             }
             KeyCode::Char('k') | KeyCode::Up => {
                 app.reader_scroll = app.reader_scroll.saturating_sub(1)
             }
-            KeyCode::PageDown => app.reader_scroll = app.reader_scroll.saturating_add(15),
+            KeyCode::PageDown => {
+                app.reader_scroll = app
+                    .reader_scroll
+                    .saturating_add(15)
+                    .min(app.reader_max_scroll)
+            }
             KeyCode::PageUp => app.reader_scroll = app.reader_scroll.saturating_sub(15),
             KeyCode::Char('g') => app.reader_scroll = 0,
             KeyCode::Char('e') => {
@@ -89,6 +97,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('v') => {
                 app.reader_scroll = 0;
+                app.reader_max_scroll = 0;
                 app.screen = Screen::Reader;
             }
             KeyCode::Char('e') => {
@@ -179,7 +188,12 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
 pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Result<()> {
     if app.screen == Screen::Reader {
         match mouse.kind {
-            MouseEventKind::ScrollDown => app.reader_scroll = app.reader_scroll.saturating_add(3),
+            MouseEventKind::ScrollDown => {
+                app.reader_scroll = app
+                    .reader_scroll
+                    .saturating_add(3)
+                    .min(app.reader_max_scroll)
+            }
             MouseEventKind::ScrollUp => app.reader_scroll = app.reader_scroll.saturating_sub(3),
             _ => {}
         }

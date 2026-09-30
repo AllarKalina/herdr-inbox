@@ -6,12 +6,14 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use std::fs;
 
-pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
-    let Some(record) = app.current() else { return };
+pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
+    let Some(record) = app.current().cloned() else {
+        return;
+    };
     if app.screen == Screen::Reader {
-        draw_reader(frame, app, record);
+        draw_reader(frame, app, &record);
     } else {
-        draw_detail(frame, app, record);
+        draw_detail(frame, app, &record);
     }
 }
 
@@ -147,7 +149,7 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Re
     );
 }
 
-fn draw_reader(frame: &mut ratatui::Frame, app: &App, record: &Record) {
+fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     let body = frame.area().inner(Margin {
         horizontal: 2,
         vertical: 1,
@@ -168,12 +170,19 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &App, record: &Record) {
         ),
         areas[0],
     );
-    frame.render_widget(
-        Paragraph::new(spec_text(record))
-            .wrap(Wrap { trim: false })
-            .scroll((app.reader_scroll, 0)),
-        areas[1],
-    );
+    let paragraph = Paragraph::new(spec_text(record)).wrap(Wrap { trim: false });
+    let content_lines = paragraph.line_count(areas[1].width);
+    let viewport_lines = usize::from(areas[1].height);
+    app.reader_max_scroll = if content_lines > viewport_lines {
+        content_lines
+            .saturating_add(2)
+            .saturating_sub(viewport_lines)
+            .min(usize::from(u16::MAX)) as u16
+    } else {
+        0
+    };
+    app.reader_scroll = app.reader_scroll.min(app.reader_max_scroll);
+    frame.render_widget(paragraph.scroll((app.reader_scroll, 0)), areas[1]);
     frame.render_widget(
         Paragraph::new("j/k scroll · PgUp/PgDn page · g top · e edit · Esc detail · q quit")
             .style(Style::default().fg(Color::Gray)),

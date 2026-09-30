@@ -219,6 +219,76 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
 }
 
 #[test]
+fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-scroll-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    let record = store.start("Long spec", None, None)?;
+    fs::write(
+        &record.spec_path,
+        format!("{}\nLAST LINE", "word ".repeat(140)),
+    )?;
+    let mut app = App::new(store)?;
+    let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
+    press(&mut app, KeyCode::Enter)?;
+    press(&mut app, KeyCode::Char('v'))?;
+    let mut terminal = Terminal::new(TestBackend::new(40, 16))?;
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    assert!(app.reader_max_scroll > 0);
+
+    for _ in 0..50 {
+        press(&mut app, KeyCode::PageDown)?;
+    }
+    assert_eq!(app.reader_scroll, app.reader_max_scroll);
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    let rendered: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(rendered.contains("LAST LINE"));
+    let rows: Vec<String> = terminal
+        .backend()
+        .buffer()
+        .content()
+        .chunks(40)
+        .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
+        .collect();
+    let last_line = rows
+        .iter()
+        .position(|row| row.contains("LAST LINE"))
+        .unwrap();
+    assert!(rows[last_line + 1].trim().is_empty());
+    assert!(rows[last_line + 2].trim().is_empty());
+    press(&mut app, KeyCode::Down)?;
+    assert_eq!(app.reader_scroll, app.reader_max_scroll);
+    handle_mouse(
+        &mut app,
+        MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: 4,
+            row: 6,
+            modifiers: KeyModifiers::NONE,
+        },
+        16,
+    )?;
+    assert_eq!(app.reader_scroll, app.reader_max_scroll);
+
+    let mut larger_terminal = Terminal::new(TestBackend::new(100, 30))?;
+    larger_terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    assert_eq!(app.reader_scroll, 0);
+    assert_eq!(app.reader_max_scroll, 0);
+
+    fs::write(&record.spec_path, "Shortened spec")?;
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    assert_eq!(app.reader_scroll, 0);
+    assert_eq!(app.reader_max_scroll, 0);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn quest_actions_follow_the_real_parallel_stages() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-quest-{}", Uuid::new_v4()));
     let store = Store::new(root.clone());
