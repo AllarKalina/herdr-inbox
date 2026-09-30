@@ -1,6 +1,7 @@
-use super::{App, Prompt, Screen, detail};
+use super::{App, Prompt, Screen, detail, display_implementation_stage};
 use ratatui::layout::{Constraint, Direction, Layout, Margin};
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{
     Block, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, TableState,
 };
@@ -19,32 +20,64 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             Constraint::Length(2),
         ])
         .split(frame.area());
+    let compact = frame.area().width < 64;
     let rows: Vec<Row> = app
         .records
         .iter()
         .enumerate()
         .map(|(index, record)| {
             let selected = index == app.selected;
-            Row::new([
-                Cell::from(record.display_title().to_owned()),
-                status_cell(&record.spec, selected),
-                status_cell(&record.jira.status, selected),
-                status_cell(record.implementation_stage(), selected),
-                status_cell(record.pr_stage(), selected),
-            ])
+            let statuses = [
+                record.spec.as_str(),
+                record.jira.status.as_str(),
+                display_implementation_stage(record),
+                record.pr_stage(),
+            ];
+            if compact {
+                let mut spans = Vec::new();
+                for (index, status) in statuses.iter().enumerate() {
+                    if index > 0 {
+                        spans.push(Span::raw(" "));
+                    }
+                    let (label, color) = status_display(status);
+                    spans.push(Span::styled(
+                        label.chars().next().unwrap_or('?').to_string(),
+                        if selected {
+                            Style::default()
+                        } else {
+                            Style::default().fg(color)
+                        },
+                    ));
+                }
+                Row::new([
+                    Cell::from(record.display_title().to_owned()),
+                    Cell::from(Line::from(spans)),
+                ])
+            } else {
+                Row::new([
+                    Cell::from(record.display_title().to_owned()),
+                    status_cell(statuses[0], selected),
+                    status_cell(statuses[1], selected),
+                    status_cell(statuses[2], selected),
+                    status_cell(statuses[3], selected),
+                ])
+            }
         })
         .collect();
-    let list = Table::new(
-        rows,
-        [
+    let widths = if compact {
+        vec![Constraint::Fill(1), Constraint::Length(7)]
+    } else {
+        vec![
             Constraint::Fill(1),
             Constraint::Length(8),
             Constraint::Length(8),
             Constraint::Length(8),
             Constraint::Length(8),
-        ],
-    )
-    .header(
+        ]
+    };
+    let header = if compact {
+        Row::new([Cell::from(""), Cell::from("S J D P")])
+    } else {
         Row::new([
             Cell::from(""),
             Cell::from("Spec"),
@@ -52,19 +85,22 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             Cell::from("Dev"),
             Cell::from("PR"),
         ])
-        .style(
+    };
+    let list = Table::new(rows, widths)
+        .header(
+            header.style(
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        )
+        .column_spacing(if compact { 1 } else { 2 })
+        .row_highlight_style(
             Style::default()
-                .fg(Color::Gray)
+                .fg(Color::Black)
+                .bg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
-        ),
-    )
-    .column_spacing(2)
-    .row_highlight_style(
-        Style::default()
-            .fg(Color::Black)
-            .bg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    );
+        );
     let mut state = TableState::default()
         .with_offset(app.list_offset)
         .with_selected(app.current().map(|_| app.selected));
@@ -164,8 +200,8 @@ pub(super) fn footer_text(app: &App) -> String {
     }
 }
 
-fn status_cell(status: &str, selected: bool) -> Cell<'static> {
-    let (label, color) = match status {
+fn status_display(status: &str) -> (&'static str, Color) {
+    match status {
         "waiting" => ("○ wait", Color::Gray),
         "locked" => ("○ locked", Color::DarkGray),
         "ready" => ("→ ready", Color::LightBlue),
@@ -174,7 +210,11 @@ fn status_cell(status: &str, selected: bool) -> Cell<'static> {
         "draft_pr" | "draft" => ("◐ draft", Color::Yellow),
         "failed" => ("✕ failed", Color::Red),
         _ => ("? check", Color::Yellow),
-    };
+    }
+}
+
+fn status_cell(status: &str, selected: bool) -> Cell<'static> {
+    let (label, color) = status_display(status);
     let cell = Cell::from(label);
     if selected {
         cell

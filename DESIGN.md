@@ -106,9 +106,9 @@ All content shares one terminal cell grid. Uppercase labels such as `SPEC`, `PRO
 
 ## Layout
 
-The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. Long names truncate within their own column rather than moving statuses.
+The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
 
-The detail view has a two-cell horizontal and one-cell vertical outer inset. A two-row breadcrumb sits above the main content, and a four-row action area stays at the bottom. When the content area reaches 72 columns, the spec takes the left side and `PROGRESS` occupies a 32-column right rail with a two-column gap. Below that width, the eight-row progress tree moves under the spec. The spec preview is capped at 86 columns.
+The detail view has a two-cell horizontal and one-cell vertical outer inset. A two-row breadcrumb sits above the main content, and the action area stays at the bottom. When the content area reaches 72 columns, the spec takes the left side and `PROGRESS` occupies a 32-column right rail with a two-column gap. Below that width, the nine-row progress tree moves under the spec and the action hints split across two lines. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
 
 The full reader replaces the detail content with the document. Its breadcrumb keeps `Inbox / item / FULL SPEC`; the text scrolls only to the last rendered line plus two blank rows. Footer guidance is short: one-line `j/k` scrolling and ten-line `Shift+J/K` jumps.
 
@@ -134,7 +134,7 @@ The breadcrumb retains the full path while coloring only the current location te
 
 ### Progress waterfall
 
-Four labeled milestones descend from SPEC to JIRA to DEV to PR. Muted branch characters show the dependency chain; semantic icon, word, and color show each stage's state. Locked stages remain visible, so the next prerequisite is clear.
+Four labeled milestones descend from SPEC to JIRA to DEV to PR. Muted branch characters show the dependency chain; semantic icon, word, and color show each stage's state. A short context line beneath each stage shows its real evidence or prerequisite: session, Jira key, implementation branch, or PR reference. Linked Jira tickets can be opened with `o` from the detail view. Locked stages remain visible, so the next prerequisite is clear.
 
 ### Next move
 

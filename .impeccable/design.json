@@ -158,9 +158,9 @@
       "name": "Inbox row",
       "kind": "custom",
       "refersTo": "inbox-row-selected",
-      "description": "Flexible title with four fixed status cells; hover and keyboard focus use the selected teal state.",
-      "html": "<div class=\"ds-inbox-row\" tabindex=\"0\"><span>Leaderboard MVP</span><span>✓ done</span><span>→ ready</span><span>○ locked</span><span>○ locked</span></div>",
-      "css": ".ds-inbox-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,8ch);gap:2ch;overflow:hidden;font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#89b4fa;background:transparent}.ds-inbox-row span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ds-inbox-row:hover,.ds-inbox-row:focus-visible{background:#94e2d5;color:#45475a;font-weight:700;outline:none}"
+      "description": "Flexible title with four fixed status cells; below 64 columns a compact S J D P icon trail preserves the title.",
+      "html": "<div class=\"ds-inbox-row\" tabindex=\"0\"><span>Leaderboard MVP</span><span data-short=\"✓\">✓ done</span><span data-short=\"→\">→ ready</span><span data-short=\"○\">○ locked</span><span data-short=\"○\">○ locked</span></div>",
+      "css": ".ds-inbox-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,8ch);gap:2ch;overflow:hidden;font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#89b4fa;background:transparent}.ds-inbox-row span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ds-inbox-row:hover,.ds-inbox-row:focus-visible{background:#94e2d5;color:#45475a;font-weight:700;outline:none}@media(max-width:64ch){.ds-inbox-row{grid-template-columns:minmax(0,1fr) repeat(4,1ch);gap:1ch}.ds-inbox-row span:not(:first-child){font-size:0}.ds-inbox-row span:not(:first-child)::after{content:attr(data-short);font-size:16px}}"
     },
     {
       "name": "Selected next move",
@@ -182,8 +182,8 @@
       "name": "Progress waterfall",
       "kind": "custom",
       "refersTo": "progress-path",
-      "description": "Text-cell branches keep the four dependent milestones in reading order.",
-      "html": "<div class=\"ds-progress\"><div>PROGRESS</div><div>✓ SPEC done</div><div>│</div><div>└─ ✓ JIRA done</div><div>&nbsp;&nbsp; │</div><div>&nbsp;&nbsp; └─ → DEV ready</div><div>&nbsp;&nbsp;&nbsp;&nbsp; │</div><div>&nbsp;&nbsp;&nbsp;&nbsp; └─ ○ PR locked</div></div>",
+      "description": "Four dependent milestones with a short evidence or prerequisite line beneath each status.",
+      "html": "<div class=\"ds-progress\"><div>PROGRESS</div><div>SPEC ✓ done</div><div>│  Spec complete</div><div>└─ JIRA ✓ done</div><div>   │  PAY-123 ↗</div><div>   └─ DEV → ready</div><div>      │  Ready to start</div><div>      └─ PR ○ locked</div><div>         Needs implementation</div></div>",
       "css": ".ds-progress{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#a6adc8;background:transparent;white-space:pre}.ds-progress div:nth-child(2),.ds-progress div:nth-child(4){color:#a6e3a1}.ds-progress div:nth-child(6){color:#89b4fa}.ds-progress div:nth-child(8){color:#585b70}"
     },
     {

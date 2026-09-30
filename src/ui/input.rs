@@ -112,6 +112,12 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                     open_editor(&record.spec_path)?;
                 }
             }
+            KeyCode::Char('o') => {
+                if let Some(url) = app.current().and_then(|record| record.jira.url.as_deref()) {
+                    open_url(url)?;
+                    app.message = "Opened Jira ticket".into();
+                }
+            }
             KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') if !actions.is_empty() => {
                 app.action_selected = (app.action_selected + 1) % actions.len();
             }
@@ -210,25 +216,18 @@ pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Res
         return Ok(());
     }
     if app.screen == Screen::Detail {
-        if mouse.row == height.saturating_sub(5) {
-            let mut start = 13;
-            for (index, action) in app
-                .current()
-                .map(detail_actions)
-                .unwrap_or_default()
-                .iter()
-                .enumerate()
+        if let Some(index) = app.action_hitboxes.iter().position(|area| {
+            mouse.row == area.y
+                && mouse.column >= area.x
+                && mouse.column < area.x.saturating_add(area.width)
+        }) {
+            let actions = app.current().map(detail_actions).unwrap_or_default();
+            app.action_selected = index;
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && let Some(action) = actions.get(index)
             {
-                let end = start + action.label().len() as u16 + 4;
-                if mouse.column >= start && mouse.column < end {
-                    app.action_selected = index;
-                    if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                        start_detail_action(app, *action)?;
-                        app.refresh()?;
-                    }
-                    break;
-                }
-                start = end + 2;
+                start_detail_action(app, *action)?;
+                app.refresh()?;
             }
         }
         return Ok(());
@@ -261,6 +260,13 @@ fn open_editor(path: &std::path::Path) -> Result<()> {
     enable_raw_mode()?;
     if !result?.success() {
         return Err("Editor failed".into());
+    }
+    Ok(())
+}
+
+fn open_url(url: &str) -> Result<()> {
+    if !Command::new("open").arg(url).status()?.success() {
+        return Err("Could not open Jira ticket".into());
     }
     Ok(())
 }

@@ -6,6 +6,8 @@ use ratatui::style::Color;
 use std::fs;
 use uuid::Uuid;
 
+mod quest;
+
 #[test]
 fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-ui-{}", Uuid::new_v4()));
@@ -81,17 +83,22 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
             .collect();
         assert!(lines[0].trim().is_empty());
         assert!(!lines[1].contains("Name"));
-        assert!(lines[1].contains("Spec") && lines[1].contains("Jira"));
         let rows: Vec<&String> = lines
             .iter()
-            .filter(|line| line.contains("● active"))
+            .filter(|line| line.contains("Short") || line.contains("Long title"))
             .collect();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].find("● active"), rows[1].find("● active"));
-        assert!(
-            rows.iter()
-                .all(|row| row.rfind("○ locked").unwrap() > width as usize - 15)
-        );
+        if width < 64 {
+            assert!(lines[1].contains("S J D P"));
+            assert!(rows.iter().all(|row| row.contains("● ○ ○ ○")));
+        } else {
+            assert!(lines[1].contains("Spec") && lines[1].contains("Jira"));
+            assert_eq!(rows[0].find("● active"), rows[1].find("● active"));
+            assert!(
+                rows.iter()
+                    .all(|row| row.rfind("○ locked").unwrap() > width as usize - 15)
+            );
+        }
         assert!(rows.iter().any(|row| row.contains("Short")));
         assert!(rows.iter().any(|row| row.contains("Long title")));
         let active_colors: Vec<Color> = terminal
@@ -102,8 +109,10 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
             .filter(|cell| cell.symbol() == "●")
             .map(|cell| cell.fg)
             .collect();
-        assert!(active_colors.contains(&Color::Black));
-        assert!(active_colors.contains(&Color::Cyan));
+        if width >= 64 {
+            assert!(active_colors.contains(&Color::Black));
+            assert!(active_colors.contains(&Color::Cyan));
+        }
     }
     fs::remove_dir_all(root)?;
     Ok(())
@@ -149,8 +158,8 @@ fn list_icons_show_completed_and_draft_stages() -> Result<()> {
         .iter()
         .find(|line| line.contains("Completed item"))
         .unwrap();
-    assert_eq!(row.matches("✓ done").count(), 2);
-    assert_eq!(row.matches("◐ draft").count(), 2);
+    assert_eq!(row.matches("✓ done").count(), 3);
+    assert_eq!(row.matches("◐ draft").count(), 1);
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -377,6 +386,8 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
         detail_actions(app.current().unwrap()),
         vec![DetailAction::Jira]
     );
+    let mut terminal = Terminal::new(TestBackend::new(100, 35))?;
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
     handle_mouse(
         &mut app,
         MouseEvent {

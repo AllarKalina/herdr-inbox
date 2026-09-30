@@ -14,6 +14,7 @@ use crossterm::terminal::{
 };
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
+use ratatui::layout::Rect;
 use std::io::{self, stdout};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -79,6 +80,7 @@ struct App {
     selected: usize,
     screen: Screen,
     action_selected: usize,
+    action_hitboxes: Vec<Rect>,
     reader_scroll: u16,
     reader_max_scroll: u16,
     list_offset: usize,
@@ -138,6 +140,14 @@ fn detail_actions(record: &Record) -> Vec<DetailAction> {
     actions
 }
 
+fn display_implementation_stage(record: &Record) -> &str {
+    if record.implementation.status == "draft_pr" {
+        "done"
+    } else {
+        record.implementation_stage()
+    }
+}
+
 impl App {
     fn new(store: Store) -> Result<Self> {
         let records = store.list()?;
@@ -147,6 +157,7 @@ impl App {
             selected: 0,
             screen: Screen::List,
             action_selected: 0,
+            action_hitboxes: Vec::new(),
             reader_scroll: 0,
             reader_max_scroll: 0,
             list_offset: 0,

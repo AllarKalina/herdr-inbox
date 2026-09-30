@@ -1,4 +1,4 @@
-use super::{App, Prompt, Screen, detail_actions};
+use super::{App, Prompt, Screen, detail_actions, display_implementation_stage};
 use crate::store::Record;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -17,30 +17,34 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     }
 }
 
-fn draw_detail(frame: &mut ratatui::Frame, app: &App, record: &Record) {
+fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     let body = frame.area().inner(Margin {
         horizontal: 2,
         vertical: 1,
     });
+    let compact = body.width < 72;
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(2),
             Constraint::Min(8),
-            Constraint::Length(4),
+            Constraint::Length(if compact { 5 } else { 4 }),
         ])
         .split(body);
     let title = Line::from(vec![
         Span::styled("← Inbox  /  ", Style::default().fg(Color::Gray)),
         Span::styled(
-            record.display_title().to_owned(),
+            fit_label(
+                record.display_title(),
+                body.width.saturating_sub(13) as usize,
+            ),
             Style::default()
                 .fg(Color::LightCyan)
                 .add_modifier(Modifier::BOLD),
         ),
     ]);
     frame.render_widget(Paragraph::new(title), areas[0]);
-    if areas[1].width >= 72 {
+    if !compact {
         let columns = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
@@ -54,7 +58,7 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &App, record: &Record) {
     } else {
         let rows = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(4), Constraint::Length(8)])
+            .constraints([Constraint::Min(4), Constraint::Length(9)])
             .split(areas[1]);
         draw_spec(frame, record, rows[0]);
         draw_progress(frame, record, rows[1]);
@@ -80,23 +84,120 @@ fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
 fn draw_progress(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
     let spec = milestone("SPEC", &record.spec);
     let jira = milestone("JIRA", &record.jira.status);
-    let dev = milestone("DEV", record.implementation_stage());
+    let dev = milestone("DEV", display_implementation_stage(record));
     let pr = milestone("PR", record.pr_stage());
     let branch = Style::default().fg(Color::DarkGray);
+    let context = Style::default().fg(Color::Gray);
     let lines = vec![
         Line::from("PROGRESS").style(Style::default().fg(Color::Gray)),
         Line::from(spec),
-        Line::from("│").style(branch),
+        Line::from(vec![
+            Span::styled("│  ", branch),
+            Span::styled(
+                fit_label(&spec_context(record), area.width.saturating_sub(3) as usize),
+                context,
+            ),
+        ]),
         Line::from(vec![Span::styled("└─ ", branch), jira]),
-        Line::from("   │").style(branch),
+        Line::from(vec![
+            Span::styled("   │  ", branch),
+            Span::styled(
+                fit_label(&jira_context(record), area.width.saturating_sub(6) as usize),
+                context,
+            ),
+        ]),
         Line::from(vec![Span::styled("   └─ ", branch), dev]),
-        Line::from("      │").style(branch),
+        Line::from(vec![
+            Span::styled("      │  ", branch),
+            Span::styled(
+                fit_label(&dev_context(record), area.width.saturating_sub(9) as usize),
+                context,
+            ),
+        ]),
         Line::from(vec![Span::styled("      └─ ", branch), pr]),
+        Line::from(Span::styled(
+            format!(
+                "         {}",
+                fit_label(&pr_context(record), area.width.saturating_sub(9) as usize)
+            ),
+            context,
+        )),
     ];
     frame.render_widget(Paragraph::new(lines), area);
 }
 
-fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Rect) {
+fn spec_context(record: &Record) -> String {
+    if let Some(launch) = &record.launch {
+        if launch.status == "failed" {
+            return "Launch failed".into();
+        }
+        return format!("{} · {}", launch.workspace, launch.harness);
+    }
+    if record.spec == "in_progress" {
+        "Writing spec".into()
+    } else {
+        "Spec complete".into()
+    }
+}
+
+fn jira_context(record: &Record) -> String {
+    if let Some(key) = &record.jira.key {
+        return format!(
+            "{key}{}",
+            if record.jira.url.is_some() {
+                " ↗"
+            } else {
+                ""
+            }
+        );
+    }
+    if record.jira.status == "ready" {
+        "Link ticket next".into()
+    } else {
+        "After spec".into()
+    }
+}
+
+fn dev_context(record: &Record) -> String {
+    if let Some(branch) = &record.implementation.branch {
+        return branch.clone();
+    }
+    if let Some(agent) = &record.implementation.agent {
+        return format!("Agent: {agent}");
+    }
+    match record.implementation_stage() {
+        "ready" => "Ready to start".into(),
+        "in_progress" => "In progress".into(),
+        _ => "Needs Jira".into(),
+    }
+}
+
+fn pr_context(record: &Record) -> String {
+    if let Some(url) = &record.pr.url {
+        let reference = url.trim_end_matches('/').rsplit('/').next().unwrap_or(url);
+        return format!("#{reference} ↗");
+    }
+    match record.pr_stage() {
+        "ready" => "Ready to link".into(),
+        _ => "Needs implementation".into(),
+    }
+}
+
+fn fit_label(value: &str, width: usize) -> String {
+    let count = value.chars().count();
+    if count <= width {
+        return value.to_owned();
+    }
+    if width == 0 {
+        return String::new();
+    }
+    let mut result: String = value.chars().take(width - 1).collect();
+    result.push('…');
+    result
+}
+
+fn draw_actions(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area: Rect) {
+    app.action_hitboxes.clear();
     if let Some(prompt) = &app.prompt {
         let content = if matches!(prompt, Prompt::Delete { .. }) {
             format!(
@@ -117,10 +218,17 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Re
         return;
     }
     let actions = detail_actions(record);
-    let mut spans = vec![Span::styled(
-        "NEXT MOVE  ",
-        Style::default().fg(Color::Gray),
-    )];
+    let compact = area.width < 72;
+    let mut spans = if compact {
+        Vec::new()
+    } else {
+        vec![Span::styled(
+            "NEXT MOVE  ",
+            Style::default().fg(Color::Gray),
+        )]
+    };
+    let action_y = area.y + u16::from(compact);
+    let mut action_x = area.x + if compact { 0 } else { 11 };
     if actions.is_empty() {
         spans.push(Span::styled(
             "All available milestones recorded",
@@ -129,8 +237,13 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Re
     } else {
         for (index, action) in actions.iter().enumerate() {
             let selected = index == app.action_selected;
+            let label = format!(" {} {} ", if selected { "▸" } else { "·" }, action.label());
+            let width = label.chars().count() as u16;
+            app.action_hitboxes
+                .push(Rect::new(action_x, action_y, width, 1));
+            action_x = action_x.saturating_add(width + 2);
             spans.push(Span::styled(
-                format!(" {} {} ", if selected { "▸" } else { "·" }, action.label()),
+                label,
                 if selected {
                     Style::default()
                         .fg(Color::Black)
@@ -143,17 +256,38 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Re
             spans.push(Span::raw("  "));
         }
     }
-    frame.render_widget(
-        Paragraph::new(vec![
-            Line::from(spans),
-            Line::from(
-                "Tab select · Enter act · r full spec · e edit · d delete · Esc list · q quit",
-            )
+    let hints = if area.width < 90 {
+        "Enter act · r read · e edit · d delete · Esc back"
+    } else {
+        "Enter act · r full spec · e edit · d delete · Esc list · q quit"
+    };
+    let hints = if record.jira.url.is_some() {
+        format!("{hints} · o Jira")
+    } else {
+        hints.to_owned()
+    };
+    let mut lines = Vec::new();
+    if compact {
+        lines.push(Line::from("NEXT MOVE").style(Style::default().fg(Color::Gray)));
+    }
+    lines.push(Line::from(spans));
+    if compact {
+        lines.push(
+            Line::from("Enter act · r read · Esc back").style(Style::default().fg(Color::Gray)),
+        );
+        lines.push(
+            Line::from(if record.jira.url.is_some() {
+                "e edit · d delete · o open Jira"
+            } else {
+                "e edit · d delete"
+            })
             .style(Style::default().fg(Color::Gray)),
-            Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)),
-        ]),
-        area,
-    );
+        );
+    } else {
+        lines.push(Line::from(hints).style(Style::default().fg(Color::Gray)));
+    }
+    lines.push(Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)));
+    frame.render_widget(Paragraph::new(lines), area);
 }
 
 fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
@@ -173,7 +307,10 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
         Paragraph::new(Line::from(vec![
             Span::styled("← Inbox  /  ", Style::default().fg(Color::Gray)),
             Span::styled(
-                record.display_title().to_owned(),
+                fit_label(
+                    record.display_title(),
+                    body.width.saturating_sub(28) as usize,
+                ),
                 Style::default().fg(Color::Gray),
             ),
             Span::styled(
