@@ -6,6 +6,7 @@ use ratatui::style::Color;
 use std::fs;
 use uuid::Uuid;
 
+mod proximity;
 mod quest;
 mod timeline;
 

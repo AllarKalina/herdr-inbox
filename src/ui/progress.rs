@@ -5,6 +5,9 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
+const NODE_COLUMN: u16 = 7;
+const CONTENT_COLUMN: u16 = 9;
+
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area: Rect) {
     app.milestone_hitboxes.clear();
     app.action_hitboxes.clear();
@@ -13,100 +16,92 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
         Paragraph::new("PROGRESS").style(muted),
         Rect::new(area.x, area.y, area.width, 1),
     );
-    let stride = if area.height >= 21 { 3 } else { 2 };
+    let content_width = area.width.saturating_sub(CONTENT_COLUMN);
+    let selected = app.milestone_selected;
+    let actions_height = if app.prompt.is_some() {
+        prompt_lines(app, record, content_width).len() as u16
+    } else {
+        app.actions().len() as u16
+    };
+    let guidance_height = if app.prompt.is_none() && app.actions().is_empty() {
+        Paragraph::new(selected.guidance(record))
+            .wrap(Wrap { trim: false })
+            .line_count(content_width)
+            .clamp(1, 2) as u16
+    } else {
+        1
+    };
+    let required = 9 + actions_height + guidance_height.saturating_sub(1);
+    let spacer = u16::from(area.height >= required + 3);
+    let mut y = area.y + 1;
     for (index, stage) in Milestone::ALL.iter().enumerate() {
-        let y = area.y + 1 + index as u16 * stride;
         if y >= area.bottom() {
             break;
         }
-        let status = stage.status(record);
-        let (node, word, color) = appearance(status);
-        let selected = *stage == app.milestone_selected;
-        let style = if selected {
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD)
+        let (node, word, color) = appearance(stage.status(record));
+        let is_selected = *stage == selected;
+        let label_style = if is_selected {
+            selection_style()
         } else {
             Style::default().fg(color)
         };
+        let label = Line::from(vec![
+            Span::styled(format!("{:<4}", stage.label()), label_style),
+            Span::raw("   "),
+            Span::styled(format!("{node} {word}"), Style::default().fg(color)),
+        ]);
         let hitbox = Rect::new(area.x, y, area.width, 1);
-        let label = format!("{:<7}{node} {word}", stage.label());
-        frame.render_widget(Paragraph::new(label).style(style), hitbox);
+        frame.render_widget(Paragraph::new(label), hitbox);
         app.milestone_hitboxes.push((*stage, hitbox));
-        let connector = if index < 3 { "│" } else { " " };
-        if y + 1 < area.bottom() {
-            let context = Line::from(vec![
-                Span::styled(
-                    format!("       {connector} "),
-                    Style::default().fg(Color::DarkGray),
-                ),
-                Span::styled(
-                    fit_label(
-                        &stage.context(record),
-                        area.width.saturating_sub(9) as usize,
-                    ),
-                    muted,
-                ),
-            ]);
-            frame.render_widget(
-                Paragraph::new(context),
-                Rect::new(area.x, y + 1, area.width, 1),
+        y += 1;
+        let context_height = if is_selected { guidance_height } else { 1 };
+        let context = if is_selected && app.actions().is_empty() && app.prompt.is_none() {
+            stage.guidance(record).to_owned()
+        } else {
+            fit_label(&stage.context(record), content_width as usize)
+        };
+        frame.render_widget(
+            Paragraph::new(context)
+                .style(muted)
+                .wrap(Wrap { trim: false }),
+            Rect::new(
+                area.x + CONTENT_COLUMN,
+                y,
+                content_width,
+                context_height.min(area.bottom().saturating_sub(y)),
+            ),
+        );
+        let block_start = y;
+        y += context_height;
+        if is_selected {
+            let available = Rect::new(
+                area.x + CONTENT_COLUMN,
+                y,
+                content_width,
+                area.bottom().saturating_sub(y),
             );
+            draw_actions(frame, app, record, available);
+            y += actions_height;
         }
-        if stride == 3 && index < 3 && y + 2 < area.bottom() {
+        if index < 3 {
+            y += spacer;
+            let connector_height = y.min(area.bottom()).saturating_sub(block_start);
             frame.render_widget(
-                Paragraph::new("       │").style(Style::default().fg(Color::DarkGray)),
-                Rect::new(area.x, y + 2, area.width, 1),
+                Paragraph::new(vec![Line::from("│"); connector_height as usize])
+                    .style(Style::default().fg(Color::DarkGray)),
+                Rect::new(area.x + NODE_COLUMN, block_start, 1, connector_height),
             );
         }
     }
-    let action_y = area.y + 1 + 3 * stride + 3;
-    let actions_area = Rect::new(
-        area.x,
-        action_y.min(area.bottom()),
-        area.width,
-        area.bottom().saturating_sub(action_y),
-    );
-    draw_actions(frame, app, record, actions_area);
 }
 
 fn draw_actions(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area: Rect) {
-    if let Some(prompt) = &app.prompt {
-        let text = if matches!(prompt, Prompt::Delete { .. }) {
-            format!(
-                "Delete {}?\n{}\nEnter delete · Esc cancel",
-                fit_label(
-                    record.display_title(),
-                    area.width.saturating_sub(8) as usize
-                ),
-                if app.store.manages_spec(record) {
-                    "Files move to local Trash."
-                } else {
-                    "Record moves to Trash; linked spec stays."
-                }
-            )
-        } else {
-            format!(
-                "{}\n{}█\nEnter save · Esc cancel",
-                prompt.label(),
-                app.input
-            )
-        };
-        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), area);
+    if app.prompt.is_some() {
+        frame.render_widget(Paragraph::new(prompt_lines(app, record, area.width)), area);
         return;
     }
-    let stage = app.milestone_selected;
-    let guidance = Paragraph::new(stage.guidance(record))
-        .style(Style::default().fg(Color::Gray))
-        .wrap(Wrap { trim: false });
-    let guidance_height = guidance.line_count(area.width).min(2) as u16;
-    frame.render_widget(
-        guidance,
-        Rect::new(area.x, area.y, area.width, guidance_height.min(area.height)),
-    );
     for (index, action) in app.actions().iter().enumerate() {
-        let y = area.y + guidance_height + index as u16;
+        let y = area.y + index as u16;
         if y >= area.bottom() {
             break;
         }
@@ -114,10 +109,7 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area
         let label = format!(" {} {} ", if selected { "▸" } else { "·" }, action.label());
         let width = (label.chars().count() as u16).min(area.width);
         let style = if selected {
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD)
+            selection_style()
         } else {
             Style::default().fg(Color::LightBlue)
         };
@@ -125,6 +117,58 @@ fn draw_actions(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area
         frame.render_widget(Paragraph::new(label).style(style), hitbox);
         app.action_hitboxes.push(hitbox);
     }
+}
+
+fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
+    let Some(prompt) = &app.prompt else {
+        return Vec::new();
+    };
+    let width = usize::from(width);
+    let lines = if matches!(prompt, Prompt::Delete { .. }) {
+        vec![
+            format!(
+                "Delete {}?",
+                fit_label(record.display_title(), width.saturating_sub(8))
+            ),
+            if app.store.manages_spec(record) {
+                "Files move to local Trash.".into()
+            } else {
+                "Record moves to Trash.".into()
+            },
+            if app.store.manages_spec(record) {
+                "Enter delete · Esc cancel".into()
+            } else {
+                "Linked spec stays in place.".into()
+            },
+        ]
+    } else {
+        let tail: String = app
+            .input
+            .chars()
+            .rev()
+            .take(width.saturating_sub(1))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        vec![
+            fit_label(prompt.label(), width),
+            format!("{tail}█"),
+            "Enter save · Esc cancel".into(),
+        ]
+    };
+    let mut lines: Vec<Line<'static>> = lines.into_iter().map(Line::from).collect();
+    if matches!(prompt, Prompt::Delete { .. }) && !app.store.manages_spec(record) {
+        lines.push(Line::from("Enter delete · Esc cancel"));
+    }
+    lines
+}
+
+fn selection_style() -> Style {
+    Style::default()
+        .fg(Color::Black)
+        .bg(Color::Cyan)
+        .add_modifier(Modifier::BOLD)
 }
 
 fn appearance(status: &str) -> (&'static str, &'static str, Color) {
