@@ -73,6 +73,13 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             KeyCode::Char('k') | KeyCode::Up => {
                 app.reader_scroll = app.reader_scroll.saturating_sub(1)
             }
+            KeyCode::Char('J') => {
+                app.reader_scroll = app
+                    .reader_scroll
+                    .saturating_add(10)
+                    .min(app.reader_max_scroll)
+            }
+            KeyCode::Char('K') => app.reader_scroll = app.reader_scroll.saturating_sub(10),
             KeyCode::PageDown => {
                 app.reader_scroll = app
                     .reader_scroll

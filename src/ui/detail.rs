@@ -192,8 +192,7 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     app.reader_scroll = app.reader_scroll.min(app.reader_max_scroll);
     frame.render_widget(paragraph.scroll((app.reader_scroll, 0)), areas[1]);
     frame.render_widget(
-        Paragraph::new("j/k scroll · PgUp/PgDn page · g top · e edit · r/Esc detail · q quit")
-            .style(Style::default().fg(Color::Gray)),
+        Paragraph::new("j/k scroll · Shift+J/K 10 lines").style(Style::default().fg(Color::Gray)),
         areas[2],
     );
 }

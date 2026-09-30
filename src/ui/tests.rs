@@ -228,7 +228,7 @@ fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result
     let record = store.start("Long spec", None, None)?;
     fs::write(
         &record.spec_path,
-        format!("{}\nLAST LINE", "word ".repeat(140)),
+        format!("{}\nLAST LINE", "word ".repeat(300)),
     )?;
     let mut app = App::new(store)?;
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
@@ -236,11 +236,41 @@ fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result
     press(&mut app, KeyCode::Char('r'))?;
     let mut terminal = Terminal::new(TestBackend::new(40, 16))?;
     terminal.draw(|frame| draw::draw(frame, &mut app))?;
-    assert!(app.reader_max_scroll > 0);
+    assert!(app.reader_max_scroll > 11);
+    let rendered: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(rendered.contains("j/k scroll · Shift+J/K 10 lines"));
+    assert!(!rendered.contains("PgUp/PgDn page"));
+    press(&mut app, KeyCode::Char('j'))?;
+    assert_eq!(app.reader_scroll, 1);
+    handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('J'), KeyModifiers::SHIFT),
+    )?;
+    assert_eq!(app.reader_scroll, 11);
+    press(&mut app, KeyCode::Char('k'))?;
+    assert_eq!(app.reader_scroll, 10);
+    handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('K'), KeyModifiers::SHIFT),
+    )?;
+    assert_eq!(app.reader_scroll, 0);
+    press(&mut app, KeyCode::Char('K'))?;
+    assert_eq!(app.reader_scroll, 0);
 
     for _ in 0..50 {
         press(&mut app, KeyCode::PageDown)?;
     }
+    assert_eq!(app.reader_scroll, app.reader_max_scroll);
+    handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('J'), KeyModifiers::SHIFT),
+    )?;
     assert_eq!(app.reader_scroll, app.reader_max_scroll);
     terminal.draw(|frame| draw::draw(frame, &mut app))?;
     let rendered: String = terminal
