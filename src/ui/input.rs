@@ -174,7 +174,7 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
         DetailAction::Finish => {
             let updated = app.store.update(&id, Change::Finish { title: None })?;
             let _ = launch::rename_tab(&updated);
-            app.message = "Spec complete; Jira and implementation unlocked".into();
+            app.message = "Spec complete; link Jira to unlock implementation".into();
         }
         DetailAction::Jira => app.begin(Prompt::Jira { id }),
         DetailAction::Implement => app.begin(Prompt::Agent { id }),

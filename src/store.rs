@@ -63,6 +63,26 @@ impl Record {
         }
     }
 
+    pub fn implementation_stage(&self) -> &str {
+        match self.implementation.status.as_str() {
+            "waiting" | "ready" if self.jira.status == "created" => "ready",
+            "waiting" | "ready" => "locked",
+            status => status,
+        }
+    }
+
+    pub fn pr_stage(&self) -> &str {
+        match self.pr.status.as_str() {
+            "waiting" | "ready"
+                if self.jira.status == "created" && self.implementation.status == "in_progress" =>
+            {
+                "ready"
+            }
+            "waiting" | "ready" => "locked",
+            status => status,
+        }
+    }
+
     pub fn next_actions(&self) -> Vec<&'static str> {
         if self
             .launch
@@ -77,8 +97,9 @@ impl Record {
         let mut actions = Vec::new();
         if self.jira.status == "ready" {
             actions.push("Create Jira ticket");
+            return actions;
         }
-        match self.implementation.status.as_str() {
+        match self.implementation_stage() {
             "ready" => actions.push("Hand spec to implementor"),
             "in_progress" => actions.push("Await draft PR"),
             "draft_pr" => actions.push("Review draft PR"),
@@ -259,27 +280,47 @@ impl Store {
                     }
                     record.spec = "done".into();
                     record.jira.status = "ready".into();
-                    record.implementation.status = "ready".into();
+                    record.implementation.status = "waiting".into();
                 }
                 Change::Jira { key, url } => {
                     if record.spec != "done" {
                         return Err("Finish the spec before linking Jira".into());
                     }
+                    if key.trim().is_empty() {
+                        return Err("Jira key cannot be empty".into());
+                    }
                     record.jira.status = "created".into();
-                    record.jira.key = Some(key);
+                    record.jira.key = Some(key.trim().to_owned());
                     record.jira.url = url;
+                    if record.implementation.status == "waiting" {
+                        record.implementation.status = "ready".into();
+                    }
+                    if record.implementation.status == "in_progress"
+                        && record.pr.status == "waiting"
+                    {
+                        record.pr.status = "ready".into();
+                    }
                 }
                 Change::Implement { agent, branch } => {
-                    if record.spec != "done" {
-                        return Err("Finish the spec before implementation".into());
+                    if record.spec != "done" || record.jira.status != "created" {
+                        return Err("Finish the spec and link Jira before implementation".into());
                     }
                     record.implementation.status = "in_progress".into();
                     record.implementation.agent = agent;
                     record.implementation.branch = branch;
+                    if record.pr.status == "waiting" {
+                        record.pr.status = "ready".into();
+                    }
                 }
                 Change::Pr { url } => {
-                    if record.spec != "done" {
-                        return Err("Finish the spec before linking a PR".into());
+                    if record.spec != "done"
+                        || record.jira.status != "created"
+                        || !matches!(
+                            record.implementation.status.as_str(),
+                            "in_progress" | "draft_pr"
+                        )
+                    {
+                        return Err("Link Jira and start implementation before a PR".into());
                     }
                     record.implementation.status = "draft_pr".into();
                     record.pr.status = "draft".into();

@@ -29,7 +29,10 @@ fn print_record(record: &Record) {
     println!("{}  {}", record.id, record.display_title());
     println!(
         "  Spec: {}  Jira: {}  Implementation: {}  PR: {}",
-        record.spec, record.jira.status, record.implementation.status, record.pr.status
+        record.spec,
+        record.jira.status,
+        record.implementation_stage(),
+        record.pr_stage()
     );
     println!("  Next: {}", record.next_actions().join(", "));
     println!("  Spec file: {}", record.spec_path.display());

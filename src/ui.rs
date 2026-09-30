@@ -126,10 +126,10 @@ fn detail_actions(record: &Record) -> Vec<DetailAction> {
     if record.jira.status == "ready" {
         actions.push(DetailAction::Jira);
     }
-    if record.implementation.status == "ready" {
+    if record.implementation_stage() == "ready" {
         actions.push(DetailAction::Implement);
     }
-    if record.pr.status == "waiting" && record.implementation.status == "in_progress" {
+    if record.pr_stage() == "ready" && record.implementation.status == "in_progress" {
         actions.push(DetailAction::Pr);
     }
     if record.pr.status == "draft" && record.pr.url.is_some() {
@@ -229,7 +229,7 @@ impl App {
                     .store
                     .update(&id, Change::Finish { title: Some(value) })?;
                 let _ = launch::rename_tab(&record);
-                self.message = "Spec done; Jira and handoff ready".into();
+                self.message = "Spec done; link Jira to unlock implementation".into();
             }
             Prompt::Jira { id } if !value.is_empty() => {
                 self.begin(Prompt::JiraUrl { id, key: value });

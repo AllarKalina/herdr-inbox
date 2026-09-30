@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn spec_to_pr_flow_keeps_independent_stage_statuses() -> Result<()> {
+fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
     let store = Store::new(root.clone());
     let started = store.start("Payment retries", None, None)?;
@@ -31,9 +31,60 @@ fn spec_to_pr_flow_keeps_independent_stage_statuses() -> Result<()> {
     );
 
     let finished = store.update(&started.id, Change::Finish { title: None })?;
-    assert_eq!(
-        finished.next_actions(),
-        vec!["Create Jira ticket", "Hand spec to implementor"]
+    assert_eq!(finished.next_actions(), vec!["Create Jira ticket"]);
+    assert_eq!(finished.implementation_stage(), "locked");
+    assert_eq!(finished.pr_stage(), "locked");
+    assert!(
+        store
+            .update(
+                &started.id,
+                Change::Jira {
+                    key: "  ".into(),
+                    url: None,
+                },
+            )
+            .is_err()
+    );
+    assert!(
+        store
+            .update(
+                &started.id,
+                Change::Implement {
+                    agent: Some("codex".into()),
+                    branch: Some("feature/payment-retries".into()),
+                },
+            )
+            .is_err()
+    );
+    assert!(
+        store
+            .update(
+                &started.id,
+                Change::Pr {
+                    url: "https://example.test/pr/1".into(),
+                },
+            )
+            .is_err()
+    );
+    let linked = store.update(
+        &started.id,
+        Change::Jira {
+            key: "ABC-123".into(),
+            url: None,
+        },
+    )?;
+    assert_eq!(linked.next_actions(), vec!["Hand spec to implementor"]);
+    assert_eq!(linked.implementation_stage(), "ready");
+    assert_eq!(linked.pr_stage(), "locked");
+    assert!(
+        store
+            .update(
+                &started.id,
+                Change::Pr {
+                    url: "https://example.test/pr/1".into(),
+                },
+            )
+            .is_err()
     );
     let implementing = store.update(
         &started.id,
@@ -42,16 +93,9 @@ fn spec_to_pr_flow_keeps_independent_stage_statuses() -> Result<()> {
             branch: Some("feature/payment-retries".into()),
         },
     )?;
-    assert_eq!(implementing.jira.status, "ready");
     assert_eq!(implementing.implementation.status, "in_progress");
-    let linked = store.update(
-        &started.id,
-        Change::Jira {
-            key: "ABC-123".into(),
-            url: None,
-        },
-    )?;
-    assert_eq!(linked.next_actions(), vec!["Await draft PR"]);
+    assert_eq!(implementing.pr_stage(), "ready");
+    assert_eq!(implementing.next_actions(), vec!["Await draft PR"]);
     let pr = store.update(
         &started.id,
         Change::Pr {
@@ -61,6 +105,41 @@ fn spec_to_pr_flow_keeps_independent_stage_statuses() -> Result<()> {
     assert_eq!(pr.next_actions(), vec!["Review draft PR"]);
     assert_eq!(store.list()?.len(), 1);
     assert_eq!(fs::read_dir(root.join("items"))?.count(), 1);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn legacy_active_implementation_keeps_progress_but_requires_jira_for_new_work() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-legacy-{}", Uuid::new_v4()));
+    let store = Store::new(root.clone());
+    let started = store.start("Legacy flow", None, None)?;
+    let mut legacy = store.update(&started.id, Change::Finish { title: None })?;
+    legacy.implementation.status = "in_progress".into();
+    store.write(&legacy)?;
+    assert_eq!(
+        store.get(&started.id)?.implementation_stage(),
+        "in_progress"
+    );
+    assert_eq!(store.get(&started.id)?.pr_stage(), "locked");
+    assert!(
+        store
+            .update(
+                &started.id,
+                Change::Pr {
+                    url: "https://example.test/pr/2".into(),
+                },
+            )
+            .is_err()
+    );
+    let linked = store.update(
+        &started.id,
+        Change::Jira {
+            key: "ABC-456".into(),
+            url: None,
+        },
+    )?;
+    assert_eq!(linked.pr_stage(), "ready");
     fs::remove_dir_all(root)?;
     Ok(())
 }

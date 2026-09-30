@@ -10,21 +10,21 @@ Allar uses this local Herdr popup to track a spec from a grilling session throug
 
 ## Product Purpose
 
-Keep the spec and its next concrete actions in one place. The list answers what needs attention; opening an item reveals the brief, quest path, and available actions.
+Keep the spec and its next concrete actions in one place. The list answers what needs attention; opening an item reveals the brief, progress path, and available actions.
 
 ## Brand Personality
 
-Focused, playful, and personal. Progress should feel like a small quest board, with milestones and a visible next move.
+Focused, playful, and personal. Progress should feel like a small waterfall, with milestones and a visible next move.
 
 ## Anti-references
 
-Avoid fake XP, scores, badges, and progress that implies Jira and implementation must happen in a fixed order. Avoid extra cards and opaque backgrounds that fight the terminal's transparency.
+Avoid fake XP, scores, badges, extra cards, and opaque backgrounds that fight the terminal's transparency.
 
 ## Design Principles
 
 - Show the next real action before secondary metadata.
 - Keep the spec readable without leaving the inbox, with an easy path to the full text.
-- Show Jira and implementation as parallel work after the spec is done.
+- Show the dependency chain clearly: spec, Jira ticket, implementation, draft PR.
 - Use stage icons and color together with readable status words.
 - Keep records and specs on disk; action controls may later gain integrations without changing the core flow.
 

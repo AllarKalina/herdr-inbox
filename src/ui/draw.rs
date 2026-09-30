@@ -29,8 +29,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
                 Cell::from(record.display_title().to_owned()),
                 status_cell(&record.spec, selected),
                 status_cell(&record.jira.status, selected),
-                status_cell(&record.implementation.status, selected),
-                status_cell(&record.pr.status, selected),
+                status_cell(record.implementation_stage(), selected),
+                status_cell(record.pr_stage(), selected),
             ])
         })
         .collect();
@@ -167,6 +167,7 @@ pub(super) fn footer_text(app: &App) -> String {
 fn status_cell(status: &str, selected: bool) -> Cell<'static> {
     let (label, color) = match status {
         "waiting" => ("○ wait", Color::Gray),
+        "locked" => ("○ locked", Color::DarkGray),
         "ready" => ("→ ready", Color::LightBlue),
         "in_progress" => ("● active", Color::Cyan),
         "done" | "created" => ("✓ done", Color::LightGreen),

@@ -3,7 +3,7 @@ use crate::store::Record;
 use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Paragraph, Wrap};
 use std::fs;
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
@@ -27,7 +27,6 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &App, record: &Record) {
         .constraints([
             Constraint::Length(2),
             Constraint::Min(8),
-            Constraint::Length(7),
             Constraint::Length(4),
         ])
         .split(body);
@@ -41,9 +40,26 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &App, record: &Record) {
         ),
     ]);
     frame.render_widget(Paragraph::new(title), areas[0]);
-    draw_spec(frame, record, areas[1]);
-    draw_quest(frame, record, areas[2]);
-    draw_actions(frame, app, record, areas[3]);
+    if areas[1].width >= 72 {
+        let columns = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(38),
+                Constraint::Length(2),
+                Constraint::Length(32),
+            ])
+            .split(areas[1]);
+        draw_spec(frame, record, columns[0]);
+        draw_progress(frame, record, columns[2]);
+    } else {
+        let rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(4), Constraint::Length(8)])
+            .split(areas[1]);
+        draw_spec(frame, record, rows[0]);
+        draw_progress(frame, record, rows[1]);
+    }
+    draw_actions(frame, app, record, areas[2]);
 }
 
 fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
@@ -61,32 +77,23 @@ fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
     );
 }
 
-fn draw_quest(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
+fn draw_progress(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
     let spec = milestone("SPEC", &record.spec);
     let jira = milestone("JIRA", &record.jira.status);
-    let dev = milestone("DEV", &record.implementation.status);
-    let pr = milestone("PR", &record.pr.status);
+    let dev = milestone("DEV", record.implementation_stage());
+    let pr = milestone("PR", record.pr_stage());
+    let branch = Style::default().fg(Color::DarkGray);
     let lines = vec![
-        Line::from("QUEST PATH").style(Style::default().fg(Color::Gray)),
-        Line::from(vec![
-            Span::raw("  "),
-            spec,
-            Span::styled(" ━━━┳━━━ ", Style::default().fg(Color::DarkGray)),
-            jira,
-        ]),
-        Line::from(vec![
-            Span::styled("             ┗━━━ ", Style::default().fg(Color::DarkGray)),
-            dev,
-            Span::styled(" ━━━ ", Style::default().fg(Color::DarkGray)),
-            pr,
-        ]),
-        Line::from("Jira and implementation can advance in either order.")
-            .style(Style::default().fg(Color::DarkGray)),
+        Line::from("PROGRESS").style(Style::default().fg(Color::Gray)),
+        Line::from(spec),
+        Line::from("│").style(branch),
+        Line::from(vec![Span::styled("└─ ", branch), jira]),
+        Line::from("   │").style(branch),
+        Line::from(vec![Span::styled("   └─ ", branch), dev]),
+        Line::from("      │").style(branch),
+        Line::from(vec![Span::styled("      └─ ", branch), pr]),
     ];
-    frame.render_widget(
-        Paragraph::new(lines).block(Block::default().borders(Borders::TOP)),
-        area,
-    );
+    frame.render_widget(Paragraph::new(lines), area);
 }
 
 fn draw_actions(frame: &mut ratatui::Frame, app: &App, record: &Record, area: Rect) {
@@ -214,6 +221,7 @@ fn status_label(status: &str) -> &'static str {
         "done" | "created" => "✓ done",
         "in_progress" => "● active",
         "ready" => "→ ready",
+        "locked" => "○ locked",
         "draft_pr" | "draft" => "◐ draft",
         "failed" => "✕ failed",
         _ => "○ wait",
@@ -225,6 +233,7 @@ fn milestone(label: &'static str, status: &str) -> Span<'static> {
         "done" | "created" => Color::LightGreen,
         "in_progress" => Color::Cyan,
         "ready" => Color::LightBlue,
+        "locked" => Color::DarkGray,
         "draft_pr" | "draft" => Color::Yellow,
         "failed" => Color::Red,
         _ => Color::DarkGray,

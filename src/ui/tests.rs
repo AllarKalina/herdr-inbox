@@ -90,7 +90,7 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
         assert_eq!(rows[0].find("● active"), rows[1].find("● active"));
         assert!(
             rows.iter()
-                .all(|row| row.rfind("○ wait").unwrap() > width as usize - 15)
+                .all(|row| row.rfind("○ locked").unwrap() > width as usize - 15)
         );
         assert!(rows.iter().any(|row| row.contains("Short")));
         assert!(rows.iter().any(|row| row.contains("Long title")));
@@ -120,6 +120,13 @@ fn list_icons_show_completed_and_draft_stages() -> Result<()> {
         Change::Jira {
             key: "TEST-1".into(),
             url: None,
+        },
+    )?;
+    store.update(
+        &record.id,
+        Change::Implement {
+            agent: None,
+            branch: None,
         },
     )?;
     store.update(
@@ -175,7 +182,7 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     assert!(!rendered.contains("SPEC BRIEF"));
     assert!(!rendered.contains("v full spec"));
     assert!(rendered.contains("Retry only transient failures"));
-    assert!(rendered.contains("QUEST PATH"));
+    assert!(rendered.contains("PROGRESS"));
     assert!(rendered.contains("Finish spec"));
     assert!(!rendered.contains("STAGE & LINKS"));
     assert!(!rendered.contains("Local spec"));
@@ -191,12 +198,42 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
         .iter()
         .find_map(|line| line.find("# Payment retries"))
         .unwrap();
-    let quest_column = lines
-        .iter()
-        .find_map(|line| line.find("QUEST PATH"))
-        .unwrap();
+    let progress_column = lines.iter().find_map(|line| line.find("PROGRESS")).unwrap();
     assert_eq!(heading_column, content_column);
-    assert_eq!(heading_column, quest_column);
+    assert!(progress_column > content_column + 30);
+    let milestone_rows: Vec<usize> = [
+        "SPEC ● active",
+        "JIRA ○ wait",
+        "DEV ○ locked",
+        "PR ○ locked",
+    ]
+    .iter()
+    .map(|milestone| {
+        lines
+            .iter()
+            .position(|line| line.contains(milestone))
+            .unwrap()
+    })
+    .collect();
+    assert!(milestone_rows.windows(2).all(|pair| pair[0] < pair[1]));
+    let mut narrow = Terminal::new(TestBackend::new(60, 24))?;
+    narrow.draw(|frame| draw::draw(frame, &mut app))?;
+    let narrow_lines: Vec<String> = narrow
+        .backend()
+        .buffer()
+        .content()
+        .chunks(60)
+        .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
+        .collect();
+    let spec_row = narrow_lines
+        .iter()
+        .position(|line| line.contains("SPEC"))
+        .unwrap();
+    let progress_row = narrow_lines
+        .iter()
+        .position(|line| line.contains("PROGRESS"))
+        .unwrap();
+    assert!(progress_row > spec_row);
 
     press(&mut app, KeyCode::Char('v'))?;
     assert_eq!(app.screen, Screen::Detail);
@@ -322,7 +359,7 @@ fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result
 }
 
 #[test]
-fn quest_actions_follow_the_real_parallel_stages() -> Result<()> {
+fn progress_actions_require_jira_before_implementation() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-quest-{}", Uuid::new_v4()));
     let store = Store::new(root.clone());
     store.start("Payment retries", None, None)?;
@@ -338,18 +375,7 @@ fn quest_actions_follow_the_real_parallel_stages() -> Result<()> {
     assert_eq!(app.current().unwrap().spec, "done");
     assert_eq!(
         detail_actions(app.current().unwrap()),
-        vec![DetailAction::Jira, DetailAction::Implement]
-    );
-    press(&mut app, KeyCode::Tab)?;
-    press(&mut app, KeyCode::Enter)?;
-    assert!(matches!(app.prompt, Some(Prompt::Agent { .. })));
-    press(&mut app, KeyCode::Enter)?;
-    assert!(matches!(app.prompt, Some(Prompt::Branch { .. })));
-    press(&mut app, KeyCode::Enter)?;
-    assert_eq!(app.current().unwrap().implementation.status, "in_progress");
-    assert_eq!(
-        detail_actions(app.current().unwrap()),
-        vec![DetailAction::Jira, DetailAction::Pr]
+        vec![DetailAction::Jira]
     );
     handle_mouse(
         &mut app,
@@ -375,6 +401,20 @@ fn quest_actions_follow_the_real_parallel_stages() -> Result<()> {
     assert_eq!(
         app.current().unwrap().jira.url.as_deref(),
         Some("https://jira.example/ABC-123")
+    );
+    assert_eq!(
+        detail_actions(app.current().unwrap()),
+        vec![DetailAction::Implement]
+    );
+    press(&mut app, KeyCode::Enter)?;
+    assert!(matches!(app.prompt, Some(Prompt::Agent { .. })));
+    press(&mut app, KeyCode::Enter)?;
+    assert!(matches!(app.prompt, Some(Prompt::Branch { .. })));
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.current().unwrap().implementation.status, "in_progress");
+    assert_eq!(
+        detail_actions(app.current().unwrap()),
+        vec![DetailAction::Pr]
     );
     let id = app.current().unwrap().id.clone();
     app.store.update(
