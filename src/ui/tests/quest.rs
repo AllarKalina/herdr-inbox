@@ -13,7 +13,7 @@ fn rendered(app: &mut App, width: u16, height: u16) -> Result<Vec<String>> {
 }
 
 #[test]
-fn progress_waterfall_keeps_linked_evidence_visible() -> Result<()> {
+fn progress_timeline_keeps_linked_evidence_visible() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-evidence-{}", Uuid::new_v4()));
     let store = Store::new(root.clone());
     let record = store.start("Payment retry handling", None, None)?;
@@ -41,15 +41,14 @@ fn progress_waterfall_keeps_linked_evidence_visible() -> Result<()> {
     let mut app = App::new(store)?;
     handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;
     let lines = rendered(&mut app, 100, 35)?;
-    assert!(lines.iter().any(|line| line.contains("PAY-123 ↗")));
-    assert!(lines.iter().any(|line| line.contains("DEV ✓ done")));
+    assert!(lines.iter().any(|line| line.contains("PAY-123")));
+    assert!(lines.iter().any(|line| line.contains("DEV    ● done")));
     assert!(
         lines
             .iter()
             .any(|line| line.contains("feature/payment-retries"))
     );
     assert!(lines.iter().any(|line| line.contains("#42 ↗")));
-    assert!(lines.iter().any(|line| line.contains("o Jira")));
     assert!(lines.iter().any(|line| line.contains("Review draft PR")));
     fs::remove_dir_all(root)?;
     Ok(())
@@ -69,14 +68,13 @@ fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
     let lines = rendered(&mut app, 60, 24)?;
     assert!(lines.iter().any(|line| line.contains("PROGRESS")));
     assert!(lines.iter().any(|line| line.contains("Needs Jira")));
-    assert!(lines.iter().any(|line| line.contains("NEXT MOVE")));
+    assert!(!lines.iter().any(|line| line.contains("NEXT MOVE")));
     assert!(lines.iter().any(|line| line.contains("Finish spec")));
     assert!(
         lines
             .iter()
-            .any(|line| line.contains("Enter act · r read · Esc back"))
+            .any(|line| line.contains("j/k stage · Tab action · Enter act"))
     );
-    assert!(lines.iter().any(|line| line.contains("e edit · d delete")));
     let button = app.action_hitboxes[0];
     assert!(button.x + button.width <= 60);
     handle_mouse(

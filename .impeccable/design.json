@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-30T19:04:38.673Z",
+  "generatedAt": "2026-09-30T19:39:44.403Z",
   "title": "Design System: Personal Inbox",
   "extensions": {
     "colorMeta": {
@@ -163,10 +163,10 @@
       "css": ".ds-inbox-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,8ch);gap:2ch;overflow:hidden;font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#89b4fa;background:transparent}.ds-inbox-row span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ds-inbox-row:hover,.ds-inbox-row:focus-visible{background:#94e2d5;color:#45475a;font-weight:700;outline:none}@media(max-width:64ch){.ds-inbox-row{grid-template-columns:minmax(0,1fr) repeat(4,1ch);gap:1ch}.ds-inbox-row span:not(:first-child){font-size:0}.ds-inbox-row span:not(:first-child)::after{content:attr(data-short);font-size:16px}}"
     },
     {
-      "name": "Selected next move",
+      "name": "Selected milestone action",
       "kind": "button",
       "refersTo": "action-selected",
-      "description": "Current next action uses the same teal and dark text as the selected inbox row.",
+      "description": "The selected milestone owns this primary action directly below the timeline; cycle its actions with Tab or h/l.",
       "html": "<button class=\"ds-action-selected\">▸ Link Jira</button>",
       "css": ".ds-action-selected{border:0;border-radius:0;background:#94e2d5;color:#45475a;padding:0 1ch;font:700 16px \"JetBrainsMono Nerd Font Mono\",monospace}.ds-action-selected:hover,.ds-action-selected:focus-visible{outline:1px solid #89b4fa;outline-offset:1px}.ds-action-selected:active{background:#a6e3a1}"
     },
@@ -179,12 +179,12 @@
       "css": ".ds-breadcrumb{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#a6adc8;background:transparent;white-space:nowrap}.ds-breadcrumb strong{font-weight:700;color:#94e2d5}"
     },
     {
-      "name": "Progress waterfall",
+      "name": "Milestone navigation",
       "kind": "custom",
-      "refersTo": "progress-path",
-      "description": "Four dependent milestones with a short evidence or prerequisite line beneath each status.",
-      "html": "<div class=\"ds-progress\"><div>PROGRESS</div><div>SPEC ✓ done</div><div>│  Spec complete</div><div>└─ JIRA ✓ done</div><div>   │  PAY-123 ↗</div><div>   └─ DEV → ready</div><div>      │  Ready to start</div><div>      └─ PR ○ locked</div><div>         Needs implementation</div></div>",
-      "css": ".ds-progress{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#a6adc8;background:transparent;white-space:pre}.ds-progress div:nth-child(2),.ds-progress div:nth-child(4){color:#a6e3a1}.ds-progress div:nth-child(6){color:#89b4fa}.ds-progress div:nth-child(8){color:#585b70}"
+      "refersTo": "milestone-selected",
+      "description": "Four selectable circular nodes share one spine. The next actionable milestone is selected on open; its context and actions remain directly below the timeline.",
+      "html": "<section class=\"ds-progress\" aria-label=\"Progress\"><div class=\"ds-heading\">PROGRESS</div><div class=\"ds-stage done\"><button><span class=\"ds-node\">●</span> SPEC <span>✓ done</span></button><div class=\"ds-context\">Spec complete</div></div><div class=\"ds-stage selected\"><button aria-current=\"step\"><span class=\"ds-node\">◉</span> JIRA <span>→ ready</span></button><div class=\"ds-context\">Link a ticket next</div></div><div class=\"ds-stage locked\"><button><span class=\"ds-node\">○</span> DEV <span>○ locked</span></button><div class=\"ds-context\">Needs Jira</div></div><div class=\"ds-stage locked final\"><button><span class=\"ds-node\">○</span> PR <span>○ locked</span></button><div class=\"ds-context\">Needs implementation</div></div><div class=\"ds-stage-actions\"><div>JIRA</div><button>▸ Link Jira</button><div class=\"ds-hints\">j/k stage · Tab action · Enter act</div></div></section>",
+      "css": ".ds-progress{font:600 16px \"JetBrainsMono Nerd Font Mono\",monospace;color:#a6adc8;background:transparent}.ds-heading{margin-bottom:1lh}.ds-stage{position:relative;min-height:3lh;padding-left:0}.ds-stage:not(.final)::after{content:\"\";position:absolute;top:1lh;bottom:0;left:.5ch;border-left:1px solid #585b70}.ds-stage button{position:relative;z-index:1;display:flex;align-items:baseline;gap:1ch;border:0;border-radius:0;padding:0;font:inherit;color:inherit;background:transparent;cursor:pointer;white-space:nowrap}.ds-node{width:1ch;flex:none}.ds-context{margin-left:2ch;color:#a6adc8}.ds-stage.done button{color:#a6e3a1}.ds-stage.locked button{color:#585b70}.ds-stage.selected button{background:#94e2d5;color:#45475a;font-weight:700}.ds-stage button:hover,.ds-stage button:focus-visible{outline:1px solid #94e2d5}.ds-stage-actions{margin-top:1lh}.ds-stage-actions>button{margin-top:.5lh;border:0;border-radius:0;padding:0 1ch;font:700 16px \"JetBrainsMono Nerd Font Mono\",monospace;background:#94e2d5;color:#45475a;cursor:pointer}.ds-stage-actions>button:focus-visible{outline:1px solid #89b4fa;outline-offset:1px}.ds-hints{margin-top:1lh;color:#a6adc8}"
     },
     {
       "name": "Ready status",
@@ -210,7 +210,7 @@
       "Flat, transparent-feeling canvas with no decorative inset card.",
       "Monospaced, cell-aligned information with a flexible name column and fixed status columns.",
       "A mint-teal selection, semantic status colors, and words beside every icon.",
-      "A top-down progress tree and a visible next action, without points or badges."
+      "A straight vertical milestone path whose selected stage owns the nearby actions, without points or badges."
     ],
     "rules": [
       {
@@ -225,7 +225,7 @@
       },
       {
         "name": "The One Grid Rule",
-        "body": "Keep labels, values, icons, and tree branches aligned to terminal cells. Do not introduce proportional type inside the TUI.",
+        "body": "Keep labels, values, icons, and milestone nodes aligned to terminal cells. Do not introduce proportional type inside the TUI.",
         "section": "typography"
       },
       {
@@ -237,6 +237,7 @@
     "dos": [
       "Do preserve the host's transparent background and terminal font.",
       "Do keep selected rows and actions visually consistent.",
+      "Do keep all milestone nodes on one spine and place actions with their selected stage.",
       "Do align status columns even when a spec title is long.",
       "Do show locked prerequisites and a readable label beside every status icon."
     ],

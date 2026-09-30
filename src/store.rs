@@ -305,7 +305,9 @@ impl Store {
                     if record.spec != "done" || record.jira.status != "created" {
                         return Err("Finish the spec and link Jira before implementation".into());
                     }
-                    record.implementation.status = "in_progress".into();
+                    if record.implementation.status != "draft_pr" {
+                        record.implementation.status = "in_progress".into();
+                    }
                     record.implementation.agent = agent;
                     record.implementation.branch = branch;
                     if record.pr.status == "waiting" {

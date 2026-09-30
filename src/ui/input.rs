@@ -1,4 +1,4 @@
-use super::{App, DetailAction, Prompt, Screen, detail_actions};
+use super::{App, DetailAction, Milestone, Prompt, Screen};
 use crate::launch;
 use crate::store::{Change, Result};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
@@ -98,10 +98,12 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         return Ok(false);
     }
     if app.screen == Screen::Detail {
-        let actions = app.current().map(detail_actions).unwrap_or_default();
+        let actions = app.actions();
         match key.code {
             KeyCode::Esc => app.screen = Screen::List,
             KeyCode::Char('q') => return Ok(true),
+            KeyCode::Char('j') | KeyCode::Down => app.move_milestone(true),
+            KeyCode::Char('k') | KeyCode::Up => app.move_milestone(false),
             KeyCode::Char('r') => {
                 app.reader_scroll = 0;
                 app.reader_max_scroll = 0;
@@ -143,7 +145,9 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         KeyCode::Esc => return Ok(true),
         KeyCode::Enter if app.current().is_some() => {
             app.screen = Screen::Detail;
-            app.action_selected = 0;
+            if let Some(record) = app.current() {
+                app.select_milestone(Milestone::next(record));
+            }
         }
         KeyCode::Char('j') | KeyCode::Down => {
             app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1))
@@ -171,7 +175,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
 }
 
 fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
-    let Some(record) = app.current() else {
+    let Some(record) = app.current().cloned() else {
         return Ok(());
     };
     let id = record.id.clone();
@@ -185,6 +189,30 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
         DetailAction::Jira => app.begin(Prompt::Jira { id }),
         DetailAction::Implement => app.begin(Prompt::Agent { id }),
         DetailAction::Pr => app.begin(Prompt::Pr { id }),
+        DetailAction::ReadSpec => {
+            app.reader_scroll = 0;
+            app.reader_max_scroll = 0;
+            app.screen = Screen::Reader;
+        }
+        DetailAction::EditSpec => open_editor(&record.spec_path)?,
+        DetailAction::OpenJira => {
+            if let Some(url) = record.jira.url.as_deref() {
+                open_url(url)?;
+                app.message = "Opened Jira ticket".into();
+            }
+        }
+        DetailAction::UpdateJira => {
+            app.begin(Prompt::Jira { id });
+            app.input = record.jira.key.unwrap_or_default();
+        }
+        DetailAction::UpdateImplementation => {
+            app.begin(Prompt::Agent { id });
+            app.input = record.implementation.agent.unwrap_or_default();
+        }
+        DetailAction::UpdatePr => {
+            app.begin(Prompt::Pr { id });
+            app.input = record.pr.url.unwrap_or_default();
+        }
         DetailAction::ReviewPr => {
             if let Some(url) = record.pr.url.as_deref() {
                 let result = Command::new("open").arg(url).status()?;
@@ -216,12 +244,25 @@ pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Res
         return Ok(());
     }
     if app.screen == Screen::Detail {
+        match mouse.kind {
+            MouseEventKind::ScrollDown => app.move_milestone(true),
+            MouseEventKind::ScrollUp => app.move_milestone(false),
+            MouseEventKind::Down(MouseButton::Left) => {
+                if let Some((stage, _)) = app.milestone_hitboxes.iter().find(|(_, area)| {
+                    mouse.row == area.y && mouse.column >= area.x && mouse.column < area.right()
+                }) {
+                    app.select_milestone(*stage);
+                    return Ok(());
+                }
+            }
+            _ => {}
+        }
         if let Some(index) = app.action_hitboxes.iter().position(|area| {
             mouse.row == area.y
                 && mouse.column >= area.x
                 && mouse.column < area.x.saturating_add(area.width)
         }) {
-            let actions = app.current().map(detail_actions).unwrap_or_default();
+            let actions = app.actions();
             app.action_selected = index;
             if mouse.kind == MouseEventKind::Down(MouseButton::Left)
                 && let Some(action) = actions.get(index)

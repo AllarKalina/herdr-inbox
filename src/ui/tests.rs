@@ -7,6 +7,7 @@ use std::fs;
 use uuid::Uuid;
 
 mod quest;
+mod timeline;
 
 #[test]
 fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
@@ -211,10 +212,10 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     assert_eq!(heading_column, content_column);
     assert!(progress_column > content_column + 30);
     let milestone_rows: Vec<usize> = [
-        "SPEC ● active",
-        "JIRA ○ wait",
-        "DEV ○ locked",
-        "PR ○ locked",
+        "SPEC   ◉ active",
+        "JIRA   ○ wait",
+        "DEV    ○ locked",
+        "PR     ○ locked",
     ]
     .iter()
     .map(|milestone| {
@@ -377,23 +378,25 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
 
     press(&mut app, KeyCode::Enter)?;
     assert_eq!(
-        detail_actions(app.current().unwrap()),
-        vec![DetailAction::Finish]
+        app.actions(),
+        vec![
+            DetailAction::Finish,
+            DetailAction::ReadSpec,
+            DetailAction::EditSpec
+        ]
     );
     press(&mut app, KeyCode::Enter)?;
     assert_eq!(app.current().unwrap().spec, "done");
-    assert_eq!(
-        detail_actions(app.current().unwrap()),
-        vec![DetailAction::Jira]
-    );
+    assert_eq!(app.actions(), vec![DetailAction::Jira]);
     let mut terminal = Terminal::new(TestBackend::new(100, 35))?;
     terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    let action = app.action_hitboxes[0];
     handle_mouse(
         &mut app,
         MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
-            column: 15,
-            row: 30,
+            column: action.x + 1,
+            row: action.y,
             modifiers: KeyModifiers::NONE,
         },
         35,
@@ -413,20 +416,14 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
         app.current().unwrap().jira.url.as_deref(),
         Some("https://jira.example/ABC-123")
     );
-    assert_eq!(
-        detail_actions(app.current().unwrap()),
-        vec![DetailAction::Implement]
-    );
+    assert_eq!(app.actions(), vec![DetailAction::Implement]);
     press(&mut app, KeyCode::Enter)?;
     assert!(matches!(app.prompt, Some(Prompt::Agent { .. })));
     press(&mut app, KeyCode::Enter)?;
     assert!(matches!(app.prompt, Some(Prompt::Branch { .. })));
     press(&mut app, KeyCode::Enter)?;
     assert_eq!(app.current().unwrap().implementation.status, "in_progress");
-    assert_eq!(
-        detail_actions(app.current().unwrap()),
-        vec![DetailAction::Pr]
-    );
+    assert_eq!(app.actions(), vec![DetailAction::Pr]);
     let id = app.current().unwrap().id.clone();
     app.store.update(
         &id,
@@ -436,8 +433,8 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
     )?;
     app.refresh()?;
     assert_eq!(
-        detail_actions(app.current().unwrap()),
-        vec![DetailAction::ReviewPr]
+        app.actions(),
+        vec![DetailAction::ReviewPr, DetailAction::UpdatePr]
     );
     fs::remove_dir_all(root)?;
     Ok(())

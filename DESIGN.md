@@ -40,6 +40,10 @@ components:
   progress-path:
     textColor: "{colors.subtext-zero}"
     typography: "{typography.terminal}"
+  milestone-selected:
+    backgroundColor: "{colors.teal}"
+    textColor: "{colors.surface-one}"
+    typography: "{typography.terminal-emphasis}"
   confirmation-panel:
     textColor: "{colors.blue}"
     typography: "{typography.terminal}"
@@ -70,7 +74,7 @@ The current personal setup pairs the Rust TUI with Catppuccin Mocha in Ghostty a
 - Flat, transparent-feeling canvas with no decorative inset card.
 - Monospaced, cell-aligned information with a flexible name column and fixed status columns.
 - A mint-teal selection, semantic status colors, and words beside every icon.
-- A top-down progress tree and a visible next action, without points or badges.
+- A straight vertical milestone path whose selected stage owns the nearby actions, without points or badges.
 
 ## Colors
 
@@ -90,7 +94,7 @@ The active Ghostty profile supplies the Catppuccin Mocha palette. Its source is 
 
 - **Mocha Base:** the terminal canvas behind the popup, not an additional fill painted by the inbox.
 - **Subtext Zero:** secondary labels, column headers, breadcrumbs, and shortcuts.
-- **Surface Two:** locked stages and the progress tree's connectors. **Surface One:** foreground on teal selections.
+- **Surface Two:** locked stages and the progress spine. **Surface One:** foreground on teal selections.
 
 **The Host Owns the Canvas Rule.** Never paint an opaque full-screen rectangle merely to recreate Mocha Base. The existing Ghostty profile uses a translucent background; Herdr's panel background is reset.
 
@@ -100,15 +104,15 @@ The active Ghostty profile supplies the Catppuccin Mocha palette. Its source is 
 
 **Terminal Font:** JetBrainsMono Nerd Font Mono, set by Ghostty at the size and base weight in the frontmatter. The inbox does not load a font of its own.
 
-All content shares one terminal cell grid. Uppercase labels such as `SPEC`, `PROGRESS`, and `NEXT MOVE` establish hierarchy without changing size. Bold distinguishes selected rows, selected actions, and the current breadcrumb; spec text stays readable at the terminal's normal weight. The spec preview and full reader display Markdown as text rather than rendering a second type system.
+All content shares one terminal cell grid. Uppercase labels such as `SPEC` and `PROGRESS` establish hierarchy without changing size. Bold distinguishes selected rows, milestones, actions, and the current breadcrumb; spec text stays readable at the terminal's normal weight. The spec preview and full reader display Markdown as text rather than rendering a second type system.
 
-**The One Grid Rule.** Keep labels, values, icons, and tree branches aligned to terminal cells. Do not introduce proportional type inside the TUI.
+**The One Grid Rule.** Keep labels, values, icons, and milestone nodes aligned to terminal cells. Do not introduce proportional type inside the TUI.
 
 ## Layout
 
 The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
 
-The detail view has a two-cell horizontal and one-cell vertical outer inset. A two-row breadcrumb sits above the main content, and the action area stays at the bottom. When the content area reaches 72 columns, the spec takes the left side and `PROGRESS` occupies a 32-column right rail with a two-column gap. Below that width, the nine-row progress tree moves under the spec and the action hints split across two lines. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
+The detail view has a two-cell horizontal and one-cell vertical outer inset. A two-row breadcrumb sits above the main content. At a body width of 78 columns, the spec takes the left side and the interactive `PROGRESS` rail occupies 36 columns on the right, separated by a two-column gap. The rail contains the four milestones, selected-stage context, and its actions in one vertical flow. Below that breakpoint, the 15-row compact rail moves under the spec; it keeps the same node alignment and action order. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb. Short terminals compress milestone spacing before clipping controls; prompts and essential navigation stay visible.
 
 The full reader replaces the detail content with the document. Its breadcrumb keeps `Inbox / item / FULL SPEC`; the text scrolls only to the last rendered line plus two blank rows. Footer guidance is short: one-line `j/k` scrolling and ten-line `Shift+J/K` jumps.
 
@@ -120,7 +124,7 @@ The inbox has no shadow vocabulary. Depth comes from the host terminal's translu
 
 ## Shapes
 
-The TUI uses rectangular cell geometry, with no corner-radius tokens. The progress tree is formed from `│` and `└─` characters; selection is a solid row or action highlight. The standard inbox list and detail view have no surrounding card border. Confirmation and client-choice prompts use a plain rectangular border.
+The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular milestone nodes share a single vertical `│` spine; their labels, states, and context align beside it. Selection uses a teal row or action highlight. The standard inbox list and detail view have no surrounding card border. Confirmation and client-choice prompts use a plain rectangular border.
 
 ## Components
 
@@ -132,13 +136,17 @@ The row title leads; Spec, Jira, Dev, and PR statuses stay aligned at the right.
 
 The breadcrumb retains the full path while coloring only the current location teal. `SPEC` introduces a text preview; opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
 
-### Progress waterfall
+### Milestone navigation
 
-Four labeled milestones descend from SPEC to JIRA to DEV to PR. Muted branch characters show the dependency chain; semantic icon, word, and color show each stage's state. A short context line beneath each stage shows its real evidence or prerequisite: session, Jira key, implementation branch, or PR reference. Linked Jira tickets can be opened with `o` from the detail view. Locked stages remain visible, so the next prerequisite is clear.
+SPEC, JIRA, DEV, and PR sit on one straight vertical spine. Each circular node has an adjacent label and explicit state, so completed, ready, active, and locked stages can be scanned together. Selection is independent of completion: the teal highlight identifies the stage being inspected while its state remains readable.
 
-### Next move
+Opening an item selects its next actionable milestone. Use `j/k` or Up/Down to move through the four milestones; a mouse click selects a stage. When the recommended stage advances, selection follows it only if the previous recommended stage was selected; a manually selected earlier stage stays selected. Locked stages can be inspected and explain their prerequisite. A linked Jira ticket is a hard dependency for starting implementation; implementation unlocks draft PR linking.
 
-Available actions sit in one horizontal row at the bottom of detail. The selected action uses the same teal fill and dark foreground as the selected list row; unselected actions use Blue. The key hints and feedback stay beneath the actions.
+### Milestone actions
+
+The selected milestone's context and actions sit directly beneath the timeline, inside the same rail. The heading names the selected stage, so actions keep a clear owner as navigation changes. The first action is the primary next move; `Tab`, `h/l`, or Left/Right cycle available actions, and Enter runs the selected action. Clicking an action runs it.
+
+SPEC offers reading and editing alongside finishing an unfinished spec. JIRA offers linking when ready, then opening and updating a linked ticket. DEV offers starting implementation when ready, then updating its details while implementation is active or a draft exists. PR offers linking when ready, then reviewing and updating the draft PR. Locked stages show the missing prerequisite instead of an enabled progression action. Completed stages retain useful read, open, edit, or update actions. Feedback and compact navigation hints sit below this action area: `j/k stage · Tab action · Enter act · r read · Esc back`.
 
 ### Prompts
 
@@ -150,6 +158,7 @@ Text entry and deletion confirmation replace the action area or appear in a bord
 
 - **Do** preserve the host's transparent background and terminal font.
 - **Do** keep selected rows and actions visually consistent.
+- **Do** keep all milestone nodes on one spine and place actions with their selected stage.
 - **Do** align status columns even when a spec title is long.
 - **Do** show locked prerequisites and a readable label beside every status icon.
 

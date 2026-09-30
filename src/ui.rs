@@ -1,9 +1,12 @@
 mod detail;
 mod draw;
 mod input;
+mod milestone;
+mod progress;
 #[cfg(test)]
 mod tests;
 use input::{handle_key, handle_mouse};
+use milestone::Milestone;
 
 use crate::launch::{self, DEFAULT_WORKSPACE, Options, Profile};
 use crate::store::{Change, Record, Result, Store};
@@ -81,6 +84,8 @@ struct App {
     screen: Screen,
     action_selected: usize,
     action_hitboxes: Vec<Rect>,
+    milestone_selected: Milestone,
+    milestone_hitboxes: Vec<(Milestone, Rect)>,
     reader_scroll: u16,
     reader_max_scroll: u16,
     list_offset: usize,
@@ -106,6 +111,12 @@ enum DetailAction {
     Implement,
     Pr,
     ReviewPr,
+    ReadSpec,
+    EditSpec,
+    OpenJira,
+    UpdateJira,
+    UpdateImplementation,
+    UpdatePr,
 }
 
 impl DetailAction {
@@ -116,28 +127,14 @@ impl DetailAction {
             Self::Implement => "Start implementation",
             Self::Pr => "Link draft PR",
             Self::ReviewPr => "Review draft PR",
+            Self::ReadSpec => "Read full spec",
+            Self::EditSpec => "Edit spec",
+            Self::OpenJira => "Open Jira ticket",
+            Self::UpdateJira => "Update Jira link",
+            Self::UpdateImplementation => "Update implementation",
+            Self::UpdatePr => "Update PR link",
         }
     }
-}
-
-fn detail_actions(record: &Record) -> Vec<DetailAction> {
-    if record.spec == "in_progress" {
-        return vec![DetailAction::Finish];
-    }
-    let mut actions = Vec::new();
-    if record.jira.status == "ready" {
-        actions.push(DetailAction::Jira);
-    }
-    if record.implementation_stage() == "ready" {
-        actions.push(DetailAction::Implement);
-    }
-    if record.pr_stage() == "ready" && record.implementation.status == "in_progress" {
-        actions.push(DetailAction::Pr);
-    }
-    if record.pr.status == "draft" && record.pr.url.is_some() {
-        actions.push(DetailAction::ReviewPr);
-    }
-    actions
 }
 
 fn display_implementation_stage(record: &Record) -> &str {
@@ -158,6 +155,8 @@ impl App {
             screen: Screen::List,
             action_selected: 0,
             action_hitboxes: Vec::new(),
+            milestone_selected: Milestone::Spec,
+            milestone_hitboxes: Vec::new(),
             reader_scroll: 0,
             reader_max_scroll: 0,
             list_offset: 0,
@@ -171,6 +170,7 @@ impl App {
     }
 
     fn refresh(&mut self) -> Result<()> {
+        let old_next = self.current().map(Milestone::next);
         let id = self
             .records
             .get(self.selected)
@@ -185,15 +185,45 @@ impl App {
         }
         self.selected =
             still_present.unwrap_or(self.selected.min(self.records.len().saturating_sub(1)));
-        self.action_selected = self.action_selected.min(
-            self.current()
-                .map_or(0, |record| detail_actions(record).len().saturating_sub(1)),
-        );
+        let new_next = self.current().map(Milestone::next);
+        if old_next != new_next
+            && old_next == Some(self.milestone_selected)
+            && let Some(next) = new_next
+        {
+            self.select_milestone(next);
+        }
+        self.action_selected = self
+            .action_selected
+            .min(self.actions().len().saturating_sub(1));
         Ok(())
     }
 
     fn current(&self) -> Option<&Record> {
         self.records.get(self.selected)
+    }
+
+    fn actions(&self) -> Vec<DetailAction> {
+        self.current()
+            .map_or_else(Vec::new, |record| self.milestone_selected.actions(record))
+    }
+
+    fn select_milestone(&mut self, milestone: Milestone) {
+        self.milestone_selected = milestone;
+        self.action_selected = 0;
+        self.action_hitboxes.clear();
+    }
+
+    fn move_milestone(&mut self, forward: bool) {
+        let index = Milestone::ALL
+            .iter()
+            .position(|stage| *stage == self.milestone_selected)
+            .unwrap_or(0);
+        let next = if forward {
+            (index + 1).min(3)
+        } else {
+            index.saturating_sub(1)
+        };
+        self.select_milestone(Milestone::ALL[next]);
     }
 
     fn begin(&mut self, prompt: Prompt) {
@@ -243,7 +273,9 @@ impl App {
                 self.message = "Spec done; link Jira to unlock implementation".into();
             }
             Prompt::Jira { id } if !value.is_empty() => {
+                let url = self.store.get(&id)?.jira.url.unwrap_or_default();
                 self.begin(Prompt::JiraUrl { id, key: value });
+                self.input = url;
             }
             Prompt::JiraUrl { id, key } => {
                 self.store.update(
@@ -255,10 +287,19 @@ impl App {
                 )?;
                 self.message = "Jira linked".into();
             }
-            Prompt::Agent { id } => self.begin(Prompt::Branch {
-                id,
-                agent: nonempty(value),
-            }),
+            Prompt::Agent { id } => {
+                let branch = self
+                    .store
+                    .get(&id)?
+                    .implementation
+                    .branch
+                    .unwrap_or_default();
+                self.begin(Prompt::Branch {
+                    id,
+                    agent: nonempty(value),
+                });
+                self.input = branch;
+            }
             Prompt::Branch { id, agent } => {
                 self.store.update(
                     &id,
