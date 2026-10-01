@@ -1,6 +1,6 @@
 # Personal inbox
 
-A local Herdr inbox for moving an idea through spec, Jira, implementation, and draft PR. This is a personal plugin; it is linked from this directory and has no publishing step.
+A local Herdr inbox for moving an idea through spec, Jira, implementation, and draft PR. Built for a personal workflow, with a public source repository for installing the same plugin on multiple Macs. Each Mac keeps its own inbox on disk.
 
 ## Storage
 
@@ -8,10 +8,43 @@ Each item is a JSON file in `~/Library/Application Support/herdr-inbox/items/`. 
 
 To remove an item, select it and press `d`. The confirmation shows its title, ID, spec path, and which files will move. Press Enter to delete or Esc to cancel. Deleted records move to `trash/items/` under the inbox data directory; inbox-owned specs move to `trash/specs/`. Specs linked from elsewhere stay in place. Open agent tabs and external Jira/PRs are unaffected. The files remain on disk for manual recovery.
 
-## Install locally
+## Install on another Mac
+
+Requires macOS, Herdr **0.9.1 or newer**, Git, Rust **1.89 or newer** (`cargo` on `PATH`), and Xcode Command Line Tools for the native linker. Installation builds for the Mac's own architecture, so the same command works on Apple Silicon and Intel:
 
 ```sh
-cargo build --release
+herdr plugin install AllarKalina/herdr-inbox --ref v0.8.0
+herdr plugin action list --plugin personal.inbox
+```
+
+Herdr runs the manifest's locked release build and registers the plugin locally. It does not install Rust or other prerequisites. With the shared Ghostty/Herdr config, press **Cmd+I**. Config sync carries the shortcut, but each Mac must install the plugin separately; do not copy Herdr's plugin registry or another Mac's compiled binary. See [Herdr's install and build reference](https://github.com/herdrdev/herdr/blob/master/docs/versions/0.9.1/website/src/content/docs/plugins.mdx).
+
+For the shared setup, the Herdr config needs:
+
+```toml
+[[keys.command]]
+key = "cmd+i"
+type = "plugin_action"
+command = "personal.inbox.open"
+description = "Open personal inbox"
+```
+
+Ghostty must also pass the shortcut through:
+
+```ini
+keybind = super+i=unbind
+```
+
+Reload the configs after restoring them. Install the configured **JetBrainsMono Nerd Font Mono** on each Mac. For spec sessions, also install and sign in to the chosen Claude or Codex client, make your real `grill-me` skill discoverable to that client, and have a Herdr workspace named `ai-boiler-room`. Inspect existing workspaces with `herdr workspace list` before creating one. The mock skill in this repository is only for testing.
+
+Inbox items, specs, Trash, client credentials, and live tabs are not distributed with this repository. New installs use `~/Library/Application Support/herdr-inbox/` on that computer; leave `HERDR_INBOX_HOME` unset for separate local inboxes.
+
+To update a managed install, close the inbox and repeat `herdr plugin install AllarKalina/herdr-inbox --ref <new-tag>`. Herdr replaces its managed plugin checkout; inbox data stays in the separate local data directory. A locally linked development copy must be unlinked before switching that Mac to a managed install; development can keep using the link below.
+
+## Develop locally
+
+```sh
+cargo build --release --locked
 herdr plugin link ~/git/herdr-inbox
 herdr plugin action invoke personal.inbox.open
 ```

@@ -5,6 +5,10 @@ min_herdr_version = "0.9.1"
 description = "Local spec-to-PR workflow inbox"
 platforms = ["macos"]
 
+[[build]]
+platforms = ["macos"]
+command = ["cargo", "build", "--release", "--locked", "--bin", "herdr-inbox"]
+
 [[panes]]
 id = "inbox"
 title = "Inbox"

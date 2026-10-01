@@ -4,7 +4,7 @@
 
 ## Users
 
-Allar uses this personal Herdr inbox during software work: a grilling session produces a spec, then the work moves through a Jira ticket, agent implementation, and a draft PR. It is not a team service or a published plugin.
+Allar uses this personal Herdr inbox during software work: a grilling session produces a spec, then the work moves through a Jira ticket, agent implementation, and a draft PR. A public source repository distributes the plugin to his Macs; it is not a team service.
 
 ## Product Purpose
 
@@ -30,7 +30,7 @@ A terminal-native workflow inbox that launches a spec agent in Herdr and stores 
 - Previous launches remain in the item's local JSON history. Cancellation leaves the item unchanged; failed refinement preserves its prior spec status and does not overwrite its file. The raw editor remains available through `e`.
 - Jira and PR actions currently store links to existing external work; they do not create tickets or PRs remotely. The implementation action records an agent and branch; it does not yet launch an implementer.
 - Deleting an item requires a second Enter confirmation and moves inbox-owned files to the local `trash/` directory under inbox data. Linked specs outside the inbox remain in place.
-- This plugin is for personal use and local linking, with no publishing step.
+- This plugin is for personal use. Public GitHub installation builds the same source on each Mac; the plugin and config can be shared while inbox records and specs remain separate on local disks. Local linking remains available for development.
 
 ## Brand Commitments
 
