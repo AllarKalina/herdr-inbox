@@ -14,10 +14,10 @@ Requires macOS, Herdr **0.9.1 or newer**, Git, Rust **1.89 or newer** (`cargo` o
 
 ```sh
 herdr plugin install AllarKalina/herdr-inbox --ref v0.8.0
-herdr plugin action list --plugin personal.inbox
+herdr plugin list --plugin personal.inbox
 ```
 
-Herdr runs the manifest's locked release build and registers the plugin locally. It does not install Rust or other prerequisites. With the shared Ghostty/Herdr config, press **Cmd+I**. Config sync carries the shortcut, but each Mac must install the plugin separately; do not copy Herdr's plugin registry or another Mac's compiled binary. See [Herdr's install and build reference](https://github.com/herdrdev/herdr/blob/master/docs/versions/0.9.1/website/src/content/docs/plugins.mdx).
+Herdr runs the manifest's locked release build and registers the plugin locally, even before a server is running. It does not install Rust or other prerequisites. Start or attach to Herdr normally, then press **Cmd+I** with the shared Ghostty/Herdr config. Config sync carries the shortcut, but each Mac must install the plugin separately; do not copy Herdr's plugin registry or another Mac's compiled binary. See [Herdr's install and build reference](https://github.com/herdrdev/herdr/blob/master/docs/versions/0.9.1/website/src/content/docs/plugins.mdx).
 
 For the shared setup, the Herdr config needs:
 
