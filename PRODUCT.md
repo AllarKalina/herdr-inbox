@@ -39,7 +39,7 @@ Focused, playful, and personal. The progress path and next move can have a littl
 ## Evidence on Hand
 
 - The current Rust TUI, CLI, stage model, and tests are in this repository; [README.md](README.md) documents the working flow.
-- The [mock grill-me skill](examples/mock-repo/.agents/skills/grill-me/SKILL.md) supports a local launch trial. It is test material, not a production spec or evidence of Jira/PR automation.
+- The real `grill-me` skill is maintained in the main AI configuration outside this plugin repository; launching a session requires it to be discoverable by the chosen client.
 - No remote Jira-creation or implementer-launch integration exists yet; future work must not present those actions as already automated.
 
 ## Product Principles

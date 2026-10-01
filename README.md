@@ -13,7 +13,7 @@ To remove an item, select it and press `d`. The confirmation shows its title, ID
 Requires macOS, Herdr **0.9.1 or newer**, Git, Rust **1.89 or newer** (`cargo` on `PATH`), and Xcode Command Line Tools for the native linker. Installation builds for the Mac's own architecture, so the same command works on Apple Silicon and Intel:
 
 ```sh
-herdr plugin install AllarKalina/herdr-inbox --ref v0.8.0
+herdr plugin install AllarKalina/herdr-inbox --ref v0.8.1
 herdr plugin list --plugin personal.inbox
 ```
 
@@ -35,7 +35,7 @@ Ghostty must also pass the shortcut through:
 keybind = super+i=unbind
 ```
 
-Reload the configs after restoring them. Install the configured **JetBrainsMono Nerd Font Mono** on each Mac. For spec sessions, also install and sign in to the chosen Claude or Codex client, make your real `grill-me` skill discoverable to that client, and have a Herdr workspace named `ai-boiler-room`. Inspect existing workspaces with `herdr workspace list` before creating one. The mock skill in this repository is only for testing.
+Reload the configs after restoring them. Install the configured **JetBrainsMono Nerd Font Mono** on each Mac. For spec sessions, also install and sign in to the chosen Claude or Codex client, make your real `grill-me` skill discoverable to that client, and have a Herdr workspace named `ai-boiler-room`. Inspect existing workspaces with `herdr workspace list` before creating one. Skills belong in the main AI configuration, outside this plugin repository.
 
 Inbox items, specs, Trash, client credentials, and live tabs are not distributed with this repository. New installs use `~/Library/Application Support/herdr-inbox/` on that computer; leave `HERDR_INBOX_HOME` unset for separate local inboxes.
 
@@ -70,7 +70,7 @@ CLI equivalent:
 ~/git/herdr-inbox/target/release/herdr-inbox finish <id> --title "Payment retry handling"
 ```
 
-For a local Codex trial, use `--repo ~/git/herdr-inbox/examples/mock-repo`. Its [mock grill-me skill](examples/mock-repo/.agents/skills/grill-me/SKILL.md) asks two scoping questions and writes a short test spec. It does not create Jira tickets or PRs. Use your real skill in work repos.
+In the personal setup, the real skill lives at `~/git/codex/skills/grill-me/SKILL.md`, linked into `~/.codex/skills/grill-me`. Restore the skill through the main AI configuration on each Mac. The plugin supplies the skill invocation and inbox context; it does not bundle or install a skill.
 
 ## Refine an existing spec
 
@@ -87,15 +87,7 @@ CLI equivalent, run inside Herdr after setting `INBOX_ITEM_ID` to an existing it
 "$HOME/git/herdr-inbox/target/release/herdr-inbox" refine "$INBOX_ITEM_ID" --profile opus --repo "$HOME/git/my-service"
 ```
 
-`--repo` overrides the stored repo for that launch; omit it to reuse the item's repo. `refine` accepts the same profile, workspace, model, effort, topic, and permission overrides as `launch`. Ensure `grill-me` is discoverable by the chosen client in its launched repo or global skill location; the inbox passes the skill invocation rather than installing it. For the portable Codex mock trial, launch the example repo, finish its test spec, then refine the returned item ID:
-
-```sh
-"$HOME/git/herdr-inbox/target/release/herdr-inbox" launch --profile codex --workspace "ai-boiler-room" --repo "$HOME/git/herdr-inbox/examples/mock-repo" --topic "Test the local spec flow"
-# Set INBOX_ITEM_ID to the ID printed above after the agent finishes.
-"$HOME/git/herdr-inbox/target/release/herdr-inbox" refine "$INBOX_ITEM_ID" --profile codex --repo "$HOME/git/herdr-inbox/examples/mock-repo"
-```
-
-The example's `.agents/skills/grill-me/SKILL.md` is discovered from the repo, so it does not depend on a personal global installation. It is test material; use the real grilling skill for work specs.
+`--repo` overrides the stored repo for that launch; omit it to reuse the item's repo. `refine` accepts the same profile, workspace, model, effort, topic, and permission overrides as `launch`. Ensure the real `grill-me` skill from your main AI configuration is discoverable by the chosen client; the inbox passes the skill invocation rather than installing it.
 
 ## Workflow
 
