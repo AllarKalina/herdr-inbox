@@ -94,6 +94,7 @@ struct App {
     choices: Vec<Profile>,
     choice_selected: Option<usize>,
     choice_purpose: ChoicePurpose,
+    feedback: Option<MilestoneFeedback>,
     message: String,
     should_exit: bool,
 }
@@ -109,6 +110,24 @@ enum Screen {
 enum ChoicePurpose {
     NewSpec,
     Refine { id: String },
+}
+
+struct MilestoneFeedback {
+    milestone: Milestone,
+}
+
+impl MilestoneFeedback {
+    fn text(&self, compact: bool) -> &'static str {
+        match (self.milestone, compact) {
+            (Milestone::Spec, false) => "Spec sealed",
+            (Milestone::Jira, false) => "Jira bound",
+            (Milestone::Dev, false) => "Dev quest logged",
+            (Milestone::Pr, false) => "Draft PR bound",
+            (Milestone::Spec, true) => "Sealed",
+            (Milestone::Jira | Milestone::Pr, true) => "Bound",
+            (Milestone::Dev, true) => "Logged",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,6 +191,7 @@ impl App {
             choices: Vec::new(),
             choice_selected: None,
             choice_purpose: ChoicePurpose::NewSpec,
+            feedback: None,
             message: String::new(),
             should_exit: false,
         })
@@ -189,6 +209,7 @@ impl App {
             .and_then(|id| self.records.iter().position(|record| &record.id == id));
         if still_present.is_none() && self.screen != Screen::List {
             self.screen = Screen::List;
+            self.feedback = None;
             self.message = "Item no longer in inbox".into();
         }
         self.selected =
@@ -198,7 +219,7 @@ impl App {
             && old_next == Some(self.milestone_selected)
             && let Some(next) = new_next
         {
-            self.select_milestone(next);
+            self.focus_milestone(next);
         }
         self.action_selected = self
             .action_selected
@@ -216,6 +237,11 @@ impl App {
     }
 
     fn select_milestone(&mut self, milestone: Milestone) {
+        self.feedback = None;
+        self.focus_milestone(milestone);
+    }
+
+    fn focus_milestone(&mut self, milestone: Milestone) {
         self.milestone_selected = milestone;
         self.action_selected = 0;
         self.action_hitboxes.clear();
@@ -235,11 +261,13 @@ impl App {
     }
 
     fn begin(&mut self, prompt: Prompt) {
+        self.feedback = None;
         self.prompt = Some(prompt);
         self.input.clear();
     }
 
     fn choose_client(&mut self, purpose: ChoicePurpose, choices: Vec<Profile>) {
+        self.feedback = None;
         self.choice_purpose = purpose;
         self.choices = choices;
         self.choice_selected = if self.choices.is_empty() {
@@ -293,7 +321,7 @@ impl App {
                     .store
                     .update(&id, Change::Finish { title: Some(value) })?;
                 let _ = launch::rename_tab(&record);
-                self.message = "Spec sealed. Jira is unlocked.".into();
+                self.acknowledge(Milestone::Spec);
             }
             Prompt::Jira { id } if !value.is_empty() => {
                 let url = self.store.get(&id)?.jira.url.unwrap_or_default();
@@ -308,7 +336,7 @@ impl App {
                         url: nonempty(value),
                     },
                 )?;
-                self.message = "Jira bound. Development is unlocked.".into();
+                self.acknowledge(Milestone::Jira);
             }
             Prompt::Agent { id } => {
                 let branch = self
@@ -331,11 +359,11 @@ impl App {
                         branch: nonempty(value),
                     },
                 )?;
-                self.message = "Dev quest logged. Agent and branch recorded.".into();
+                self.acknowledge(Milestone::Dev);
             }
             Prompt::Pr { id } if !value.is_empty() => {
                 self.store.update(&id, Change::Pr { url: value })?;
-                self.message = "Draft PR bound. Ready for review.".into();
+                self.acknowledge(Milestone::Pr);
             }
             Prompt::Delete { id } => {
                 self.store.delete(&id)?;
@@ -346,6 +374,11 @@ impl App {
         }
         self.refresh()?;
         Ok(())
+    }
+
+    fn acknowledge(&mut self, milestone: Milestone) {
+        self.feedback = Some(MilestoneFeedback { milestone });
+        self.message.clear();
     }
 }
 

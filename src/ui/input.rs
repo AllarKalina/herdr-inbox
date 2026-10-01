@@ -109,11 +109,15 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     if app.screen == Screen::Detail {
         let actions = app.actions();
         match key.code {
-            KeyCode::Esc => app.screen = Screen::List,
+            KeyCode::Esc => {
+                app.feedback = None;
+                app.screen = Screen::List;
+            }
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('j') | KeyCode::Down => app.move_milestone(true),
             KeyCode::Char('k') | KeyCode::Up => app.move_milestone(false),
             KeyCode::Char('r') => {
+                app.feedback = None;
                 app.reader_scroll = 0;
                 app.reader_max_scroll = 0;
                 app.screen = Screen::Reader;
@@ -188,12 +192,13 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
         DetailAction::Finish => {
             let updated = app.store.update(&id, Change::Finish { title: None })?;
             let _ = launch::rename_tab(&updated);
-            app.message = "Spec sealed. Jira is unlocked.".into();
+            app.acknowledge(Milestone::Spec);
         }
         DetailAction::Jira => app.begin(Prompt::Jira { id }),
         DetailAction::Implement => app.begin(Prompt::Agent { id }),
         DetailAction::Pr => app.begin(Prompt::Pr { id }),
         DetailAction::ReadSpec => {
+            app.feedback = None;
             app.reader_scroll = 0;
             app.reader_max_scroll = 0;
             app.screen = Screen::Reader;

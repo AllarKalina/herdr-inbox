@@ -7,6 +7,7 @@ use std::fs;
 use uuid::Uuid;
 
 mod delight;
+mod feedback;
 mod proximity;
 mod quest;
 mod refinement;

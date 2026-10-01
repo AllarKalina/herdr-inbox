@@ -49,11 +49,23 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
         );
         frame.render_widget(Paragraph::new(label), hitbox);
         app.milestone_hitboxes.push((*stage, hitbox));
+        let feedback = app
+            .feedback
+            .as_ref()
+            .filter(|feedback| feedback.milestone == *stage);
         if !compact {
             let content_width = area.width.saturating_sub(CONTENT_COLUMN);
+            let context = stage.context(record);
             frame.render_widget(
-                Paragraph::new(fit_label(&stage.context(record), content_width as usize))
-                    .style(muted),
+                Paragraph::new(fit_label(
+                    feedback.map_or(context.as_str(), |feedback| feedback.text(false)),
+                    content_width as usize,
+                ))
+                .style(if feedback.is_some() {
+                    Style::default().fg(Color::LightGreen)
+                } else {
+                    muted
+                }),
                 Rect::new(area.x + CONTENT_COLUMN, y + 1, content_width, 1),
             );
             if is_selected {
@@ -65,6 +77,16 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
                     1,
                 );
             }
+        } else if let Some(feedback) = feedback {
+            frame.render_widget(
+                Paragraph::new(feedback.text(true)).style(Style::default().fg(Color::LightGreen)),
+                Rect::new(
+                    area.x + CONTENT_COLUMN,
+                    y + 1,
+                    7.min(area.width.saturating_sub(CONTENT_COLUMN)),
+                    1,
+                ),
+            );
         }
         if index < 3 {
             let connector_height = stride
