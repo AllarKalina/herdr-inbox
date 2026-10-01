@@ -35,8 +35,11 @@ pub(super) fn refinement(
     let id = shell_quote(&record.id);
     let inbox = shell_quote(&data_dir.to_string_lossy());
     let repo = match repo {
-        Some(path) => format!("The launch repository directory is {}. Begin inspecting there, and identify any other affected repositories and services from the spec, instructions, or paths the user provides. Do not guess repository paths.", shell_quote(&path.to_string_lossy())),
-        None => "No repository directory is recorded for this item. Inspect the launch working directory only when it is relevant, and ask the user for the repository paths or other codebases needed to validate the spec. Do not guess repository paths.".into(),
+        Some(path) => format!(
+            "The launch repository directory is {}. Begin inspecting there, and identify any other affected repositories and services from the spec, instructions, or paths the user provides. Do not guess repository paths.",
+            shell_quote(&path.to_string_lossy())
+        ),
+        None => String::new(),
     };
     let topic = if topic.trim().is_empty() {
         String::new()
@@ -44,7 +47,7 @@ pub(super) fn refinement(
         format!("\nInitial context from the user: {}", topic.trim())
     };
     Ok(format!(
-        "{}\n\nRefine the existing spec for inbox item {} ({}) at {spec}. Reuse this item and this exact Markdown file; do not create a new spec or inbox record.{topic}\n\n{repo}\n\nFirst read the existing spec in full. Inspect the relevant codebases, services, repository instructions, and documentation to validate the spec's assumptions; treat the current code and verified documentation as the source of truth and collect any needed context. Report the validated facts, stale assumptions, and gaps concisely. Then ask what the user wants changed or challenged. Wait for the user's answers before revising the spec, and continue the grill-me interview normally from there. Do not implement code changes, and do not automatically edit the spec before the user answers.\n\nOnce the interview is complete, revise the same spec file at {spec}. Keep the existing title unless the user explicitly asks to rename it. Only after the revised Markdown is complete, run: HERDR_INBOX_HOME={inbox} {executable} finish {id}. If the user explicitly requests a new title, supply --title with the safely shell-quoted new title. Do not mark the spec done before the revised file is complete.",
+        "{}\n\nRefine the existing spec for inbox item {} ({}) at {spec}. Reuse this item and this exact Markdown file; do not create a new spec or inbox record.{topic}\n\n{repo}\n\nFirst read the existing spec in full. Use the services, files, and paths named in the spec to locate the affected codebases. Inspect the relevant codebases, services, repository instructions, and documentation to validate the spec's assumptions; treat the current code and verified documentation as the source of truth and collect any needed context. Report the validated facts, stale assumptions, and gaps concisely. Then ask what the user wants changed or challenged. Wait for the user's answers before revising the spec, and continue the grill-me interview normally from there. Do not implement code changes, and do not automatically edit the spec before the user answers.\n\nOnce the interview is complete, revise the same spec file at {spec}. Keep the existing title unless the user explicitly asks to rename it. Only after the revised Markdown is complete, run: HERDR_INBOX_HOME={inbox} {executable} finish {id}. If the user explicitly requests a new title, supply --title with the safely shell-quoted new title. Do not mark the spec done before the revised file is complete.",
         profile.skill(),
         record.id,
         record.display_title(),
