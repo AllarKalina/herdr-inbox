@@ -141,7 +141,7 @@ impl Drop for Fixture {
 fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
     for (profile, model, skill) in [
         ("opus", "claude-opus-5-5", "/grill-me"),
-        ("codex", "gpt-6-sol", "$grill-me"),
+        ("codex", "gpt-6.1-sol", "$grill-me"),
     ] {
         let fixture = Fixture::new();
         let marker = fixture.root.join("title-must-not-execute");
@@ -207,7 +207,7 @@ fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
         }));
         if profile == "codex" {
             assert!(calls.contains(
-                "-m gpt-6-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
+                "-m gpt-6.1-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
             ));
             assert!(!calls.contains("bypassPermissions"));
         } else {

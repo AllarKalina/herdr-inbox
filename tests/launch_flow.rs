@@ -134,11 +134,9 @@ esac
     assert!(calls.contains("agent start spec_"));
     assert_eq!(calls.matches("agent start spec_").count(), 2);
     assert!(calls.contains("--kind codex"));
-    assert!(
-        calls.contains(
-            "-m gpt-6-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
-        )
-    );
+    assert!(calls.contains(
+        "-m gpt-6.1-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
+    ));
     assert!(calls.contains("$grill-me Test launch"));
     assert!(!calls.contains("bypassPermissions"));
     let records: Value = serde_json::from_slice(

@@ -20,9 +20,9 @@ The action opens an 85%-size Herdr popup. `Cmd+I` opens it with the personal Gho
 
 ## New spec session
 
-Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
+Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6.1-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
 
-The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort with bypass permissions. Codex defaults to GPT-6-Sol at High effort with `workspace-write` sandboxing and an added writable inbox data directory. A missing workspace or client leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
+The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort with bypass permissions. Codex defaults to GPT-6.1-Sol (`gpt-6.1-sol`) at High effort with `workspace-write` sandboxing and an added writable inbox data directory. A missing workspace or client leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
 
 CLI equivalent:
 

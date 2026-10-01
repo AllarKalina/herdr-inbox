@@ -40,7 +40,7 @@ impl Profile {
     pub fn label(self) -> &'static str {
         match self {
             Self::Opus => "Claude · Opus 5.5 · High",
-            Self::Codex => "Codex · GPT-6-Sol · High",
+            Self::Codex => "Codex · GPT-6.1-Sol · High",
         }
     }
 
@@ -104,7 +104,7 @@ impl Options {
             profile,
             model: match profile {
                 Profile::Opus => DEFAULT_MODEL,
-                Profile::Codex => "gpt-6-sol",
+                Profile::Codex => "gpt-6.1-sol",
             }
             .into(),
             ..Self::default()

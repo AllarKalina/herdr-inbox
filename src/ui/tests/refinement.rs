@@ -34,7 +34,7 @@ fn refine_action_opens_a_client_choice_and_cancel_preserves_the_existing_item() 
         .map(|cell| cell.symbol())
         .collect();
     assert!(text.contains("Opus"));
-    assert!(text.contains("GPT-6-Sol"));
+    assert!(text.contains("GPT-6.1-Sol"));
     press(&mut fixture.app, KeyCode::Esc)?;
     assert!(fixture.app.choice_selected.is_none());
     assert!(fixture.app.prompt.is_none());
