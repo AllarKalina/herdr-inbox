@@ -16,7 +16,7 @@ fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
     let store = configured_store(&root)?;
     let started = store.start("Payment retries", None, None)?;
     assert!(started.spec_path.is_file());
-    assert_eq!(started.next_actions(), vec!["Finish spec"]);
+    assert_eq!(started.next_actions(true), vec!["Finish spec"]);
     assert!(
         store
             .update(
@@ -41,9 +41,9 @@ fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
     );
 
     let finished = store.update(&started.id, Change::Finish { title: None })?;
-    assert_eq!(finished.next_actions(), vec!["Create Jira ticket"]);
-    assert_eq!(finished.implementation_stage(), "locked");
-    assert_eq!(finished.pr_stage(), "locked");
+    assert_eq!(finished.next_actions(true), vec!["Create Jira ticket"]);
+    assert_eq!(finished.implementation_stage(true), "locked");
+    assert_eq!(finished.pr_stage(true), "locked");
     assert!(
         store
             .update(
@@ -83,9 +83,9 @@ fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
             url: None,
         },
     )?;
-    assert_eq!(linked.next_actions(), vec!["Hand spec to implementor"]);
-    assert_eq!(linked.implementation_stage(), "ready");
-    assert_eq!(linked.pr_stage(), "locked");
+    assert_eq!(linked.next_actions(true), vec!["Hand spec to implementor"]);
+    assert_eq!(linked.implementation_stage(true), "ready");
+    assert_eq!(linked.pr_stage(true), "locked");
     assert!(
         store
             .update(
@@ -104,15 +104,15 @@ fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
         },
     )?;
     assert_eq!(implementing.implementation.status, "in_progress");
-    assert_eq!(implementing.pr_stage(), "ready");
-    assert_eq!(implementing.next_actions(), vec!["Await draft PR"]);
+    assert_eq!(implementing.pr_stage(true), "ready");
+    assert_eq!(implementing.next_actions(true), vec!["Await draft PR"]);
     let pr = store.update(
         &started.id,
         Change::Pr {
             url: "https://example.test/pr/1".into(),
         },
     )?;
-    assert_eq!(pr.next_actions(), vec!["Review draft PR"]);
+    assert_eq!(pr.next_actions(true), vec!["Review draft PR"]);
     assert_eq!(store.list()?.len(), 1);
     assert_eq!(fs::read_dir(root.join("items"))?.count(), 1);
     fs::remove_dir_all(root)?;
@@ -307,9 +307,9 @@ fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()>
             url: None,
         },
     )?;
-    assert_eq!(linked.implementation_stage(), "ready");
+    assert_eq!(linked.implementation_stage(true), "ready");
     let refining = store.update(&record.id, Change::RefineSpec)?;
-    assert_eq!(refining.implementation_stage(), "locked");
+    assert_eq!(refining.implementation_stage(true), "locked");
     store.update(&record.id, Change::Finish { title: None })?;
     let active = store.update(
         &record.id,
@@ -318,16 +318,16 @@ fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()>
             branch: Some("feature/existing".into()),
         },
     )?;
-    assert_eq!(active.pr_stage(), "ready");
+    assert_eq!(active.pr_stage(true), "ready");
     let refining = store.update(&record.id, Change::RefineSpec)?;
-    assert_eq!(refining.implementation_stage(), "in_progress");
-    assert_eq!(refining.pr_stage(), "locked");
+    assert_eq!(refining.implementation_stage(true), "in_progress");
+    assert_eq!(refining.pr_stage(true), "locked");
     assert_eq!(
         refining.implementation.branch.as_deref(),
         Some("feature/existing")
     );
     let finished = store.update(&record.id, Change::Finish { title: None })?;
-    assert_eq!(finished.pr_stage(), "ready");
+    assert_eq!(finished.pr_stage(true), "ready");
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -335,3 +335,4 @@ fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()>
 mod discovery;
 
 mod settings;
+mod workflow;

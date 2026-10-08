@@ -122,7 +122,10 @@ fn launched_specs_do_not_repeat_their_workspace_or_client_in_progress() -> Resul
         ),
     )?;
     fixture.app.refresh()?;
-    assert_eq!(Milestone::Spec.context(fixture.app.current().unwrap()), "");
+    assert_eq!(
+        Milestone::Spec.context(fixture.app.current().unwrap(), true),
+        ""
+    );
     for (width, height) in [(40, 18), (60, 24), (100, 35)] {
         for stage in Milestone::ALL {
             fixture.app.select_milestone(stage);

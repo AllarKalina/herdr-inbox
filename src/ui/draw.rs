@@ -14,6 +14,10 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         super::settings::draw(frame, app);
         return;
     }
+    if app.screen == Screen::Archive {
+        super::archive::draw(frame, app);
+        return;
+    }
     if app.screen != Screen::List {
         if let Some(selected) = app.choice_selected {
             let width = frame.area().width.saturating_sub(4).min(52);

@@ -180,6 +180,8 @@ fn every_screen_keeps_the_main_list_shortcut_row_and_styling() -> Result<()> {
         shortcut_row(app, "reader", "j/k scroll")?;
         app.screen = Screen::Settings;
         shortcut_row(app, "settings", "Enter change")?;
+        app.screen = Screen::Archive;
+        shortcut_row(app, "archive", "Esc back")?;
         app.scan_issues = vec!["Folder unavailable".into()];
         app.screen = Screen::ScanResult;
         shortcut_row(app, "scan results", "Esc back")?;

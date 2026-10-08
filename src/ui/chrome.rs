@@ -61,6 +61,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
 fn crumbs(app: &App) -> Vec<String> {
     match app.screen {
         Screen::Settings => return vec!["Settings".into()],
+        Screen::Archive => return vec!["Settings".into(), "Archive".into()],
         Screen::ScanResult => return vec!["Settings".into(), "Scan results".into()],
         _ => {}
     }

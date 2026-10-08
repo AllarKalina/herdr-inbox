@@ -74,17 +74,17 @@ fn assert_minimal(app: &mut App, label: &str) -> Result<()> {
     for (width, height) in [(40, 18), (100, 35)] {
         let lines = render(app, width, height, label)?;
         assert!(lines[1].starts_with("  Inbox / Settings"), "{}", lines[1]);
-        assert!(
-            lines
-                .iter()
-                .any(|line| line.trim_start().starts_with("› Change")),
-            "{lines:?}"
-        );
+        for (offset, label) in ["Specs folder", "Jira", "Archive"].into_iter().enumerate() {
+            assert!(
+                lines[3 + offset].starts_with(&format!("  {label}")),
+                "{lines:?}"
+            );
+        }
         let footer = lines
             .iter()
             .find(|line| line.contains("Enter change"))
             .unwrap();
-        assert!(footer.starts_with("  Enter change"));
+        assert!(footer.starts_with("  j/k select · Enter change"));
         assert!(footer.contains("Esc back"));
         let text = lines.join("\n").to_lowercase();
         for removed in [
@@ -224,7 +224,7 @@ fn native_picker_cancel_and_failure_preserve_existing_folder_and_records() -> Re
     }
     for (width, height) in [(40, 18), (100, 35)] {
         let lines = render(&mut fixture.app, width, height, "picker-error")?;
-        assert!(lines.iter().any(|line| line.contains("Change")));
+        assert!(lines.iter().any(|line| line.contains("Specs folder")));
         assert!(
             lines
                 .iter()
@@ -255,8 +255,8 @@ fn removed_setup_shortcuts_cannot_edit_or_scan_settings() -> Result<()> {
 fn clicking_change_opens_the_selector_and_background_clicks_do_not() -> Result<()> {
     let mut fixture = Fixture::new()?;
     render(&mut fixture.app, 40, 18, "mouse-change")?;
-    let change = fixture.app.settings.change_area;
-    assert!(!change.is_empty());
+    let change = fixture.app.settings.rows_area;
+    assert_eq!(change.height, 3);
     super::super::picker::set_test_result(Ok(Some(fixture.specs.clone())));
     handle_mouse(
         &mut fixture.app,

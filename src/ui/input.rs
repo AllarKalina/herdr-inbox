@@ -14,6 +14,9 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     if app.screen == Screen::Settings {
         return super::settings::handle_key(app, key);
     }
+    if app.screen == Screen::Archive {
+        return super::archive::handle_key(app, key);
+    }
     if let Some(selected) = app.choice_selected {
         match key.code {
             KeyCode::Esc => app.choice_selected = None,
@@ -137,7 +140,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                     });
                 }
             }
-            KeyCode::Char('o') => {
+            KeyCode::Char('o') if app.jira() => {
                 if let Some(url) = app.current().and_then(|record| record.jira.url.as_deref()) {
                     open_url(url)?;
                     app.message = "Opened Jira ticket".into();
@@ -165,8 +168,8 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.sync_tree_selection();
                 app.screen = Screen::Detail;
                 app.message.clear();
-                if let Some(record) = app.current() {
-                    app.select_milestone(Milestone::next(record));
+                if let Some(next) = app.next_milestone() {
+                    app.select_milestone(next);
                 }
             } else {
                 app.tree.toggle_focused();
@@ -251,6 +254,10 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
 pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, _height: u16) -> Result<()> {
     if app.screen == Screen::Settings {
         return super::settings::handle_mouse(app, mouse).map(|_| ());
+    }
+    if app.screen == Screen::Archive {
+        super::archive::handle_mouse(app, mouse);
+        return Ok(());
     }
     if app.screen == Screen::ScanResult {
         return Ok(());

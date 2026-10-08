@@ -31,11 +31,11 @@ pub fn run(store: &Store, command: &str, mut args: Vec<String>) -> Result<bool> 
             } else {
                 store.settle(&args[0])?
             };
-            print_record(&record);
+            print_record(store, &record);
         }
         "relink" => {
             positional(&args, 2)?;
-            print_record(&store.relink(&args[0], PathBuf::from(&args[1]))?);
+            print_record(store, &store.relink(&args[0], PathBuf::from(&args[1]))?);
         }
         "settings" => settings(store, args)?,
         _ => return Ok(false),

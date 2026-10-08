@@ -27,16 +27,22 @@ fn positional(args: &[String], count: usize) -> Result<()> {
     Ok(())
 }
 
-fn print_record(record: &Record) {
+fn print_record(store: &Store, record: &Record) {
+    // Unreadable settings must not hide a record that was just changed.
+    let jira = store.settings().map_or(true, |settings| settings.jira);
     println!("{}  {}", record.id, record.display_title());
+    let jira_status = if jira {
+        format!("Jira: {}  ", record.jira.status)
+    } else {
+        String::new()
+    };
     println!(
-        "  Spec: {}  Jira: {}  Implementation: {}  PR: {}",
+        "  Spec: {}  {jira_status}Implementation: {}  PR: {}",
         record.spec,
-        record.jira.status,
-        record.implementation_stage(),
-        record.pr_stage()
+        record.implementation_stage(jira),
+        record.pr_stage(jira)
     );
-    println!("  Next: {}", record.next_actions().join(", "));
+    println!("  Next: {}", record.next_actions(jira).join(", "));
     println!("  Spec file: {}", record.spec_path.display());
     if let Some(launch) = &record.launch {
         println!(
@@ -134,17 +140,17 @@ fn run() -> Result<()> {
             });
             let spec = flag(&mut args, "--spec")?.map(PathBuf::from);
             positional(&args, 1)?;
-            print_record(&store.start(&args[0], repo, spec)?);
+            print_record(&store, &store.start(&args[0], repo, spec)?);
         }
         "launch" => {
             let options = launch_options(&store, &mut args)?;
             positional(&args, 0)?;
-            print_record(&launch::start(&store, options)?);
+            print_record(&store, &launch::start(&store, options)?);
         }
         "refine" => {
             let options = launch_options(&store, &mut args)?;
             positional(&args, 1)?;
-            print_record(&launch::refine(&store, &args[0], options)?);
+            print_record(&store, &launch::refine(&store, &args[0], options)?);
         }
         "finish" => {
             let title = flag(&mut args, "--title")?;
@@ -153,7 +159,7 @@ fn run() -> Result<()> {
             if let Err(error) = launch::rename_tab(&record) {
                 eprintln!("Tab rename: {error}");
             }
-            print_record(&record);
+            print_record(&store, &record);
         }
         "archive" => {
             let confirmation = flag(&mut args, "--confirm")?;
@@ -179,33 +185,42 @@ fn run() -> Result<()> {
             if let Err(error) = launch::rename_tab(&record) {
                 eprintln!("Tab rename: {error}");
             }
-            print_record(&record);
+            print_record(&store, &record);
         }
         "jira" => {
             let url = flag(&mut args, "--url")?;
             positional(&args, 2)?;
-            print_record(&store.update(
-                &args[0],
-                Change::Jira {
-                    key: args[1].clone(),
-                    url,
-                },
-            )?);
+            print_record(
+                &store,
+                &store.update(
+                    &args[0],
+                    Change::Jira {
+                        key: args[1].clone(),
+                        url,
+                    },
+                )?,
+            );
         }
         "implement" => {
             let agent = flag(&mut args, "--agent")?;
             let branch = flag(&mut args, "--branch")?;
             positional(&args, 1)?;
-            print_record(&store.update(&args[0], Change::Implement { agent, branch })?);
+            print_record(
+                &store,
+                &store.update(&args[0], Change::Implement { agent, branch })?,
+            );
         }
         "pr" => {
             positional(&args, 2)?;
-            print_record(&store.update(
-                &args[0],
-                Change::Pr {
-                    url: args[1].clone(),
-                },
-            )?);
+            print_record(
+                &store,
+                &store.update(
+                    &args[0],
+                    Change::Pr {
+                        url: args[1].clone(),
+                    },
+                )?,
+            );
         }
         "list" => {
             let json = args.first().is_some_and(|arg| arg == "--json");
@@ -218,7 +233,7 @@ fn run() -> Result<()> {
                 println!("{}", serde_json::to_string_pretty(&records)?);
             } else {
                 for record in records {
-                    print_record(&record);
+                    print_record(&store, &record);
                     println!();
                 }
             }
@@ -231,7 +246,7 @@ fn run() -> Result<()> {
             if json {
                 println!("{}", serde_json::to_string_pretty(&record)?);
             } else {
-                print_record(&record);
+                print_record(&store, &record);
             }
         }
         "tui" => {

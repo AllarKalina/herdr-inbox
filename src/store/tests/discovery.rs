@@ -49,8 +49,8 @@ fn imports_nested_done_and_preserves_enrichment_on_repeat() -> Result<()> {
         .unwrap();
     assert_eq!(record.spec, "done");
     assert_eq!(record.jira.status, "ready");
-    assert_eq!(record.implementation_stage(), "locked");
-    assert_eq!(record.pr_stage(), "locked");
+    assert_eq!(record.implementation_stage(true), "locked");
+    assert_eq!(record.pr_stage(true), "locked");
     assert_eq!(
         record.source_relative_path,
         Some(PathBuf::from("nested/anything.markdown"))

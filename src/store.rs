@@ -15,6 +15,7 @@ mod discovery;
 pub use discovery::ScanReport;
 use discovery::{fingerprint, same_file};
 mod lifecycle;
+mod trash;
 
 pub struct Store {
     root: PathBuf,
@@ -108,6 +109,7 @@ impl Store {
     pub fn update(&self, id: &str, change: Change) -> Result<Record> {
         self.locked(|| {
             let mut record = self.get(id)?;
+            let jira = self.settings()?.jira;
             match change {
                 Change::Finish { title } => {
                     if record.spec != "in_progress" {
@@ -135,6 +137,9 @@ impl Store {
                     }
                 }
                 Change::Jira { key, url } => {
+                    if !jira {
+                        return Err("Jira is turned off in Settings".into());
+                    }
                     if record.spec != "done" {
                         return Err("Finish the spec before linking Jira".into());
                     }
@@ -154,8 +159,13 @@ impl Store {
                     }
                 }
                 Change::Implement { agent, branch } => {
-                    if record.spec != "done" || record.jira.status != "created" {
-                        return Err("Finish the spec and link Jira before implementation".into());
+                    if record.spec != "done" || jira && record.jira.status != "created" {
+                        return Err(if jira {
+                            "Finish the spec and link Jira before implementation"
+                        } else {
+                            "Finish the spec before implementation"
+                        }
+                        .into());
                     }
                     if record.implementation.status != "draft_pr" {
                         record.implementation.status = "in_progress".into();
@@ -168,13 +178,18 @@ impl Store {
                 }
                 Change::Pr { url } => {
                     if record.spec != "done"
-                        || record.jira.status != "created"
+                        || jira && record.jira.status != "created"
                         || !matches!(
                             record.implementation.status.as_str(),
                             "in_progress" | "draft_pr"
                         )
                     {
-                        return Err("Link Jira and start implementation before a PR".into());
+                        return Err(if jira {
+                            "Link Jira and start implementation before a PR"
+                        } else {
+                            "Start implementation before a PR"
+                        }
+                        .into());
                     }
                     record.implementation.status = "draft_pr".into();
                     record.pr.status = "draft".into();

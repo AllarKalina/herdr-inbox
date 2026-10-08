@@ -64,19 +64,24 @@ impl Record {
         }
     }
 
-    pub fn implementation_stage(&self) -> &str {
+    /// With the Jira stage turned off, a finished spec is the only prerequisite.
+    fn jira_satisfied(&self, jira: bool) -> bool {
+        !jira || self.jira.status == "created"
+    }
+
+    pub fn implementation_stage(&self, jira: bool) -> &str {
         match self.implementation.status.as_str() {
-            "waiting" | "ready" if self.spec == "done" && self.jira.status == "created" => "ready",
+            "waiting" | "ready" if self.spec == "done" && self.jira_satisfied(jira) => "ready",
             "waiting" | "ready" => "locked",
             status => status,
         }
     }
 
-    pub fn pr_stage(&self) -> &str {
+    pub fn pr_stage(&self, jira: bool) -> &str {
         match self.pr.status.as_str() {
             "waiting" | "ready"
                 if self.spec == "done"
-                    && self.jira.status == "created"
+                    && self.jira_satisfied(jira)
                     && self.implementation.status == "in_progress" =>
             {
                 "ready"
@@ -86,7 +91,7 @@ impl Record {
         }
     }
 
-    pub fn next_actions(&self) -> Vec<&'static str> {
+    pub fn next_actions(&self, jira: bool) -> Vec<&'static str> {
         if self
             .launch
             .as_ref()
@@ -98,11 +103,11 @@ impl Record {
             return vec!["Finish spec"];
         }
         let mut actions = Vec::new();
-        if self.jira.status == "ready" {
+        if jira && self.jira.status == "ready" {
             actions.push("Create Jira ticket");
             return actions;
         }
-        match self.implementation_stage() {
+        match self.implementation_stage(jira) {
             "ready" => actions.push("Hand spec to implementor"),
             "in_progress" => actions.push("Await draft PR"),
             "draft_pr" => actions.push("Review draft PR"),

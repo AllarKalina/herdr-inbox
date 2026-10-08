@@ -14,6 +14,8 @@ pub struct Settings {
     pub context_paths: Vec<PathBuf>,
     pub preferred_client: Option<String>,
     pub workspace: String,
+    /// Whether the Jira stage is part of this computer's workflow.
+    pub jira: bool,
 }
 
 impl Default for Settings {
@@ -24,6 +26,7 @@ impl Default for Settings {
             context_paths: Vec::new(),
             preferred_client: None,
             workspace: "ai-boiler-room".into(),
+            jira: true,
         }
     }
 }

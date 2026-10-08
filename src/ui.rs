@@ -1,3 +1,4 @@
+mod archive;
 mod chrome;
 mod detail;
 mod draw;
@@ -119,6 +120,7 @@ struct App {
     message: String,
     should_exit: bool,
     settings: settings::SettingsView,
+    archive: archive::ArchiveView,
     scan_issues: Vec<String>,
 }
 
@@ -128,6 +130,7 @@ enum Screen {
     Detail,
     Reader,
     Settings,
+    Archive,
     ScanResult,
 }
 
@@ -188,11 +191,11 @@ impl DetailAction {
     }
 }
 
-fn display_implementation_stage(record: &Record) -> &str {
+fn display_implementation_stage(record: &Record, jira: bool) -> &str {
     if record.implementation.status == "draft_pr" {
         "done"
     } else {
-        record.implementation_stage()
+        record.implementation_stage(jira)
     }
 }
 
@@ -237,18 +240,22 @@ impl App {
             message: String::new(),
             should_exit: false,
             settings: settings::SettingsView::new(settings),
+            archive: archive::ArchiveView::default(),
             scan_issues: report.issues.clone(),
         })
     }
 
     fn refresh(&mut self) -> Result<()> {
-        let old_next = self.current().map(Milestone::next);
+        let old_next = self.next_milestone();
         let id = self
             .records
             .get(self.selected)
             .map(|record| record.id.clone());
         let settings = self.store.settings()?;
         self.settings.config = settings.clone();
+        if matches!(self.screen, Screen::Settings | Screen::Archive) {
+            archive::reload(self)?;
+        }
         self.records = self
             .store
             .list()?
@@ -272,7 +279,8 @@ impl App {
         self.selected =
             still_present.unwrap_or(self.selected.min(self.records.len().saturating_sub(1)));
         self.tree.rebuild(&self.records, &settings.sources);
-        if settings.sources.is_empty() && self.screen != Screen::Settings {
+        if settings.sources.is_empty() && !matches!(self.screen, Screen::Settings | Screen::Archive)
+        {
             self.screen = Screen::Settings;
             self.settings = settings::SettingsView::new(settings);
         }
@@ -281,10 +289,10 @@ impl App {
         } else {
             self.sync_tree_selection();
         }
-        let new_next = self.current().map(Milestone::next);
-        if old_next != new_next
-            && old_next == Some(self.milestone_selected)
-            && let Some(next) = new_next
+        let new_next = self.next_milestone();
+        if let Some(next) = new_next
+            && (old_next != new_next && old_next == Some(self.milestone_selected)
+                || !Milestone::visible(self.jira()).contains(&self.milestone_selected))
         {
             self.focus_milestone(next);
         }
@@ -310,9 +318,20 @@ impl App {
         }
     }
 
-    fn actions(&self) -> Vec<DetailAction> {
+    /// Whether the Jira stage is part of this computer's workflow.
+    fn jira(&self) -> bool {
+        self.settings.config.jira
+    }
+
+    fn next_milestone(&self) -> Option<Milestone> {
         self.current()
-            .map_or_else(Vec::new, |record| self.milestone_selected.actions(record))
+            .map(|record| Milestone::next(record, self.jira()))
+    }
+
+    fn actions(&self) -> Vec<DetailAction> {
+        self.current().map_or_else(Vec::new, |record| {
+            self.milestone_selected.actions(record, self.jira())
+        })
     }
 
     fn select_milestone(&mut self, milestone: Milestone) {
@@ -327,16 +346,17 @@ impl App {
     }
 
     fn move_milestone(&mut self, forward: bool) {
-        let index = Milestone::ALL
+        let stages = Milestone::visible(self.jira());
+        let index = stages
             .iter()
             .position(|stage| *stage == self.milestone_selected)
             .unwrap_or(0);
         let next = if forward {
-            (index + 1).min(3)
+            (index + 1).min(stages.len() - 1)
         } else {
             index.saturating_sub(1)
         };
-        self.select_milestone(Milestone::ALL[next]);
+        self.select_milestone(stages[next]);
     }
 
     fn begin(&mut self, prompt: Prompt) {

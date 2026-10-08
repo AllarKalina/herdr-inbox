@@ -18,19 +18,25 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
         Rect::new(area.x, area.y, area.width, 1),
     );
     let selected = app.milestone_selected;
+    let jira = app.jira();
+    let stages = Milestone::visible(jira);
+    let last = stages.len() - 1;
     // Geometry depends only on the viewport, never on selection or prompt content.
     let compact = area.height < 26;
     let stride = if compact {
-        area.height.saturating_sub(4).saturating_div(3).max(1)
+        area.height
+            .saturating_sub(4)
+            .saturating_div(last as u16)
+            .max(1)
     } else {
         6
     };
-    for (index, stage) in Milestone::ALL.iter().enumerate() {
+    for (index, stage) in stages.iter().enumerate() {
         let y = area.y + 2 + index as u16 * stride;
         if y >= area.bottom() {
             break;
         }
-        let (node, word, color) = appearance(stage.status(record));
+        let (node, word, color) = appearance(stage.status(record, jira));
         let is_selected = *stage == selected;
         let label = Line::from(vec![
             Span::styled(format!("{:<4}", stage.label()), Style::default().fg(color)),
@@ -55,7 +61,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
             .filter(|feedback| feedback.milestone == *stage);
         if !compact {
             let content_width = area.width.saturating_sub(CONTENT_COLUMN);
-            let context = stage.context(record);
+            let context = stage.context(record, jira);
             frame.render_widget(
                 Paragraph::new(fit_label(
                     feedback.map_or(context.as_str(), |feedback| feedback.text(false)),
@@ -88,7 +94,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
                 ),
             );
         }
-        if index < 3 {
+        if index < last {
             let connector_height = stride
                 .saturating_sub(1)
                 .min(area.bottom().saturating_sub(y + 1));
@@ -107,9 +113,9 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
             Rect::new(panel_x, area.y + 1, panel_width, 1),
         );
         let context = if app.actions().is_empty() && app.prompt.is_none() {
-            selected.guidance(record).to_owned()
+            selected.guidance(record, jira).to_owned()
         } else {
-            selected.context(record)
+            selected.context(record, jira)
         };
         frame.render_widget(
             Paragraph::new(context)
@@ -151,7 +157,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
                 }),
             Rect::new(area.x + NODE_COLUMN - 2, selected_area.y - 1, 5, 3),
         );
-        let (node, _, color) = appearance(selected.status(record));
+        let (node, _, color) = appearance(selected.status(record, jira));
         frame.render_widget(
             Paragraph::new(node).style(Style::default().fg(color)),
             Rect::new(area.x + NODE_COLUMN, selected_area.y, 1, 1),
@@ -176,7 +182,7 @@ fn draw_actions(
     let actions = app.actions();
     if actions.is_empty() && slot_height == 1 {
         frame.render_widget(
-            Paragraph::new(app.milestone_selected.guidance(record))
+            Paragraph::new(app.milestone_selected.guidance(record, app.jira()))
                 .style(Style::default().fg(Color::Gray))
                 .wrap(Wrap { trim: false }),
             area,

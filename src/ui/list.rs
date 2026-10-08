@@ -6,7 +6,20 @@ use ratatui::widgets::{Cell, Row, Table, TableState};
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
     let compact = frame.area().width < 64;
-    let name_width = area.width.saturating_sub(if compact { 8 } else { 40 }) as usize;
+    let jira = app.jira();
+    let headers: &[&str] = if jira {
+        &["Spec", "Jira", "Dev", "PR"]
+    } else {
+        &["Spec", "Dev", "PR"]
+    };
+    let stages = headers.len() as u16;
+    // Compact rows show one icon per stage; full rows give each stage eight cells plus a gap.
+    let compact_width = stages * 2 - 1;
+    let name_width = area.width.saturating_sub(if compact {
+        compact_width + 1
+    } else {
+        stages * 10
+    }) as usize;
     let rows = app
         .tree
         .rows
@@ -16,24 +29,16 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
             let selected = index == app.tree.focused;
             let name = name_cell(app, node, name_width, selected);
             let Some(record) = node.record_index.and_then(|index| app.records.get(index)) else {
-                return Row::new(if compact {
-                    vec![name, Cell::from("")]
-                } else {
-                    vec![
-                        name,
-                        Cell::from(""),
-                        Cell::from(""),
-                        Cell::from(""),
-                        Cell::from(""),
-                    ]
-                });
+                return Row::new(vec![name]);
             };
-            let statuses = [
-                record.spec.as_str(),
-                record.jira.status.as_str(),
-                display_implementation_stage(record),
-                record.pr_stage(),
-            ];
+            let mut statuses = vec![record.spec.as_str()];
+            if jira {
+                statuses.push(record.jira.status.as_str());
+            }
+            statuses.extend([
+                display_implementation_stage(record, jira),
+                record.pr_stage(jira),
+            ]);
             if compact {
                 let mut spans = Vec::new();
                 for (index, status) in statuses.iter().enumerate() {
@@ -53,7 +58,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
                 Row::new(vec![name, Cell::from(Line::from(spans))])
             } else {
                 let mut cells = vec![name];
-                cells.extend(statuses.map(|status| {
+                cells.extend(statuses.into_iter().map(|status| {
                     let (label, color) = status_display(status);
                     Cell::from(label).style(if selected {
                         Style::default()
@@ -65,28 +70,17 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
             }
         })
         .collect::<Vec<_>>();
-    let widths = if compact {
-        vec![Constraint::Fill(1), Constraint::Length(7)]
+    let mut widths = vec![Constraint::Fill(1)];
+    let mut header = vec![Cell::from("")];
+    if compact {
+        widths.push(Constraint::Length(compact_width));
+        let initials: Vec<_> = headers.iter().map(|name| &name[..1]).collect();
+        header.push(Cell::from(initials.join(" ")));
     } else {
-        vec![
-            Constraint::Fill(1),
-            Constraint::Length(8),
-            Constraint::Length(8),
-            Constraint::Length(8),
-            Constraint::Length(8),
-        ]
-    };
-    let header = if compact {
-        Row::new(vec![Cell::from(""), Cell::from("S J D P")])
-    } else {
-        Row::new(vec![
-            Cell::from(""),
-            Cell::from("Spec"),
-            Cell::from("Jira"),
-            Cell::from("Dev"),
-            Cell::from("PR"),
-        ])
-    };
+        widths.extend(headers.iter().map(|_| Constraint::Length(8)));
+        header.extend(headers.iter().map(|name| Cell::from(*name)));
+    }
+    let header = Row::new(header);
     let table = Table::new(rows, widths)
         .header(
             header.style(
