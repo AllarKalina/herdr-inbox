@@ -83,18 +83,14 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         );
     }
 
-    if let Some(Prompt::Delete { id }) = &app.prompt {
+    if let Some(Prompt::Archive { id }) = &app.prompt {
         let detail = if let Some(record) = app.records.iter().find(|record| &record.id == id) {
             format!(
                 "ARCHIVE ITEM\n{}\nID: {}\nSpec: {}\n{}\nOpen agent tabs are not closed.",
                 record.display_title(),
                 record.id,
                 record.spec_path.display(),
-                if app.store.manages_spec(record) {
-                    "Inbox-owned spec moves to the local archive."
-                } else {
-                    "Linked spec stays in place."
-                },
+                "Linked spec stays in place.",
             )
         } else {
             "Item disappeared; press Esc to cancel.".into()
@@ -160,7 +156,7 @@ const COMMANDS: &str = "Enter open · n new · a archive · s settings";
 pub(super) fn footer_text(app: &App) -> String {
     if app.choice_selected.is_some() {
         "j/k choose · Enter continue · Esc cancel".into()
-    } else if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
+    } else if matches!(app.prompt.as_ref(), Some(Prompt::Archive { .. })) {
         "Enter archive this item · Esc cancel".into()
     } else if app.prompt.is_some() {
         "Enter save · Esc cancel".into()

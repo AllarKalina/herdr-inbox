@@ -7,7 +7,7 @@ fn press(app: &mut App, code: KeyCode) -> Result<bool> {
 #[test]
 fn minimal_footer_is_one_line_and_setup_shortcuts_only_work_in_settings() -> Result<()> {
     let root = std::env::temp_dir().join(format!("inbox-minimal-menu-{}", Uuid::new_v4()));
-    let store = Store::new(root.join("data"));
+    let store = configured_store(root.join("data"))?;
     let record = store.start("Existing item", None, None)?;
     let mut app = App::new(store)?;
     assert!(app.message.is_empty());

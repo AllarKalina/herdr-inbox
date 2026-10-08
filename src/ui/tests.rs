@@ -15,20 +15,31 @@ mod list;
 mod proximity;
 mod quest;
 mod refinement;
+mod scope;
 mod sources;
 mod timeline;
 mod tree;
 
+fn configured_store(root: PathBuf) -> Result<Store> {
+    let store = Store::new(root.clone());
+    let specs = root.join("specs");
+    fs::create_dir_all(&specs)?;
+    let mut settings = store.settings()?;
+    settings.sources.push(crate::store::SpecSource::new(specs)?);
+    store.save_settings(&settings)?;
+    Ok(store)
+}
+
 #[test]
 fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-ui-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     let record = store.start("Keep until confirmed", None, None)?;
     let mut app = App::new(store)?;
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
 
     press(&mut app, KeyCode::Char('a'))?;
-    assert!(matches!(app.prompt, Some(Prompt::Delete { .. })));
+    assert!(matches!(app.prompt, Some(Prompt::Archive { .. })));
     press(&mut app, KeyCode::Esc)?;
     assert!(app.store.get(&record.id).is_ok());
 
@@ -53,7 +64,7 @@ fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
 #[test]
 fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-list-keys-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     let record = store.start("Keep in progress", None, None)?;
     let mut app = App::new(store)?;
 
@@ -73,7 +84,7 @@ fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
 #[test]
 fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-detail-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     let record = store.start("Payment retries", None, None)?;
     fs::write(
         &record.spec_path,
@@ -176,7 +187,7 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
 #[test]
 fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-scroll-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     let record = store.start("Long spec", None, None)?;
     fs::write(
         &record.spec_path,
@@ -276,7 +287,7 @@ fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result
 #[test]
 fn progress_actions_require_jira_before_implementation() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-quest-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start("Payment retries", None, None)?;
     let mut app = App::new(store)?;
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
@@ -348,7 +359,7 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
 #[test]
 fn mouse_hover_selects_a_list_item_before_enter() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-mouse-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start("First", None, None)?;
     store.start("Second", None, None)?;
     let mut app = App::new(store)?;
@@ -382,14 +393,14 @@ fn mouse_hover_selects_a_list_item_before_enter() -> Result<()> {
 #[test]
 fn detail_delete_still_requires_confirmation_and_returns_to_list() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-detail-delete-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start("Keep until confirmed", None, None)?;
     let mut app = App::new(store)?;
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
 
     press(&mut app, KeyCode::Enter)?;
     press(&mut app, KeyCode::Char('a'))?;
-    assert!(matches!(app.prompt, Some(Prompt::Delete { .. })));
+    assert!(matches!(app.prompt, Some(Prompt::Archive { .. })));
     press(&mut app, KeyCode::Esc)?;
     assert_eq!(app.screen, Screen::Detail);
     assert_eq!(app.store.list()?.len(), 1);

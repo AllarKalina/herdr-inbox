@@ -15,7 +15,7 @@ fn rendered(app: &mut App, width: u16, height: u16) -> Result<Vec<String>> {
 #[test]
 fn progress_timeline_keeps_linked_evidence_visible() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-evidence-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     let record = store.start("Payment retry handling", None, None)?;
     store.update(&record.id, Change::Finish { title: None })?;
     store.update(
@@ -57,7 +57,7 @@ fn progress_timeline_keeps_linked_evidence_visible() -> Result<()> {
 #[test]
 fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-narrow-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start(
         "A very long title that should not obscure the next action",
         None,
@@ -96,7 +96,7 @@ fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
 #[test]
 fn reader_keeps_final_crumb_after_long_title() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-crumb-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start(
         "A long spec title that would otherwise occupy the entire breadcrumb width",
         None,
@@ -118,7 +118,7 @@ fn reader_keeps_final_crumb_after_long_title() -> Result<()> {
 #[test]
 fn compact_list_keeps_title_and_four_waypoint_trail() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-small-list-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start("A still readable spec title", None, None)?;
     let mut app = App::new(store)?;
     let lines = rendered(&mut app, 40, 18)?;

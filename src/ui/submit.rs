@@ -111,8 +111,8 @@ impl App {
                 self.store.update(&id, Change::Pr { url: value })?;
                 self.acknowledge(Milestone::Pr);
             }
-            Prompt::Delete { id } => {
-                self.store.delete(&id)?;
+            Prompt::Archive { id } => {
+                self.store.archive(&id)?;
                 self.message = "Item archived".into();
                 self.screen = Screen::List;
             }

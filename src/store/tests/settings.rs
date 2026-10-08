@@ -63,38 +63,26 @@ fn context_preflight_requires_readable_reference_and_missing_roots_are_not_creat
 }
 
 #[test]
-fn legacy_completed_launch_is_historical_and_legacy_managed_trash_restores() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-migration-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    let mut record = store.start("Legacy", None, None)?;
-    record.spec = "done".into();
-    record.launch = Some(Launch {
-        status: "prompt_sent".into(),
-        harness: "codex".into(),
-        workspace: "w".into(),
-        workspace_id: None,
-        tab_id: None,
-        pane_id: None,
-        agent: None,
-        model: "m".into(),
-        effort: "high".into(),
-        prompt: "p".into(),
-        error: None,
-    });
-    let mut value = serde_json::to_value(&record)?;
-    for field in ["schema_version", "ownership"] {
+fn obsolete_metadata_is_rejected_without_rewriting_it() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-schema-{}", Uuid::new_v4()));
+    let store = configured_store(&root)?;
+    let record = store.start("Current", None, None)?;
+    for field in ["schema_version", "previous_launches"] {
+        let mut value = serde_json::to_value(&record)?;
         value.as_object_mut().unwrap().remove(field);
+        let bytes = serde_json::to_vec(&value)?;
+        fs::write(store.path_for(&record.id)?, &bytes)?;
+        assert!(store.get(&record.id).is_err());
+        assert_eq!(fs::read(store.path_for(&record.id)?)?, bytes);
     }
-    fs::write(store.path_for(&record.id)?, serde_json::to_vec(&value)?)?;
-    let loaded = store.get(&record.id)?;
-    assert!(!loaded.active_spec_session());
-    assert_eq!(loaded.launch.as_ref().unwrap().status, "completed");
-    assert!(store.manages_spec(&loaded));
-    store.delete(&record.id)?;
-    assert!(!record.spec_path.exists());
-    let restored = store.restore(&record.id)?;
-    assert_eq!(restored.id, record.id);
-    assert!(record.spec_path.is_file());
+    for version in [0, 99] {
+        let mut value = serde_json::to_value(&record)?;
+        value["schema_version"] = version.into();
+        let bytes = serde_json::to_vec(&value)?;
+        fs::write(store.path_for(&record.id)?, &bytes)?;
+        assert!(store.get(&record.id).is_err());
+        assert_eq!(fs::read(store.path_for(&record.id)?)?, bytes);
+    }
     fs::remove_dir_all(root)?;
     Ok(())
 }

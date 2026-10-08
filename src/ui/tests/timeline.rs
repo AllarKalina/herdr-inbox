@@ -9,7 +9,7 @@ struct Fixture {
 impl Fixture {
     fn new(stage: usize) -> Result<Self> {
         let root = std::env::temp_dir().join(format!("herdr-inbox-timeline-{}", Uuid::new_v4()));
-        let store = Store::new(root.clone());
+        let store = configured_store(root.clone())?;
         let record = store.start("Payment retries", None, None)?;
         if stage >= 1 {
             store.update(&record.id, Change::Finish { title: None })?;

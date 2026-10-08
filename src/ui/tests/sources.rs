@@ -17,7 +17,7 @@ impl Fixture {
             specs.join("an arbitrary filename.md"),
             "# Existing plan\nBody\n",
         )?;
-        let specs = specs.parent().unwrap().to_path_buf();
+        let specs = fs::canonicalize(specs.parent().unwrap())?;
         let context = root.join("notes.txt");
         fs::write(&context, "My context")?;
         let app = App::new(Store::new(root.join("data")))?;
@@ -188,7 +188,7 @@ fn trash_picker_restores_import_uuid_without_modifying_user_spec() -> Result<()>
 }
 
 #[test]
-fn detail_relinks_missing_file_and_new_session_prompts_explicit_destination() -> Result<()> {
+fn relinked_spec_returns_to_scope_and_new_session_prompts_explicit_destination() -> Result<()> {
     let mut fixture = Fixture::new()?;
     let mut settings = fixture.app.store.settings()?;
     settings
@@ -203,11 +203,10 @@ fn detail_relinks_missing_file_and_new_session_prompts_explicit_destination() ->
     let record = fixture.app.current().unwrap().clone();
     let renamed = fixture.specs.join("moved plan.md");
     fs::rename(&record.spec_path, &renamed)?;
-    assert!(render(&mut fixture.app, 100, 24)?.contains("unavailable"));
-    press(&mut fixture.app, KeyCode::Enter)?;
-    press(&mut fixture.app, KeyCode::Char('L'))?;
-    type_text(&mut fixture.app, &renamed.display().to_string())?;
-    press(&mut fixture.app, KeyCode::Enter)?;
+    fixture.app.refresh()?;
+    assert!(fixture.app.records.is_empty());
+    fixture.app.store.relink(&record.id, renamed.clone())?;
+    fixture.app.refresh()?;
     assert_eq!(
         fs::canonicalize(fixture.app.store.get(&record.id)?.spec_path)?,
         fs::canonicalize(renamed)?
@@ -308,7 +307,7 @@ fn scan_diagnostics_and_settle_confirmation_render_and_keep_state_safe() -> Resu
         assert!(text.contains("s settings"));
     }
     press(&mut fixture.app, KeyCode::Enter)?;
-    assert_eq!(fixture.app.records.len(), 1);
+    assert!(fixture.app.records.is_empty());
     Ok(())
 }
 
@@ -375,7 +374,10 @@ fn native_picker_cancel_error_and_context_replacement_preserve_the_settings_draf
     fs::create_dir(&folder)?;
     super::super::picker::set_test_result(Ok(Some(folder.clone())));
     press(&mut fixture.app, KeyCode::Enter)?;
-    assert_eq!(fixture.app.settings.draft.sources[0].path, folder);
+    assert_eq!(
+        fixture.app.settings.draft.sources[0].path,
+        fs::canonicalize(&folder)?
+    );
     assert!(fixture.app.store.settings()?.sources.is_empty());
     super::super::picker::set_test_result(Ok(Some(fixture.context.clone())));
     press(&mut fixture.app, KeyCode::Char('c'))?;
@@ -395,7 +397,10 @@ fn native_picker_cancel_error_and_context_replacement_preserve_the_settings_draf
         vec![folder.clone()]
     );
     press(&mut fixture.app, KeyCode::Char('s'))?;
-    assert_eq!(fixture.app.store.settings()?.sources[0].path, folder);
+    assert_eq!(
+        fixture.app.store.settings()?.sources[0].path,
+        fs::canonicalize(&folder)?
+    );
     assert_eq!(fixture.app.store.settings()?.context_paths, vec![folder]);
     Ok(())
 }

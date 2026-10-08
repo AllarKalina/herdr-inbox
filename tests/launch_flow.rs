@@ -38,6 +38,13 @@ esac
             .unwrap()
     };
     let repo = root.to_str().unwrap();
+    let source = root.join("chosen");
+    fs::create_dir_all(&source).unwrap();
+    assert!(
+        run(&["settings", "add-source", source.to_str().unwrap()])
+            .status
+            .success()
+    );
     let output = run(&[
         "launch",
         "--repo",
@@ -108,6 +115,14 @@ esac
     }
     let path = format!("{}:{}", bin_dir.display(), std::env::var("PATH").unwrap());
     let exe = PathBuf::from(env!("CARGO_BIN_EXE_herdr-inbox"));
+    let source = root.join("chosen");
+    fs::create_dir_all(&source).unwrap();
+    let configured = Command::new(&exe)
+        .args(["settings", "add-source", source.to_str().unwrap()])
+        .env("HERDR_INBOX_HOME", root.join("data"))
+        .output()
+        .unwrap();
+    assert!(configured.status.success());
     let output = Command::new(&exe)
         .args([
             "launch",

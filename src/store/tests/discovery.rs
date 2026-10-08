@@ -1,4 +1,24 @@
 use super::*;
+
+#[test]
+fn cached_archive_provenance_cannot_suppress_an_unrelated_selected_file() -> Result<()> {
+    let (root, store, source) = fixture()?;
+    let selected = source.join("selected.md");
+    let mut record = store.start("Selected", None, Some(selected.clone()))?;
+    let outside = root.join("outside.md");
+    fs::write(&outside, "# Outside\n")?;
+    record.spec_path = outside;
+    // Source metadata is descriptive; it cannot impersonate a different physical file.
+    store.write(&record)?;
+    store.archive(&record.id)?;
+    assert_eq!(store.scan()?.imported, 1);
+    let imported = store.list()?;
+    assert_eq!(imported.len(), 1);
+    assert_ne!(imported[0].id, record.id);
+    assert_eq!(imported[0].spec_path, fs::canonicalize(selected)?);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
 use std::os::unix::fs::symlink;
 
 fn fixture() -> Result<(PathBuf, Store, PathBuf)> {
@@ -31,7 +51,6 @@ fn imports_nested_done_and_preserves_enrichment_on_repeat() -> Result<()> {
     assert_eq!(record.jira.status, "ready");
     assert_eq!(record.implementation_stage(), "locked");
     assert_eq!(record.pr_stage(), "locked");
-    assert!(!store.manages_spec(&record));
     assert_eq!(
         record.source_relative_path,
         Some(PathBuf::from("nested/anything.markdown"))
@@ -121,7 +140,7 @@ fn deletion_suppresses_reimport_and_restore_keeps_identity() -> Result<()> {
             url: None,
         },
     )?;
-    store.delete(&record.id)?;
+    store.archive(&record.id)?;
     assert!(record.spec_path.is_file());
     assert_eq!(store.scan()?.suppressed, 1);
     assert!(store.list()?.is_empty());
@@ -190,7 +209,7 @@ fn active_session_requires_settle_before_relink_and_relocation() -> Result<()> {
         error: None,
     });
     store.write(&active)?;
-    let destination = root.join("relinked.md");
+    let destination = source.join("relinked.md");
     fs::write(&destination, "# Different")?;
     assert!(store.relink(&record.id, destination.clone()).is_err());
     assert!(
@@ -242,48 +261,13 @@ fn active_session_requires_settle_before_relink_and_relocation() -> Result<()> {
 }
 
 #[test]
-fn legacy_records_preserve_progress_and_future_versions_are_readonly() -> Result<()> {
-    let (root, store, source) = fixture()?;
-    let existing = store.start("Legacy", None, Some(source.join("old.md")))?;
-    let mut json = serde_json::to_value(&existing)?;
-    for field in [
-        "schema_version",
-        "ownership",
-        "source_id",
-        "source_relative_path",
-        "content_fingerprint",
-    ] {
-        json.as_object_mut().unwrap().remove(field);
-    }
-    fs::write(store.path_for(&existing.id)?, serde_json::to_vec(&json)?)?;
-    assert_eq!(store.scan()?.known, 1);
-    assert_eq!(store.get(&existing.id)?.spec, "in_progress");
-    assert_eq!(store.get(&existing.id)?.ownership, "user");
-    let mut json = serde_json::to_value(store.get(&existing.id)?)?;
-    json["schema_version"] = 99.into();
-    let future = serde_json::to_vec(&json)?;
-    fs::write(store.path_for(&existing.id)?, &future)?;
-    assert!(
-        store
-            .update(
-                &existing.id,
-                Change::Title {
-                    title: "Overwrite".into()
-                }
-            )
-            .is_err()
-    );
-    assert_eq!(fs::read(store.path_for(&existing.id)?)?, future);
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
 fn creation_uses_selected_folder_and_rejects_existing_agent_target() -> Result<()> {
     let (root, store, source) = fixture()?;
     let new = store.start_untitled(None)?;
-    assert_eq!(new.spec_path.parent(), Some(source.as_path()));
-    assert_eq!(new.ownership, "user");
+    assert_eq!(
+        new.spec_path.parent(),
+        Some(fs::canonicalize(&source)?.as_path())
+    );
     let existing = source.join("existing.md");
     fs::write(&existing, "# Keep")?;
     assert!(
@@ -296,6 +280,109 @@ fn creation_uses_selected_folder_and_rejects_existing_agent_target() -> Result<(
     let mut settings = store.settings()?;
     settings.sources[0].path = root.clone();
     assert!(store.save_settings(&settings).is_err());
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn creation_requires_sources_and_rejects_outside_destinations() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-no-fallback-{}", Uuid::new_v4()));
+    let empty = Store::new(root.join("app"));
+    assert!(
+        empty
+            .start("Wrong", None, None)
+            .unwrap_err()
+            .to_string()
+            .contains("settings")
+    );
+    assert!(empty.start_untitled(None).is_err());
+    assert!(!empty.path().join("specs").exists());
+    let source = root.join("selected");
+    fs::create_dir_all(&source)?;
+    let mut settings = Settings::default();
+    settings.sources.push(SpecSource::new(source.clone())?);
+    empty.save_settings(&settings)?;
+    let outside = root.join("outside/new.md");
+    assert!(empty.start("Wrong", None, Some(outside.clone())).is_err());
+    assert!(!outside.exists());
+    assert!(!root.join("outside").exists());
+    fs::create_dir(root.join("external"))?;
+    symlink(root.join("external"), source.join("escape"))?;
+    assert!(
+        empty
+            .start("Wrong", None, Some(source.join("escape/new.md")))
+            .is_err()
+    );
+    assert!(
+        empty
+            .start("Wrong", None, Some(source.join("../wrong.md")))
+            .is_err()
+    );
+    assert!(
+        empty
+            .start("Wrong", None, Some(source.join("wrong.txt")))
+            .is_err()
+    );
+    let current = empty.start("Current", None, None)?;
+    assert!(current.source_id.is_some());
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn discovery_never_imports_files_or_directories_outside_selected_folder() -> Result<()> {
+    let (root, store, source) = fixture()?;
+    let outside = root.join("external");
+    fs::create_dir(&outside)?;
+    fs::write(outside.join("secret.md"), "# Outside")?;
+    fs::write(source.join("inside.md"), "# Inside")?;
+    symlink(outside.join("secret.md"), source.join("alias.md"))?;
+    symlink(&outside, source.join("linked-folder"))?;
+    let report = store.scan()?;
+    assert_eq!(report.imported, 1);
+    assert_eq!(store.list()?.remove(0).title, "Inside");
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.contains("outside selected folder"))
+    );
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn creation_and_discovery_share_canonical_scope_and_ancestor_exclusions() -> Result<()> {
+    let (root, store, source) = fixture()?;
+    let nested = source.join("nested");
+    fs::create_dir(nested.join("ignored"))?;
+    let mut settings = store.settings()?;
+    let mut child = SpecSource::new(nested.clone())?;
+    child.exclude = vec!["ignored".into()];
+    let child_id = child.id.clone();
+    settings.sources.push(child);
+    settings.sources[0].exclude = vec!["nested/ignored".into()];
+    store.save_settings(&settings)?;
+    let created = store.start("Created", None, Some(nested.join("new.md")))?;
+    assert_eq!(created.source_id.as_deref(), Some(child_id.as_str()));
+    assert_eq!(created.source_relative_path, Some(PathBuf::from("new.md")));
+    assert!(
+        store
+            .start("Excluded", None, Some(nested.join("ignored/new.md")))
+            .is_err()
+    );
+    fs::write(nested.join("scan.md"), "# Scanned")?;
+    fs::write(nested.join("ignored/hidden.md"), "# Hidden")?;
+    symlink(nested.join("ignored/hidden.md"), source.join("alias.md"))?;
+    assert_eq!(store.scan()?.imported, 1);
+    let scanned = store
+        .list()?
+        .into_iter()
+        .find(|record| record.title == "Scanned")
+        .unwrap();
+    assert_eq!(scanned.source_id.as_deref(), Some(child_id.as_str()));
+    assert_eq!(scanned.source_relative_path, Some(PathBuf::from("scan.md")));
+    assert_eq!(store.list()?.len(), 2);
     fs::remove_dir_all(root)?;
     Ok(())
 }

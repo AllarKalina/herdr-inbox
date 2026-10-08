@@ -8,7 +8,7 @@ pub(super) struct Fixture {
 impl Fixture {
     pub(super) fn new(stage: usize) -> Result<Self> {
         let root = std::env::temp_dir().join(format!("herdr-inbox-proximity-{}", Uuid::new_v4()));
-        let store = Store::new(root.clone());
+        let store = configured_store(root.clone())?;
         let record = store.start("Payment retries", None, None)?;
         if stage >= 1 {
             store.update(&record.id, Change::Finish { title: None })?;
@@ -312,8 +312,8 @@ fn delete_confirmation_stays_beside_the_selected_stage_until_cancelled() -> Resu
 #[test]
 fn linked_spec_confirmation_fits_without_hiding_later_nodes() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-linked-confirm-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    let record = store.start("Linked spec", None, Some(root.join("external.md")))?;
+    let store = configured_store(root.clone())?;
+    let record = store.start("Linked spec", None, Some(root.join("specs/linked.md")))?;
     let mut fixture = Fixture {
         app: App::new(store)?,
         root,

@@ -52,11 +52,16 @@ struct Node {
 }
 
 impl Tree {
-    pub fn rebuild(&mut self, records: &[Record], sources: &[SpecSource], managed_root: &Path) {
+    pub fn rebuild(&mut self, records: &[Record], sources: &[SpecSource]) {
         let focused_key = self.rows.get(self.focused).map(|row| row.key.clone());
         let mut roots: Vec<Node> = Vec::new();
         for (index, record) in records.iter().enumerate() {
-            let (key, root_path, label, relative) = location(record, sources, managed_root);
+            let Some((source, relative)) = source_location(record, sources) else {
+                continue;
+            };
+            let key = format!("source:{}", source.id);
+            let root_path = source.path.clone();
+            let label = basename(&source.path);
             let root_index = roots
                 .iter()
                 .position(|node| node.key == key)
@@ -272,95 +277,21 @@ impl Node {
     }
 }
 
-fn location(
+pub(super) fn includes(record: &Record, sources: &[SpecSource]) -> bool {
+    source_location(record, sources).is_some()
+}
+
+fn source_location<'a>(
     record: &Record,
-    sources: &[SpecSource],
-    managed_root: &Path,
-) -> (String, PathBuf, String, PathBuf) {
-    if let Some(source) = sources
-        .iter()
-        .find(|source| record.source_id.as_deref() == Some(&source.id))
-    {
-        let relative = record
-            .source_relative_path
-            .as_ref()
-            .filter(|path| safe_relative(path))
-            .cloned()
-            .or_else(|| relative_to(&record.spec_path, &source.path))
-            .unwrap_or_else(|| filename(&record.spec_path));
-        return (
-            format!("source:{}", source.id),
-            source.path.clone(),
-            basename(&source.path),
-            relative,
-        );
+    sources: &'a [SpecSource],
+) -> Option<(&'a SpecSource, PathBuf)> {
+    // Metadata references never establish membership: the actual regular file must
+    // physically belong to a configured directory, including after symlink resolution.
+    let path = record.spec_path.canonicalize().ok()?;
+    if !path.is_file() {
+        return None;
     }
-    if let Some((source, relative)) = sources
-        .iter()
-        .filter_map(|source| {
-            relative_to(&record.spec_path, &source.path).map(|relative| (source, relative))
-        })
-        .max_by_key(|(source, _)| source.path.components().count())
-    {
-        return (
-            format!("source:{}", source.id),
-            source.path.clone(),
-            basename(&source.path),
-            relative,
-        );
-    }
-    if record.ownership == "managed" || record.spec_path.starts_with(managed_root) {
-        let relative = record
-            .spec_path
-            .strip_prefix(managed_root)
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|_| filename(&record.spec_path));
-        return (
-            format!("managed:{}", managed_root.display()),
-            managed_root.into(),
-            "Inbox specs".into(),
-            relative,
-        );
-    }
-    let parent = record.spec_path.parent().unwrap_or_else(|| Path::new("."));
-    (
-        format!("external:{}", parent.display()),
-        parent.into(),
-        basename(parent),
-        filename(&record.spec_path),
-    )
-}
-
-fn safe_relative(path: &Path) -> bool {
-    !path.as_os_str().is_empty()
-        && path
-            .components()
-            .all(|component| matches!(component, Component::Normal(_)))
-}
-
-fn relative_to(path: &Path, root: &Path) -> Option<PathBuf> {
-    let relative =
-        path.strip_prefix(root)
-            .ok()
-            .map(Path::to_path_buf)
-            .or_else(|| {
-                let canonical_root = root.canonicalize().ok()?;
-                // Canonicalizing only the parent keeps a missing spec visible under its existing alias.
-                let canonical_path = path.canonicalize().ok().or_else(|| {
-                    Some(path.parent()?.canonicalize().ok()?.join(path.file_name()?))
-                })?;
-                canonical_path
-                    .strip_prefix(canonical_root)
-                    .ok()
-                    .map(Path::to_path_buf)
-            })?;
-    safe_relative(&relative).then_some(relative)
-}
-
-fn filename(path: &Path) -> PathBuf {
-    path.file_name()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("spec.md"))
+    crate::settings::source_location(sources, &path)
 }
 fn basename(path: &Path) -> String {
     path.file_name()

@@ -2,13 +2,12 @@ use crate::store::{Result, absolute};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 pub const SCHEMA_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(default)]
 pub struct Settings {
     pub schema_version: u32,
     pub sources: Vec<SpecSource>,
@@ -33,24 +32,18 @@ impl Default for Settings {
 pub struct SpecSource {
     pub id: String,
     pub path: PathBuf,
-    #[serde(default = "yes")]
     pub recursive: bool,
-    #[serde(default = "default_include")]
     pub include: Vec<String>,
-    #[serde(default)]
     pub exclude: Vec<String>,
 }
 
-fn yes() -> bool {
-    true
-}
 fn default_include() -> Vec<String> {
     vec!["**/*.md".into(), "**/*.markdown".into()]
 }
 
 impl SpecSource {
     pub fn new(path: PathBuf) -> Result<Self> {
-        let path = absolute(path)?;
+        let path = std::fs::canonicalize(absolute(path)?)?;
         if !path.is_dir() {
             return Err(format!(
                 "Spec source is not an available directory: {}",
@@ -78,6 +71,48 @@ impl SpecSource {
         }
         Ok((build(&self.include)?, build(&self.exclude)?))
     }
+}
+
+/// Resolve membership from the physical path; metadata never determines scope.
+/// The caller resolves symlinks before calling. New destinations may not exist yet.
+pub fn source_location<'a>(
+    sources: &'a [SpecSource],
+    resolved_path: &Path,
+) -> Option<(&'a SpecSource, PathBuf)> {
+    if !resolved_path.is_absolute()
+        || resolved_path
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return None;
+    }
+    sources
+        .iter()
+        .filter_map(|source| {
+            let root = source.path.canonicalize().ok()?;
+            if !root.is_dir() {
+                return None;
+            }
+            let relative = resolved_path.strip_prefix(&root).ok()?.to_path_buf();
+            if relative.as_os_str().is_empty()
+                || !source.recursive && relative.components().count() > 1
+            {
+                return None;
+            }
+            let (include, exclude) = source.filters().ok()?;
+            if !include.is_match(&relative)
+                || relative
+                    .ancestors()
+                    .any(|ancestor| !ancestor.as_os_str().is_empty() && exclude.is_match(ancestor))
+            {
+                return None;
+            }
+            Some((source, relative, root.components().count()))
+        })
+        .max_by(|(a, _, depth_a), (b, _, depth_b)| {
+            depth_a.cmp(depth_b).then_with(|| b.id.cmp(&a.id))
+        })
+        .map(|(source, relative, _)| (source, relative))
 }
 
 impl Settings {
@@ -157,6 +192,70 @@ mod tests {
         assert!(!include.is_match("code.rs"));
         restored.schema_version = 99;
         assert!(restored.validate().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn persisted_settings_require_current_fields() -> Result<()> {
+        for incomplete in ["", "schema_version = 1\n", "schema_version = 0\n"] {
+            assert!(toml::from_str::<Settings>(incomplete).is_err());
+        }
+        let serialized = toml::to_string_pretty(&Settings::default())?;
+        let without_schema = serialized.replace("schema_version = 1\n", "");
+        assert!(toml::from_str::<Settings>(&without_schema).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn membership_uses_physical_scope_filters_and_deepest_root_only() -> Result<()> {
+        let root = std::env::temp_dir().join(format!("herdr-membership-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("nested/ignored"))?;
+        let broad = SpecSource::new(root.clone())?;
+        let mut narrow = SpecSource::new(root.join("nested"))?;
+        narrow.exclude = vec!["ignored".into()];
+        let canonical = root.canonicalize()?;
+        let new_path = canonical.join("nested/new.md");
+        let sources = vec![broad.clone(), narrow.clone()];
+        let (selected, relative) = source_location(&sources, &new_path).unwrap();
+        assert_eq!(selected.id, narrow.id);
+        assert_eq!(relative, PathBuf::from("new.md"));
+        assert!(!new_path.exists());
+        assert!(
+            source_location(
+                std::slice::from_ref(&narrow),
+                &canonical.join("nested/ignored/new.md")
+            )
+            .is_none()
+        );
+        narrow.recursive = false;
+        assert!(
+            source_location(
+                std::slice::from_ref(&narrow),
+                &canonical.join("nested/deeper/new.md")
+            )
+            .is_none()
+        );
+        assert!(source_location(&sources, &canonical.join("code.rs")).is_none());
+        assert!(source_location(&sources, &canonical.join("../outside.md")).is_none());
+        let mut a = broad.clone();
+        let mut b = broad;
+        a.id = "a".into();
+        b.id = "b".into();
+        assert_eq!(
+            source_location(&[b.clone(), a.clone()], &canonical.join("new.md"))
+                .unwrap()
+                .0
+                .id,
+            "a"
+        );
+        assert_eq!(
+            source_location(&[a, b], &canonical.join("new.md"))
+                .unwrap()
+                .0
+                .id,
+            "a"
+        );
+        std::fs::remove_dir_all(root)?;
         Ok(())
     }
 }

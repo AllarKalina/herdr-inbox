@@ -110,7 +110,6 @@ fn settings_import_arbitrary_nested_markdown_without_touching_content() {
         imported["spec_path"],
         spec.canonicalize().unwrap().to_str().unwrap()
     );
-    assert_eq!(imported["ownership"], "user");
     assert_eq!(imported["spec"], "done");
     assert_eq!(imported["jira"]["status"], "ready");
     assert_eq!(imported["jira"]["key"], Value::Null);
@@ -181,7 +180,7 @@ fn deleting_imported_metadata_suppresses_discovery_until_restore() {
     fixture.enrich(id);
     let enriched = fixture.json(&["show", id, "--json"]);
 
-    fixture.ok(&["delete", id, "--confirm", id]);
+    fixture.ok(&["archive", id, "--confirm", id]);
     assert_eq!(fs::read_to_string(&path).unwrap(), "# Keep this document\n");
     assert!(
         fixture

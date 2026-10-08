@@ -1,9 +1,19 @@
 use super::*;
 
+fn configured_store(root: &Path) -> Result<Store> {
+    let source = root.join("selected");
+    fs::create_dir_all(&source)?;
+    let store = Store::new(root.to_path_buf());
+    let mut settings = Settings::default();
+    settings.sources.push(SpecSource::new(source)?);
+    store.save_settings(&settings)?;
+    Ok(store)
+}
+
 #[test]
 fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(&root)?;
     let started = store.start("Payment retries", None, None)?;
     assert!(started.spec_path.is_file());
     assert_eq!(started.next_actions(), vec!["Finish spec"]);
@@ -110,50 +120,15 @@ fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
 }
 
 #[test]
-fn legacy_active_implementation_keeps_progress_but_requires_jira_for_new_work() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-inbox-legacy-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    let started = store.start("Legacy flow", None, None)?;
-    let mut legacy = store.update(&started.id, Change::Finish { title: None })?;
-    legacy.implementation.status = "in_progress".into();
-    store.write(&legacy)?;
-    assert_eq!(
-        store.get(&started.id)?.implementation_stage(),
-        "in_progress"
-    );
-    assert_eq!(store.get(&started.id)?.pr_stage(), "locked");
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Pr {
-                    url: "https://example.test/pr/2".into(),
-                },
-            )
-            .is_err()
-    );
-    let linked = store.update(
-        &started.id,
-        Change::Jira {
-            key: "ABC-456".into(),
-            url: None,
-        },
-    )?;
-    assert_eq!(linked.pr_stage(), "ready");
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
 fn existing_spec_is_preserved() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
-    fs::create_dir_all(&root)?;
-    let spec = root.join("existing.md");
+    fs::create_dir_all(root.join("selected"))?;
+    let spec = root.join("selected/existing.md");
     fs::write(&spec, "Existing work\n")?;
-    let store = Store::new(root.clone());
+    let store = configured_store(&root)?;
     let record = store.start("Existing", None, Some(spec.clone()))?;
     assert_eq!(fs::read_to_string(&spec)?, "Existing work\n");
-    assert_eq!(record.spec_path, spec);
+    assert_eq!(record.spec_path, fs::canonicalize(spec)?);
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -161,7 +136,7 @@ fn existing_spec_is_preserved() -> Result<()> {
 #[test]
 fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(&root)?;
     let record = store.start_untitled(None)?;
     assert_eq!(record.display_title(), "Untitled spec");
     assert!(!record.spec_path.exists());
@@ -189,23 +164,19 @@ fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
 }
 
 #[test]
-fn deleting_item_moves_only_inbox_owned_spec_to_trash() -> Result<()> {
+fn archiving_only_moves_metadata_and_keeps_all_source_files() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    let owned = store.start("Owned", None, None)?;
-    let external_path = root.join("elsewhere.md");
+    let store = configured_store(&root)?;
+    let owned = store.start("Created", None, None)?;
+    let external_path = root.join("selected/elsewhere.md");
     fs::write(&external_path, "Keep me")?;
     let external = store.start("Linked", None, Some(external_path.clone()))?;
 
-    store.delete(&owned.id)?;
-    store.delete(&external.id)?;
+    store.archive(&owned.id)?;
+    store.archive(&external.id)?;
     assert!(store.list()?.is_empty());
-    assert!(!owned.spec_path.exists());
-    assert!(
-        root.join("trash/specs")
-            .join(format!("{}.md", owned.id))
-            .is_file()
-    );
+    assert!(owned.spec_path.exists());
+    assert!(!root.join("trash/specs").exists());
     assert!(
         root.join("trash/items")
             .join(format!("{}.json", owned.id))
@@ -224,7 +195,7 @@ fn deleting_item_moves_only_inbox_owned_spec_to_trash() -> Result<()> {
 #[test]
 fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-refine-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(&root)?;
     let record = store.start("Existing title", None, None)?;
     store.update(&record.id, Change::Finish { title: None })?;
     store.update(
@@ -311,14 +282,14 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
 }
 
 #[test]
-fn legacy_records_without_launch_history_still_load() -> Result<()> {
+fn records_without_required_launch_history_are_rejected() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-history-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    let record = store.start("Legacy", None, None)?;
+    let store = configured_store(&root)?;
+    let record = store.start("Current", None, None)?;
     let mut json = serde_json::to_value(&record)?;
     json.as_object_mut().unwrap().remove("previous_launches");
     fs::write(store.path_for(&record.id)?, serde_json::to_vec(&json)?)?;
-    assert!(store.get(&record.id)?.previous_launches.is_empty());
+    assert!(store.get(&record.id).is_err());
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -326,7 +297,7 @@ fn legacy_records_without_launch_history_still_load() -> Result<()> {
 #[test]
 fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-refine-locks-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(&root)?;
     let record = store.start("Existing", None, None)?;
     store.update(&record.id, Change::Finish { title: None })?;
     let linked = store.update(

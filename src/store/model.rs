@@ -16,15 +16,9 @@ pub struct Implementation {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Record {
-    #[serde(default)]
     pub schema_version: u32,
-    #[serde(default)]
-    pub ownership: String,
-    #[serde(default)]
     pub source_id: Option<String>,
-    #[serde(default)]
     pub source_relative_path: Option<PathBuf>,
-    #[serde(default)]
     pub content_fingerprint: Option<String>,
     pub id: String,
     pub title: String,
@@ -36,16 +30,13 @@ pub struct Record {
     pub jira: Link,
     pub implementation: Implementation,
     pub pr: Link,
-    #[serde(default)]
     pub launch: Option<Launch>,
-    #[serde(default)]
     pub previous_launches: Vec<Launch>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Launch {
     pub status: String,
-    #[serde(default)]
     pub harness: String,
     pub workspace: String,
     pub workspace_id: Option<String>,

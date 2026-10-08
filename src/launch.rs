@@ -419,6 +419,13 @@ mod tests {
     fn refinement_missing_or_blank_spec_leaves_record_unchanged() -> Result<()> {
         let root = env::temp_dir().join(format!("herdr-refine-preflight-{}", Uuid::new_v4()));
         let store = Store::new(root.clone());
+        let source = root.join("specs");
+        fs::create_dir_all(&source)?;
+        let mut settings = store.settings()?;
+        settings
+            .sources
+            .push(crate::store::SpecSource::new(source)?);
+        store.save_settings(&settings)?;
         let record = store.start("Existing", None, None)?;
         store.update(&record.id, Change::Finish { title: None })?;
         let item = root.join("items").join(format!("{}.json", record.id));

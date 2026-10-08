@@ -70,7 +70,7 @@ impl Store {
                 &mut report.issues,
             );
             candidates.sort();
-            for (path, relative) in candidates {
+            for (path, _) in candidates {
                 let resolved = match fs::canonicalize(&path) {
                     Ok(path) => path,
                     Err(error) => {
@@ -80,28 +80,32 @@ impl Store {
                         continue;
                     }
                 };
+                let source_root = fs::canonicalize(&source.path)?;
+                if !resolved.starts_with(source_root) {
+                    report
+                        .issues
+                        .push(format!("Spec outside selected folder: {}", path.display()));
+                    continue;
+                }
+                let Some((source, relative)) =
+                    crate::settings::source_location(&settings.sources, &resolved)
+                else {
+                    continue;
+                };
                 if !seen_files.insert(resolved.clone()) {
                     continue;
                 }
-                if let Some(record) = known
-                    .iter_mut()
-                    .find(|record| same_file(&record.spec_path, &resolved))
+                if known
+                    .iter()
+                    .any(|record| same_file(&record.spec_path, &resolved))
                 {
-                    // Add provenance to legacy records, but do not advance or refresh their workflow.
-                    if record.source_id.is_none() {
-                        record.source_id = Some(source.id.clone());
-                        record.source_relative_path = Some(relative);
-                        record.content_fingerprint = fingerprint(&resolved).ok();
-                        self.write(record)?;
-                    }
                     report.known += 1;
                     continue;
                 }
-                if trash.iter().any(|record| {
-                    same_file(&record.spec_path, &resolved)
-                        || record.source_id.as_deref() == Some(&source.id)
-                            && record.source_relative_path.as_ref() == Some(&relative)
-                }) {
+                if trash
+                    .iter()
+                    .any(|record| same_file(&record.spec_path, &resolved))
+                {
                     report.suppressed += 1;
                     continue;
                 }
@@ -128,7 +132,6 @@ impl Store {
                 let now = timestamp();
                 let record = Record {
                     schema_version: 1,
-                    ownership: "user".into(),
                     source_id: Some(source.id.clone()),
                     source_relative_path: Some(relative),
                     content_fingerprint: Some(fingerprint_bytes(text.as_bytes())),
@@ -248,6 +251,13 @@ fn discover(
             return;
         }
     };
+    if fs::canonicalize(&source.path).is_ok_and(|root| !resolved.starts_with(root)) {
+        issues.push(format!(
+            "Directory outside selected folder: {}",
+            directory.display()
+        ));
+        return;
+    }
     if !seen.insert(resolved) {
         return;
     }

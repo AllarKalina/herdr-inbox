@@ -67,33 +67,14 @@ impl Store {
     }
 
     pub(super) fn read_record(&self, path: &Path) -> Result<Record> {
-        let mut record: Record = serde_json::from_slice(&fs::read(path)?)?;
-        if record.schema_version > 1 {
+        let record: Record = serde_json::from_slice(&fs::read(path)?)?;
+        if record.schema_version != 1 {
             return Err(format!(
                 "Unsupported metadata schema {} in {}",
                 record.schema_version,
                 path.display()
             )
             .into());
-        }
-        if record.schema_version == 0 {
-            record.schema_version = 1;
-            if record.spec == "done"
-                && let Some(launch) = &mut record.launch
-                && launch.status == "prompt_sent"
-            {
-                launch.status = "completed".into();
-            }
-            record.ownership =
-                if record.spec_path == self.root.join("specs").join(format!("{}.md", record.id)) {
-                    "managed"
-                } else {
-                    "user"
-                }
-                .into();
-        }
-        if !matches!(record.ownership.as_str(), "managed" | "user") {
-            return Err(format!("Invalid file ownership in {}", path.display()).into());
         }
         Ok(record)
     }
@@ -116,32 +97,36 @@ impl Store {
         self.locked(|| {
             let id = Uuid::new_v4().to_string();
             let settings = self.settings()?;
-            let explicit = spec.is_some();
-            let source = settings.sources.first();
             let path = match spec {
                 Some(path) => absolute(path)?,
-                None => source
-                    .map(|s| s.path.join(format!("{id}.md")))
-                    .unwrap_or_else(|| self.root.join("specs").join(format!("{id}.md"))),
+                None => {
+                    let source = settings
+                        .sources
+                        .first()
+                        .ok_or("Choose a spec folder in settings before creating a spec")?;
+                    if !source.path.is_dir() {
+                        return Err(
+                            "Configured spec source is unavailable; correct it in settings".into(),
+                        );
+                    }
+                    source.path.join(format!("{id}.md"))
+                }
             };
+            let (source_id, relative, path) = self.destination_source(&settings, &path)?;
             if !create_spec && path.symlink_metadata().is_ok() {
                 return Err(
                     "New spec destination already exists; import it or refine its existing item"
                         .into(),
                 );
             }
-            if explicit
-                && self
-                    .all_records()?
-                    .iter()
-                    .any(|record| same_file(&record.spec_path, &path))
+            if self
+                .all_records()?
+                .iter()
+                .any(|record| same_file(&record.spec_path, &path))
             {
                 return Err(
                     "This spec already has metadata; use its existing item or restore it".into(),
                 );
-            }
-            if !explicit && source.is_some_and(|s| !s.path.is_dir()) {
-                return Err("Configured spec source is unavailable; correct it in settings".into());
             }
             if let Some(parent) = path.parent() {
                 ensure_dir(parent)?;
@@ -155,22 +140,11 @@ impl Store {
                 writeln!(file, "# {title}\n")?;
                 file.sync_all()?;
             }
-            let ownership = if explicit || source.is_some() {
-                "user"
-            } else {
-                "managed"
-            };
-            let association = settings.sources.iter().find_map(|s| {
-                path.strip_prefix(&s.path)
-                    .ok()
-                    .map(|relative| (s.id.clone(), relative.to_path_buf()))
-            });
             let now = timestamp();
             let record = Record {
                 schema_version: 1,
-                ownership: ownership.into(),
-                source_id: association.as_ref().map(|a| a.0.clone()),
-                source_relative_path: association.map(|a| a.1),
+                source_id: Some(source_id),
+                source_relative_path: Some(relative),
                 content_fingerprint: fingerprint(&path).ok(),
                 id,
                 title: title.to_owned(),
@@ -202,6 +176,43 @@ impl Store {
         })
     }
 
+    fn destination_source(
+        &self,
+        settings: &Settings,
+        path: &Path,
+    ) -> Result<(String, PathBuf, PathBuf)> {
+        let mut existing = path.to_path_buf();
+        let mut missing = Vec::new();
+        while existing.symlink_metadata().is_err() {
+            missing.push(
+                existing
+                    .file_name()
+                    .ok_or("Invalid spec destination")?
+                    .to_owned(),
+            );
+            existing = existing
+                .parent()
+                .ok_or("Invalid spec destination")?
+                .to_path_buf();
+        }
+        let mut canonical = fs::canonicalize(existing)?;
+        for part in missing.into_iter().rev() {
+            canonical.push(part);
+        }
+        if canonical
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return Err("Spec destination cannot contain parent-directory traversal".into());
+        }
+        if let Some((source, relative)) =
+            crate::settings::source_location(&settings.sources, &canonical)
+        {
+            return Ok((source.id.clone(), relative, canonical));
+        }
+        Err("Spec destination must be inside a configured spec folder and match its filters".into())
+    }
+
     /// Acknowledges that the caller has ended or abandoned the local spec session.
     pub fn settle(&self, id: &str) -> Result<Record> {
         self.locked(|| {
@@ -230,24 +241,8 @@ impl Store {
             {
                 return Err("Another item already references this spec".into());
             }
-            let spec_trash = self.root.join("trash/specs").join(format!("{id}.md"));
-            let restore_spec = self.manages_spec(&record) && spec_trash.is_file();
-            if restore_spec {
-                if record.spec_path.symlink_metadata().is_ok() {
-                    return Err(
-                        "Original spec location already exists; refusing to overwrite".into(),
-                    );
-                }
-                ensure_dir(record.spec_path.parent().ok_or("Invalid spec path")?)?;
-                fs::rename(&spec_trash, &record.spec_path)?;
-            }
             ensure_dir(&self.items())?;
-            if let Err(error) = fs::rename(&path, self.path_for(id)?) {
-                if restore_spec {
-                    let _ = fs::rename(&record.spec_path, spec_trash);
-                }
-                return Err(error.into());
-            }
+            fs::rename(&path, self.path_for(id)?)?;
             Ok(record)
         })
     }
@@ -270,18 +265,11 @@ impl Store {
             {
                 return Err("Another item (including Trash) already references this spec".into());
             }
-            record.spec_path = path;
-            record.ownership = "user".into();
             let settings = self.settings()?;
-            let association = settings.sources.iter().find_map(|s| {
-                record
-                    .spec_path
-                    .strip_prefix(&s.path)
-                    .ok()
-                    .map(|relative| (s.id.clone(), relative.to_path_buf()))
-            });
-            record.source_id = association.as_ref().map(|a| a.0.clone());
-            record.source_relative_path = association.map(|a| a.1);
+            let (source_id, relative, path) = self.destination_source(&settings, &path)?;
+            record.spec_path = path;
+            record.source_id = Some(source_id);
+            record.source_relative_path = Some(relative);
             record.content_fingerprint = fingerprint(&record.spec_path).ok();
             record.updated_at = timestamp();
             self.write(&record)?;

@@ -54,7 +54,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     }
     if matches!(
         app.prompt.as_ref(),
-        Some(Prompt::Delete { .. } | Prompt::Settle { .. })
+        Some(Prompt::Archive { .. } | Prompt::Settle { .. })
     ) {
         match key.code {
             KeyCode::Esc => {
@@ -186,7 +186,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
             KeyCode::Char('a') => {
                 if let Some(record) = app.current() {
-                    app.begin(Prompt::Delete {
+                    app.begin(Prompt::Archive {
                         id: record.id.clone(),
                     });
                 }
@@ -220,7 +220,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         }
         KeyCode::Char('a') => {
             if let Some(record) = app.current() {
-                app.begin(Prompt::Delete {
+                app.begin(Prompt::Archive {
                     id: record.id.clone(),
                 });
             }

@@ -50,14 +50,18 @@ esac
             }
             fs::set_permissions(executable, fs::Permissions::from_mode(0o700)).unwrap();
         }
-        Self {
+        let fixture = Self {
             repo,
             data: root.join("local inbox's data"),
             log: root.join("herdr.log"),
             herdr,
             path: format!("{}:{}", bin.display(), std::env::var("PATH").unwrap()),
             root,
-        }
+        };
+        let source = fixture.root.join("chosen");
+        fs::create_dir_all(&source).unwrap();
+        fixture.success(&["settings", "add-source", source.to_str().unwrap()]);
+        fixture
     }
 
     fn command(&self, args: &[&str]) -> Command {
@@ -455,10 +459,12 @@ fn refinement_accepts_launch_overrides_without_changing_item_identity() {
 }
 
 #[test]
-fn codex_refinement_grants_access_to_the_existing_external_spec_directory() {
+fn codex_refinement_grants_access_to_the_selected_spec_directory() {
     let fixture = Fixture::new();
     let drafts = fixture.root.join("external drafts ' quoted");
     fs::create_dir(&drafts).unwrap();
+    fixture.success(&["settings", "add-source", drafts.to_str().unwrap()]);
+    let drafts = fs::canonicalize(drafts).unwrap();
     let spec = drafts.join("payment retries.md");
     let contents = "# Existing external spec\n\nKeep this exact file.\n";
     fs::write(&spec, contents).unwrap();

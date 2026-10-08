@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-list-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     store.start("Short", None, None)?;
     store.start(
         "Long title that stretches well beyond the available name column width",
@@ -78,7 +78,7 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
 #[test]
 fn list_icons_show_completed_and_draft_stages() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-icons-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
+    let store = configured_store(root.clone())?;
     let record = store.start("Completed item", None, None)?;
     store.update(&record.id, Change::Finish { title: None })?;
     store.update(

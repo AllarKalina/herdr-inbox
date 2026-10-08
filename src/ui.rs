@@ -76,7 +76,7 @@ enum Prompt {
     Pr {
         id: String,
     },
-    Delete {
+    Archive {
         id: String,
     },
 }
@@ -96,7 +96,7 @@ impl Prompt {
             Self::Agent { .. } => "Agent name (optional)",
             Self::Branch { .. } => "Branch (optional)",
             Self::Pr { .. } => "Draft PR URL",
-            Self::Delete { .. } => "Confirm archive",
+            Self::Archive { .. } => "Confirm archive",
         }
     }
 }
@@ -209,10 +209,14 @@ impl App {
     fn new(store: Store) -> Result<Self> {
         let settings = store.settings()?;
         let report = store.scan()?;
-        let records = store.list()?;
-        let first_use = settings.sources.is_empty() && records.is_empty();
+        let records = store
+            .list()?
+            .into_iter()
+            .filter(|record| tree::includes(record, &settings.sources))
+            .collect::<Vec<_>>();
+        let first_use = settings.sources.is_empty();
         let mut tree = tree::Tree::default();
-        tree.rebuild(&records, &settings.sources, &store.path().join("specs"));
+        tree.rebuild(&records, &settings.sources);
         Ok(Self {
             store,
             records,
@@ -255,10 +259,22 @@ impl App {
             .records
             .get(self.selected)
             .map(|record| record.id.clone());
-        self.records = self.store.list()?;
+        let settings = self.store.settings()?;
+        self.records = self
+            .store
+            .list()?
+            .into_iter()
+            .filter(|record| tree::includes(record, &settings.sources))
+            .collect();
         let still_present = id
             .as_ref()
             .and_then(|id| self.records.iter().position(|record| &record.id == id));
+        if id.is_some() && still_present.is_none() {
+            self.prompt = None;
+            self.input.clear();
+            self.choice_selected = None;
+            self.feedback = None;
+        }
         if still_present.is_none() && matches!(self.screen, Screen::Detail | Screen::Reader) {
             self.screen = Screen::List;
             self.feedback = None;
@@ -266,11 +282,11 @@ impl App {
         }
         self.selected =
             still_present.unwrap_or(self.selected.min(self.records.len().saturating_sub(1)));
-        self.tree.rebuild(
-            &self.records,
-            &self.store.settings()?.sources,
-            &self.store.path().join("specs"),
-        );
+        self.tree.rebuild(&self.records, &settings.sources);
+        if settings.sources.is_empty() && self.screen != Screen::Settings {
+            self.screen = Screen::Settings;
+            self.settings = settings::SettingsView::new(settings, true);
+        }
         if matches!(self.screen, Screen::Detail | Screen::Reader) {
             self.tree.focus_record(self.selected);
         } else {

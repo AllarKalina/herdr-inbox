@@ -356,31 +356,24 @@ fn tree_deep_long_paths_keep_compact_statuses_and_footer_visible() -> Result<()>
 }
 
 #[test]
-fn legacy_managed_specs_stay_loose_and_openable_without_a_synthetic_folder() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("inbox-tree-legacy-{}", Uuid::new_v4()));
-    let store = Store::new(root.join("data"));
-    store.start("Legacy first", None, None)?;
-    store.start("Legacy second", None, None)?;
+fn unselected_records_do_not_form_loose_rows() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("inbox-tree-unselected-{}", Uuid::new_v4()));
+    let store = configured_store(root.join("data"))?;
+    store.start("Old first", None, None)?;
+    store.start("Old second", None, None)?;
+    let mut settings = store.settings()?;
+    settings.sources.clear();
+    store.save_settings(&settings)?;
     let mut fixture = Fixture {
         root,
         app: App::new(store)?,
     };
-    assert_eq!(fixture.app.tree.rows.len(), 2);
-    assert!(
-        fixture
-            .app
-            .tree
-            .rows
-            .iter()
-            .all(|row| !row.is_folder && row.depth == 0 && row.record_index.is_some())
-    );
-    let id = fixture.app.current().unwrap().id.clone();
+    assert!(fixture.app.records.is_empty());
+    assert!(fixture.app.tree.rows.is_empty());
+    assert_eq!(fixture.app.screen, Screen::Settings);
     let (lines, _) = render(&mut fixture.app, 100, 24)?;
     assert!(!lines.iter().any(|line| line.contains("Inbox specs")));
-    assert!(lines.iter().any(|line| line.contains("Legacy first")));
-    assert!(lines.iter().any(|line| line.contains("Legacy second")));
-    press(&mut fixture.app, KeyCode::Enter)?;
-    assert_eq!(fixture.app.screen, Screen::Detail);
-    assert_eq!(fixture.app.current().unwrap().id, id);
+    assert!(!lines.iter().any(|line| line.contains("Old first")));
+    assert!(!lines.iter().any(|line| line.contains("Old second")));
     Ok(())
 }

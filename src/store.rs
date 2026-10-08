@@ -41,10 +41,6 @@ impl Store {
         self.root.join("items")
     }
 
-    pub fn manages_spec(&self, record: &Record) -> bool {
-        record.ownership == "managed"
-    }
-
     fn path_for(&self, id: &str) -> Result<PathBuf> {
         Uuid::parse_str(id)?;
         Ok(self.items().join(format!("{id}.json")))
@@ -223,29 +219,16 @@ impl Store {
         })
     }
 
-    pub fn delete(&self, id: &str) -> Result<Record> {
+    pub fn archive(&self, id: &str) -> Result<Record> {
         self.locked(|| {
             let record = self.get(id)?;
             let trash = self.root.join("trash");
             let item_trash = trash.join("items").join(format!("{id}.json"));
-            let spec_trash = trash.join("specs").join(format!("{id}.md"));
-            let managed_spec = self.manages_spec(&record) && record.spec_path.is_file();
-            if item_trash.symlink_metadata().is_ok()
-                || managed_spec && spec_trash.symlink_metadata().is_ok()
-            {
-                return Err("Trash already contains this item; restore or move it first".into());
+            if item_trash.symlink_metadata().is_ok() {
+                return Err("Archive already contains this item; restore it first".into());
             }
-            ensure_dir(item_trash.parent().ok_or("Invalid trash item path")?)?;
-            if managed_spec {
-                ensure_dir(spec_trash.parent().ok_or("Invalid trash spec path")?)?;
-                fs::rename(&record.spec_path, &spec_trash)?;
-            }
-            if let Err(error) = fs::rename(self.path_for(id)?, &item_trash) {
-                if managed_spec {
-                    let _ = fs::rename(&spec_trash, &record.spec_path);
-                }
-                return Err(error.into());
-            }
+            ensure_dir(item_trash.parent().ok_or("Invalid archive item path")?)?;
+            fs::rename(self.path_for(id)?, &item_trash)?;
             Ok(record)
         })
     }
