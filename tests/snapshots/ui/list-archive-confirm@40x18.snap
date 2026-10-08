@@ -1,0 +1,31 @@
+
+  Inbox
+
+                               S J D P
+  └─    Settings navigation   ● → ○ ○
+  ▾  missions
+  └─ ▾  zeller
+     ├─    Settlement reconc… ✓ ✓ ● →
+  ┌ Confirm archive ─────────────────┐
+  │ARCHIVE ITEM                      │
+  │Settlement reconciliation across a│
+  │ID: 00000000-0000-4000-8000-000000│
+  │Spec: /private/tmp/herdr-inbox-gol│
+  │Linked spec stays in place.       │
+  │Open agent tabs are not closed.   │
+  └──────────────────────────────────┘
+  Enter archive this item · Esc cancel
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-37  fg=Gray BOLD
+ 4   2-4   fg=DarkGray
+ 4   5-8   fg=LightBlue
+ 4  31-31  fg=Cyan
+ 4  33-33  fg=LightBlue
+ 4  35-35  fg=DarkGray
+ 4  37-37  fg=DarkGray
+ 5   2-13  fg=Yellow BOLD
+ 6   2-4   fg=DarkGray
+ 6   5-14  fg=Yellow BOLD
+ 7   2-37  fg=Black bg=Cyan BOLD

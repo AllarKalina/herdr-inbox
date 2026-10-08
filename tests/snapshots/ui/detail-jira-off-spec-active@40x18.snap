@@ -1,0 +1,46 @@
+
+  Inbox / desig… / Settings navigation
+
+  PROGRESS
+       ⢠⠖⠒⠲⡄          SPEC ACTIONS
+  SPEC ⢾ ◉ ⡷ active
+       ⠘⠦⠤⠴⠃
+         │
+         │
+  DEV    ○   locked
+         │            ✦ Seal the spec
+         │
+         │              Read the
+  PR     ○   locked   scroll
+                        Refine the
+                      spec
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-18  fg=Gray
+ 1  19-37  fg=LightCyan BOLD
+ 3   2-37  fg=Gray
+ 4   7-11  fg=Cyan
+ 4  22-37  fg=Gray
+ 5   2-5   fg=Cyan
+ 5   7-7   fg=Cyan
+ 5   9-18  fg=Cyan
+ 6   7-11  fg=Cyan
+ 6  22-37  fg=Gray
+ 7   9-9   fg=DarkGray
+ 7  22-37  fg=Gray
+ 8   9-9   fg=DarkGray
+ 8  22-37  fg=Gray
+ 9   2-5   fg=DarkGray
+ 9   9-18  fg=DarkGray
+ 9  22-37  fg=Gray
+10   9-9   fg=DarkGray
+10  22-36  fg=Cyan BOLD | UNDERLINED
+11   9-9   fg=DarkGray
+12   9-9   fg=DarkGray
+12  22-37  fg=LightBlue
+13   2-5   fg=DarkGray
+13   9-18  fg=DarkGray
+13  22-37  fg=LightBlue
+14  22-37  fg=LightBlue
+15  22-37  fg=LightBlue

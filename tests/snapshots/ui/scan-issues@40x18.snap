@@ -1,0 +1,31 @@
+
+  Inbox / Settings / Scan results
+
+  2 imported, 3 known, 1 in Trash; 2
+  issue(s)
+  Correct the folder or permissions,
+  then reopen the Inbox to scan again.
+
+  Cannot read spec
+  /tmp/herdr-inbox-golden-scan-issues/
+  specs/locked.md: Permission denied
+
+  Spec outside selected folder:
+  /tmp/elsewhere/linked.md
+
+
+  j/k scroll · s settings · Esc back
+
+--- styles: row, columns, style ---
+ 1   2-20  fg=Gray
+ 1  21-32  fg=LightCyan BOLD
+ 5   2-37  fg=Yellow
+ 6   2-37  fg=Yellow
+ 7   2-37  fg=Yellow
+ 8   2-37  fg=Yellow
+ 9   2-37  fg=Yellow
+10   2-37  fg=Yellow
+11   2-37  fg=Yellow
+12   2-37  fg=Yellow
+13   2-37  fg=Yellow
+14   2-37  fg=Yellow

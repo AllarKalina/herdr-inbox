@@ -11,6 +11,7 @@ mod chrome;
 mod delight;
 mod feedback;
 mod footer;
+mod golden;
 mod list;
 mod proximity;
 mod quest;

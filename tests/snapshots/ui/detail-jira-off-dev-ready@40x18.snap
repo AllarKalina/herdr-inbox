@@ -1,0 +1,43 @@
+
+  Inbox / designs / Inbox layout
+
+  PROGRESS
+                      DEV ACTIONS
+  SPEC   ●   done
+         │            Record agent and
+         │            branch
+       ⢠⠖⠒⠲⡄
+  DEV  ⢾ ○ ⡷ ready
+       ⠘⠦⠤⠴⠃          ✦ Log dev quest
+         │
+         │
+  PR     ○   locked
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-19  fg=Gray
+ 1  20-31  fg=LightCyan BOLD
+ 3   2-37  fg=Gray
+ 4  22-37  fg=Gray
+ 5   2-5   fg=LightGreen
+ 5   9-16  fg=LightGreen
+ 6   9-9   fg=DarkGray
+ 6  22-37  fg=Gray
+ 7   9-9   fg=DarkGray
+ 7  22-37  fg=Gray
+ 8   7-11  fg=Cyan
+ 8  22-37  fg=Gray
+ 9   2-5   fg=LightBlue
+ 9   7-7   fg=Cyan
+ 9   9-10  fg=LightBlue
+ 9  11-11  fg=Cyan
+ 9  12-17  fg=LightBlue
+ 9  22-37  fg=Gray
+10   7-11  fg=Cyan
+10  22-36  fg=Cyan BOLD | UNDERLINED
+11   9-9   fg=DarkGray
+12   9-9   fg=DarkGray
+13   2-5   fg=DarkGray
+13   9-18  fg=DarkGray

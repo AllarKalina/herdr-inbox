@@ -1,0 +1,52 @@
+
+  Inbox / designs / Settings navigation
+
+  SPEC
+
+  PROGRESS
+       ⢠⠖⠒⠲⡄          SPEC ACTIONS
+  SPEC ⢾ ◉ ⡷ active
+       ⠘⠦⠤⠴⠃
+         │
+         │
+         │
+  DEV    ○   locked   ✦ Seal the spec
+         │
+         │              Read the scroll
+         │
+         │              Refine the spec
+  PR     ○   locked
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-19  fg=Gray
+ 1  20-38  fg=LightCyan BOLD
+ 5   2-57  fg=Gray
+ 6   7-11  fg=Cyan
+ 6  22-57  fg=Gray
+ 7   2-5   fg=Cyan
+ 7   7-7   fg=Cyan
+ 7   9-18  fg=Cyan
+ 8   7-11  fg=Cyan
+ 8  22-57  fg=Gray
+ 9   9-9   fg=DarkGray
+ 9  22-57  fg=Gray
+10   9-9   fg=DarkGray
+10  22-57  fg=Gray
+11   9-9   fg=DarkGray
+11  22-57  fg=Gray
+12   2-5   fg=DarkGray
+12   9-18  fg=DarkGray
+12  22-36  fg=Cyan BOLD | UNDERLINED
+13   9-9   fg=DarkGray
+14   9-9   fg=DarkGray
+14  22-38  fg=LightBlue
+15   9-9   fg=DarkGray
+16   9-9   fg=DarkGray
+16  22-38  fg=LightBlue
+17   2-5   fg=DarkGray
+17   9-18  fg=DarkGray

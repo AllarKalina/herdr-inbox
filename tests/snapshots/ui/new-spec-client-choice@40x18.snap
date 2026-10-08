@@ -1,0 +1,37 @@
+
+  Inbox / New spec
+
+                               S J D P
+  ▾  designs
+  ├─    Inbox layout          ✓ → ○ ○
+  └─    Settings navigation   ● → ○ ○
+  ▾  missions
+  ┌ Choose client ───────────────────┐
+  │Claude · Opus 5.5 · High          │
+  │Codex · GPT-6.1-Sol · High        │
+  │                                  │
+  │                                  │
+  │                                  │
+  │                                  │
+  └──────────────────────────────────┘
+  j/k · Enter continue · Esc cancel
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-17  fg=LightCyan BOLD
+ 3   2-37  fg=Gray BOLD
+ 4   2-37  fg=Black bg=Cyan BOLD
+ 5   2-4   fg=DarkGray
+ 5   5-8   fg=LightBlue
+ 5  31-31  fg=LightGreen
+ 5  33-33  fg=LightBlue
+ 5  35-35  fg=DarkGray
+ 5  37-37  fg=DarkGray
+ 6   2-4   fg=DarkGray
+ 6   5-8   fg=LightBlue
+ 6  31-31  fg=Cyan
+ 6  33-33  fg=LightBlue
+ 6  35-35  fg=DarkGray
+ 6  37-37  fg=DarkGray
+ 7   2-13  fg=Yellow BOLD
+ 9   3-36  fg=Black bg=Cyan BOLD

@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# Full regression gate for herdr-inbox. Run it after every change, before handing work back.
+#
+#   scripts/regress                     every check, including the release build and smoke runs
+#   scripts/regress --quick             skip the release build and smoke runs (inner loop)
+#   scripts/regress --update-snapshots  re-record UI snapshots after an intended UI change
+#
+# Exit status is 0 only when every stage passes. Logs land in target/regress/.
+
+set -u
+cd "$(dirname "$0")/.."
+ROOT=$PWD
+OUT=$ROOT/target/regress
+SNAPSHOTS=$ROOT/tests/snapshots/ui
+MAX_LINES=500
+
+quick=0
+update=0
+for arg in "$@"; do
+    case $arg in
+        --quick) quick=1 ;;
+        --update-snapshots) update=1 ;;
+        -h | --help)
+            sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "unknown option: $arg (try --help)" >&2
+            exit 2
+            ;;
+    esac
+done
+
+rm -rf "$OUT"
+mkdir -p "$OUT"
+failed=()
+passed=0
+
+# stage NAME COMMAND...: run one check, keep its log, and report a single line.
+stage() {
+    local name=$1
+    shift
+    local log="$OUT/$name.log" started=$SECONDS
+    if "$@" >"$log" 2>&1; then
+        printf '  ok    %-22s %3ss\n' "$name" "$((SECONDS - started))"
+        passed=$((passed + 1))
+    else
+        printf '  FAIL  %-22s %3ss  log: %s\n' "$name" "$((SECONDS - started))" "${log#"$ROOT"/}"
+        # Test failures are summarised under "failures:"; everything else ends with the cause.
+        if grep -q '^failures:$' "$log"; then
+            sed -n '/^failures:$/,$p' "$log" | head -n 80 | sed 's/^/        | /'
+        else
+            tail -n 40 "$log" | sed 's/^/        | /'
+        fi
+        failed+=("$name")
+    fi
+}
+
+check_toolchain() {
+    command -v cargo >/dev/null || { echo "cargo is not on PATH"; return 1; }
+    local need have
+    need=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+    have=$(rustc --version | awk '{print $2}')
+    echo "rustc $have, Cargo.toml requires $need"
+    [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -n 1)" = "$need" ] || {
+        echo "rustc $have is older than the required $need"
+        return 1
+    }
+}
+
+check_policy() {
+    local status=0 cargo_version plugin_version long tracked
+    cargo_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+    plugin_version=$(sed -n 's/^version = "\(.*\)"/\1/p' herdr-plugin.toml | head -n 1)
+    if [ "$cargo_version" != "$plugin_version" ]; then
+        echo "version mismatch: Cargo.toml $cargo_version, herdr-plugin.toml $plugin_version"
+        status=1
+    fi
+    grep -q '"cargo", "build", "--release", "--locked", "--bin", "herdr-inbox"' herdr-plugin.toml || {
+        echo "herdr-plugin.toml no longer builds with the command this gate verifies"
+        status=1
+    }
+    long=$(find src tests -name '*.rs' -exec wc -l {} + | awk -v max=$MAX_LINES '$2 != "total" && $1 > max')
+    if [ -n "$long" ]; then
+        echo "files over $MAX_LINES lines (split them):"
+        echo "$long"
+        status=1
+    fi
+    tracked=$(git ls-files specs .impeccable target)
+    if [ -n "$tracked" ]; then
+        echo "local-only content is tracked by git:"
+        echo "$tracked"
+        status=1
+    fi
+    if grep -rnE '\b(dbg!|todo!|unimplemented!)\(' src; then
+        echo "debugging or placeholder macros left in src"
+        status=1
+    fi
+    return $status
+}
+
+run_tests() {
+    local manifest="$OUT/snapshots-seen.txt" stale
+    if [ $update = 1 ]; then
+        rm -rf "$SNAPSHOTS"
+        export HERDR_INBOX_UPDATE_SNAPSHOTS=1
+    fi
+    HERDR_INBOX_SNAPSHOT_MANIFEST=$manifest cargo test --locked || return 1
+    # A snapshot that no scenario renders would otherwise stay green forever.
+    stale=$(comm -23 <(ls "$SNAPSHOTS" | sort) <(sort -u "$manifest"))
+    if [ -n "$stale" ]; then
+        echo "stale snapshots in tests/snapshots/ui (delete them or run --update-snapshots):"
+        echo "$stale"
+        return 1
+    fi
+    echo "$(sort -u "$manifest" | wc -l | tr -d ' ') UI snapshots verified"
+}
+
+# Drives the binary the plugin manifest ships, in a throwaway data directory.
+smoke_release() {
+    local bin=$ROOT/target/release/herdr-inbox home status=0
+    home=$(mktemp -d "${TMPDIR:-/tmp}/herdr-inbox-smoke.XXXXXX") || return 1
+    mkdir -p "$home/specs/nested"
+    printf '# Smoke spec\n\nBody.\n' >"$home/specs/nested/smoke.md"
+    # expect DESCRIPTION PATTERN COMMAND...: the command must succeed and print the pattern.
+    expect() {
+        local what=$1 pattern=$2 output
+        shift 2
+        if ! output=$(HERDR_INBOX_HOME="$home/data" HERDR_ENV=0 "$@" 2>&1); then
+            echo "smoke: $what: command failed: $output"
+            status=1
+        elif ! grep -q -- "$pattern" <<<"$output"; then
+            echo "smoke: $what: expected '$pattern' in: $output"
+            status=1
+        fi
+    }
+    expect "help" 'local spec-to-PR inbox' "$bin" help
+    expect "data root override" "^$home/data\$" "$bin" path
+    expect "add source imports" '1 imported' "$bin" settings add-source "$home/specs"
+    expect "settings carry jira" '^jira = true$' "$bin" settings show
+    expect "rescan is idempotent" '"known": 1' "$bin" scan --json
+    expect "list shows the spec" 'Smoke spec' "$bin" list
+    expect "imported stage" 'Spec: done  Jira: ready  Implementation: locked  PR: locked' "$bin" list
+    if HERDR_INBOX_HOME="$home/data" "$bin" frobnicate >/dev/null 2>&1; then
+        echo "smoke: unknown command exited 0"
+        status=1
+    fi
+    rm -rf "$home"
+    [ $status = 0 ] && echo "release binary smoke run passed"
+    return $status
+}
+
+# Starts the real TUI in a pseudo-terminal, opens Settings, and leaves with Esc.
+# Catches startup, raw-mode, and teardown failures that off-screen rendering tests cannot.
+smoke_tui() {
+    local bin=$ROOT/target/release/herdr-inbox home status=0 text
+    home=$(mktemp -d "${TMPDIR:-/tmp}/herdr-inbox-tui.XXXXXX") || return 1
+    mkdir -p "$home/specs"
+    printf '# Tui smoke spec\n' >"$home/specs/smoke.md"
+    HERDR_INBOX_HOME="$home/data" "$bin" settings add-source "$home/specs" >/dev/null || status=1
+    (
+        sleep 1.5
+        printf 's'
+        sleep 1
+        printf '\033'
+        sleep 1
+        printf '\033'
+        sleep 0.5
+    ) | HERDR_INBOX_HOME="$home/data" HERDR_BIN="$bin" perl -e 'alarm 30; exec @ARGV' \
+        script -q "$home/screen.txt" sh -c 'stty rows 35 cols 100; exec "$HERDR_BIN" tui' \
+        >/dev/null 2>"$home/stderr.txt" || {
+        echo "tui: did not exit cleanly (status $?): $(cat "$home/stderr.txt")"
+        status=1
+    }
+    # The terminal receives only changed cells, so match single words rather than phrases.
+    for text in 'Tui smoke spec' 'archive' 'Specs folder' 'Jira'; do
+        LC_ALL=C grep -a -q -- "$text" "$home/screen.txt" || {
+            echo "tui: never drew '$text'"
+            status=1
+        }
+    done
+    rm -rf "$home"
+    [ $status = 0 ] && echo "TUI started, drew the list and Settings, and exited cleanly"
+    return $status
+}
+
+echo "herdr-inbox regression gate$([ $quick = 1 ] && echo ' (quick)')$([ $update = 1 ] && echo ' (updating snapshots)')"
+stage toolchain check_toolchain
+stage format cargo fmt --check
+stage lint cargo clippy --locked --all-targets -- -D warnings
+stage tests run_tests
+stage policy check_policy
+if [ $quick = 0 ]; then
+    stage release-build cargo build --release --locked --bin herdr-inbox
+    if [[ " ${failed[*]:-} " == *" release-build "* ]]; then
+        echo "  skip  release-smoke, tui-smoke (release build failed)"
+    else
+        stage release-smoke smoke_release
+        stage tui-smoke smoke_tui
+    fi
+fi
+
+echo
+if [ ${#failed[@]} -gt 0 ]; then
+    echo "REGRESSION: ${#failed[@]} stage(s) failed: ${failed[*]}"
+    exit 1
+fi
+if [ $update = 1 ]; then
+    echo "PASS ($passed stages). Snapshots re-recorded; review them with: git diff --stat tests/snapshots"
+else
+    echo "PASS ($passed stages)"
+fi

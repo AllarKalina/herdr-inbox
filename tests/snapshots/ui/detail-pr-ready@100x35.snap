@@ -1,0 +1,71 @@
+
+  Inbox / missions / zeller / Settlement reconciliation across acquirers and ledgers
+
+  SPEC                                                        PROGRESS
+  # Settlement reconciliation across acquirers and ledgers
+                                                              SPEC   ●   done
+  ## Goal                                                            │
+                                                                     │
+  Describe Settlement reconciliation across acquirers and            │
+  ledgers well enough to build it.                                   │
+                                                                     │
+  ## Requirements                                             JIRA   ●   done
+                                                                     │   PAY-123
+  - First requirement                                                │
+  - Second requirement                                               │
+                                                                     │
+                                                                     │
+                                                              DEV    ◉   active
+                                                                     │   feature/settlement
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                   ⢠⠖⠒⠲⡄
+                                                              PR   ⢾ ○ ⡷ ready
+                                                                   ⠘⠦⠤⠴⠃ Ready to link
+                                                                         ✦ Bind draft PR
+
+
+
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-29  fg=Gray
+ 1  30-83  fg=LightCyan BOLD
+ 3  62-97  fg=Gray
+ 5  62-65  fg=LightGreen
+ 5  69-76  fg=LightGreen
+ 6  69-69  fg=DarkGray
+ 6  73-97  fg=Gray
+ 7  69-69  fg=DarkGray
+ 8  69-69  fg=DarkGray
+ 9  69-69  fg=DarkGray
+10  69-69  fg=DarkGray
+11  62-65  fg=LightGreen
+11  69-76  fg=LightGreen
+12  69-69  fg=DarkGray
+12  73-97  fg=Gray
+13  69-69  fg=DarkGray
+14  69-69  fg=DarkGray
+15  69-69  fg=DarkGray
+16  69-69  fg=DarkGray
+17  62-65  fg=Cyan
+17  69-78  fg=Cyan
+18  69-69  fg=DarkGray
+18  73-97  fg=Gray
+19  69-69  fg=DarkGray
+20  69-69  fg=DarkGray
+21  69-69  fg=DarkGray
+22  67-71  fg=Cyan
+23  62-65  fg=LightBlue
+23  67-67  fg=Cyan
+23  69-70  fg=LightBlue
+23  71-71  fg=Cyan
+23  72-77  fg=LightBlue
+24  67-71  fg=Cyan
+24  73-97  fg=Gray
+25  73-87  fg=Cyan BOLD | UNDERLINED

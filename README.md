@@ -79,6 +79,20 @@ herdr plugin link ~/git/herdr-inbox
 herdr plugin action invoke personal.inbox.open
 ```
 
+### Regression gate
+
+Run the gate after every change:
+
+```sh
+scripts/regress                     # everything, about 25 seconds
+scripts/regress --quick             # skip the release build and smoke runs
+scripts/regress --update-snapshots  # re-record UI snapshots after an intended UI change
+```
+
+It runs formatting, clippy with warnings denied, all tests, repository policy checks, the manifest's release build, a CLI smoke run against the release binary, and a live TUI smoke run in a pseudo-terminal. Every stage uses a temporary data directory, never your Inbox. Logs land in `target/regress/`; the exit status is 0 only when every stage passes. CI runs the same script on macOS.
+
+`tests/snapshots/ui/` holds a golden snapshot of every screen at 100×35, 60×24, and 40×18: the rendered text, then the colour and weight of each styled run. A layout, copy, or colour change fails the gate and names the first differing line; the full actual output is written to `target/ui-snapshots-actual/`. Re-record only when the change is intended, then review `git diff tests/snapshots`. `tests/cli_workflow.rs` drives the whole spec-to-PR path through the real binary with Jira on and off. Launching real agent sessions is covered against a fake `herdr` binary only.
+
 The action opens an 85%-size Herdr popup. Its frame has no visible caption; the `Inbox` breadcrumb belongs inside the application. Herdr requires a nonempty pane title, so the manifest uses a nonprinting zero-width space. After editing a locally linked manifest, rerun `herdr plugin link ~/git/herdr-inbox` and reopen the popup. `Cmd+I` opens it with the personal Ghostty/Herdr config. You can also run `~/git/herdr-inbox/target/release/herdr-inbox tui` in any terminal.
 
 ## New spec session

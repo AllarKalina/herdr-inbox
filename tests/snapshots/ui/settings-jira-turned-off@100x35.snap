@@ -1,0 +1,41 @@
+
+  Inbox / Settings
+
+  Specs folder   /private/tmp/herdr-inbox-golden-settings/specs
+  Jira           off
+  Archive        2 specs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  j/k select · Enter toggle · Esc back
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-17  fg=LightCyan BOLD
+ 3   2-16  fg=Gray
+ 4   2-97  fg=Black bg=Cyan BOLD
+ 5   2-16  fg=Gray

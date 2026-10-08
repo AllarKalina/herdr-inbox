@@ -1,0 +1,52 @@
+
+  Inbox / … / Settlement reconciliation across acquirers …
+
+  SPEC
+
+  PROGRESS
+                      PR ACTIONS
+  SPEC   ●   done
+         │            Ready to link
+         │
+  JIRA   ●   done
+         │
+         │            ✦ Bind draft PR
+  DEV    ◉   active
+         │
+       ⢠⠖⠒⠲⡄
+  PR   ⢾ ○ ⡷ ready
+       ⠘⠦⠤⠴⠃
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-13  fg=Gray
+ 1  14-57  fg=LightCyan BOLD
+ 5   2-57  fg=Gray
+ 6  22-57  fg=Gray
+ 7   2-5   fg=LightGreen
+ 7   9-16  fg=LightGreen
+ 8   9-9   fg=DarkGray
+ 8  22-57  fg=Gray
+ 9   9-9   fg=DarkGray
+ 9  22-57  fg=Gray
+10   2-5   fg=LightGreen
+10   9-16  fg=LightGreen
+10  22-57  fg=Gray
+11   9-9   fg=DarkGray
+11  22-57  fg=Gray
+12   9-9   fg=DarkGray
+12  22-36  fg=Cyan BOLD | UNDERLINED
+13   2-5   fg=Cyan
+13   9-18  fg=Cyan
+14   9-9   fg=DarkGray
+15   7-11  fg=Cyan
+16   2-5   fg=LightBlue
+16   7-7   fg=Cyan
+16   9-10  fg=LightBlue
+16  11-11  fg=Cyan
+16  12-17  fg=LightBlue
+17   7-11  fg=Cyan

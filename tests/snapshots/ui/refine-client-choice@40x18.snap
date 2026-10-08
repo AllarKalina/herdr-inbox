@@ -1,0 +1,25 @@
+
+  Inbox / … / Transaction se… / Refine
+
+
+  ┌ Refine spec · Choose client ─────┐
+  │Claude · Opus 5.5 · High          │
+  │Codex · GPT-6.1-Sol · High        │
+  │                                  │
+  └──────────────────────────────────┘
+
+
+
+
+
+
+
+  j/k · Enter continue · Esc cancel
+
+--- styles: row, columns, style ---
+ 1   2-31  fg=Gray
+ 1  32-37  fg=LightCyan BOLD
+ 5   3-36  fg=Black bg=Cyan BOLD
+ 9   3-36  fg=Red
+10   3-36  fg=Red
+11   3-36  fg=Red

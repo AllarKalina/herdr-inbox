@@ -1,0 +1,32 @@
+
+  Inbox / Settings
+
+  Specs folder   No folder selected
+  Jira           on
+  Archive        empty
+
+  Could not open the macOS selector
+
+
+
+
+
+
+
+
+  j/k select · Enter change · Esc back
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-17  fg=LightCyan BOLD
+ 3   2-37  fg=Black bg=Cyan BOLD
+ 4   2-16  fg=Gray
+ 5   2-16  fg=Gray
+ 7   2-37  fg=Red
+ 8   2-37  fg=Red
+ 9   2-37  fg=Red
+10   2-37  fg=Red
+11   2-37  fg=Red
+12   2-37  fg=Red
+13   2-37  fg=Red
+14   2-37  fg=Red

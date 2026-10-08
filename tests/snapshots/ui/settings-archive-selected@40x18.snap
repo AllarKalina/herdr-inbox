@@ -1,0 +1,24 @@
+
+  Inbox / Settings
+
+  Specs folder   …olden-settings/specs
+  Jira           on
+  Archive        2 specs
+
+
+
+
+
+
+
+
+
+
+  j/k select · Enter open · Esc back
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-17  fg=LightCyan BOLD
+ 3   2-16  fg=Gray
+ 4   2-16  fg=Gray
+ 5   2-37  fg=Black bg=Cyan BOLD

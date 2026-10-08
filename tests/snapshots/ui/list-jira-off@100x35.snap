@@ -1,0 +1,66 @@
+
+  Inbox
+
+                                                                      Spec      Dev       PR
+  ▾  designs
+  ├─    Inbox layout                                                 ✓ done    → ready   ○ locked
+  └─    Settings navigation                                          ● active  ○ locked  ○ locked
+  ▾  missions
+  └─ ▾  zeller
+     ├─    Settlement reconciliation across acquirers and ledgers    ✓ done    ● active  → ready
+     └─    Transaction search                                        ✓ done    → ready   ○ locked
+     Quarterly plan                                                  ✓ done    ✓ done    ◐ draft
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Enter open · n new · a archive · s settings
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-97  fg=Gray BOLD
+ 4   2-97  fg=Black bg=Cyan BOLD
+ 5   2-4   fg=DarkGray
+ 5   5-8   fg=LightBlue
+ 5  70-77  fg=LightGreen
+ 5  80-87  fg=LightBlue
+ 5  90-97  fg=DarkGray
+ 6   2-4   fg=DarkGray
+ 6   5-8   fg=LightBlue
+ 6  70-77  fg=Cyan
+ 6  80-87  fg=DarkGray
+ 6  90-97  fg=DarkGray
+ 7   2-13  fg=Yellow BOLD
+ 8   2-4   fg=DarkGray
+ 8   5-14  fg=Yellow BOLD
+ 9   2-7   fg=DarkGray
+ 9   8-11  fg=LightBlue
+ 9  70-77  fg=LightGreen
+ 9  80-87  fg=Cyan
+ 9  90-97  fg=LightBlue
+10   2-7   fg=DarkGray
+10   8-11  fg=LightBlue
+10  70-77  fg=LightGreen
+10  80-87  fg=LightBlue
+10  90-97  fg=DarkGray
+11   2-5   fg=LightBlue
+11  70-77  fg=LightGreen
+11  80-87  fg=LightGreen
+11  90-97  fg=Yellow

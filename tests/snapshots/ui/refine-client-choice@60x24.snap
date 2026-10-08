@@ -1,0 +1,31 @@
+
+  Inbox / missions / zeller / Transaction search / Refine
+
+
+
+
+
+    ┌ Refine spec · Choose client ─────────────────────┐
+    │Claude · Opus 5.5 · High                          │
+    │Codex · GPT-6.1-Sol · High                        │
+    │                                                  │
+    └──────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+  j/k choose · Enter continue · Esc cancel
+
+--- styles: row, columns, style ---
+ 1   2-50  fg=Gray
+ 1  51-56  fg=LightCyan BOLD
+ 8   5-54  fg=Black bg=Cyan BOLD
+12   5-54  fg=Red
+13   5-54  fg=Red
+14   5-54  fg=Red

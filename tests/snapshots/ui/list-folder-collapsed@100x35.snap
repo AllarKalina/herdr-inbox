@@ -1,0 +1,59 @@
+
+  Inbox
+
+                                                            Spec      Jira      Dev       PR
+  ▸  designs
+  ▾  missions
+  └─ ▾  zeller
+     ├─    Settlement reconciliation across acquirers an…  ✓ done    ✓ done    ● active  → ready
+     └─    Transaction search                              ✓ done    ✓ done    → ready   ○ locked
+     Quarterly plan                                        ✓ done    ✓ done    ✓ done    ◐ draft
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Enter open · n new · a archive · s settings
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-97  fg=Gray BOLD
+ 4   2-97  fg=Black bg=Cyan BOLD
+ 5   2-13  fg=Yellow BOLD
+ 6   2-4   fg=DarkGray
+ 6   5-14  fg=Yellow BOLD
+ 7   2-7   fg=DarkGray
+ 7   8-11  fg=LightBlue
+ 7  60-67  fg=LightGreen
+ 7  70-77  fg=LightGreen
+ 7  80-87  fg=Cyan
+ 7  90-97  fg=LightBlue
+ 8   2-7   fg=DarkGray
+ 8   8-11  fg=LightBlue
+ 8  60-67  fg=LightGreen
+ 8  70-77  fg=LightGreen
+ 8  80-87  fg=LightBlue
+ 8  90-97  fg=DarkGray
+ 9   2-5   fg=LightBlue
+ 9  60-67  fg=LightGreen
+ 9  70-77  fg=LightGreen
+ 9  80-87  fg=LightGreen
+ 9  90-97  fg=Yellow

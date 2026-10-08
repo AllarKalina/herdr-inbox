@@ -1,0 +1,40 @@
+
+  Inbox / Settings / Archive
+
+  Inbox layout                                                             designs/inbox-layout.md
+  Quarterly plan                                                           quarterly-plan.md
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  j/k select · r restore · d delete · Esc back
+
+--- styles: row, columns, style ---
+ 1   2-20  fg=Gray
+ 1  21-27  fg=LightCyan BOLD
+ 3   2-97  fg=Black bg=Cyan BOLD
+ 4  75-97  fg=Gray

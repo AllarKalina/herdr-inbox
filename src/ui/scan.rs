@@ -43,7 +43,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         blocks[0],
     );
     let text = format!(
-        "Correct the folder or permissions, then choose Change in Settings to scan again.\n\n{}",
+        "Correct the folder or permissions, then reopen the Inbox to scan again.\n\n{}",
         app.scan_issues.join("\n\n")
     );
     let content = Paragraph::new(text)

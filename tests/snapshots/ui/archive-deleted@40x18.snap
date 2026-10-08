@@ -1,0 +1,22 @@
+
+  Inbox / Settings / Archive
+
+  Inbox layout
+
+
+
+
+
+
+
+
+
+
+
+  Deleted Quarterly plan; file moved …
+  r restore · d delete · Esc back
+
+--- styles: row, columns, style ---
+ 1   2-20  fg=Gray
+ 1  21-27  fg=LightCyan BOLD
+ 3   2-37  fg=Black bg=Cyan BOLD

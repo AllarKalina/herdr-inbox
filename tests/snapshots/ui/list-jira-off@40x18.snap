@@ -1,0 +1,49 @@
+
+  Inbox
+
+                                 S D P
+  ▾  designs
+  ├─    Inbox layout            ✓ → ○
+  └─    Settings navigation     ● ○ ○
+  ▾  missions
+  └─ ▾  zeller
+     ├─    Settlement reconcil… ✓ ● →
+     └─    Transaction search   ✓ → ○
+     Quarterly plan             ✓ ✓ ◐
+
+
+
+
+  ↵ · n new · a archive · s settings
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-37  fg=Gray BOLD
+ 4   2-37  fg=Black bg=Cyan BOLD
+ 5   2-4   fg=DarkGray
+ 5   5-8   fg=LightBlue
+ 5  33-33  fg=LightGreen
+ 5  35-35  fg=LightBlue
+ 5  37-37  fg=DarkGray
+ 6   2-4   fg=DarkGray
+ 6   5-8   fg=LightBlue
+ 6  33-33  fg=Cyan
+ 6  35-35  fg=DarkGray
+ 6  37-37  fg=DarkGray
+ 7   2-13  fg=Yellow BOLD
+ 8   2-4   fg=DarkGray
+ 8   5-14  fg=Yellow BOLD
+ 9   2-7   fg=DarkGray
+ 9   8-11  fg=LightBlue
+ 9  33-33  fg=LightGreen
+ 9  35-35  fg=Cyan
+ 9  37-37  fg=LightBlue
+10   2-7   fg=DarkGray
+10   8-11  fg=LightBlue
+10  33-33  fg=LightGreen
+10  35-35  fg=LightBlue
+10  37-37  fg=DarkGray
+11   2-5   fg=LightBlue
+11  33-33  fg=LightGreen
+11  35-35  fg=LightGreen
+11  37-37  fg=Yellow

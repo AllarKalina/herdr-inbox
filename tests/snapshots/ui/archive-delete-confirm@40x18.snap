@@ -1,0 +1,22 @@
+
+  Inbox / Settings / Archive
+
+  Inbox layout
+  Quarterly plan
+
+
+
+  ┌ Confirm delete ──────────────────┐
+  │DELETE SPEC                       │
+  │Quarterly plan                    │
+  │…-settings/specs/quarterly-plan.md│
+  │The file moves to the macOS Trash.│
+  │Its archived record is deleted for│
+  │good.                             │
+  └──────────────────────────────────┘
+  Enter delete this spec · Esc cancel
+
+--- styles: row, columns, style ---
+ 1   2-20  fg=Gray
+ 1  21-27  fg=LightCyan BOLD
+ 4   2-37  fg=Black bg=Cyan BOLD

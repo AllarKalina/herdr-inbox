@@ -1,0 +1,48 @@
+
+  Inbox
+
+                                                   S J D P
+  └─    Settings navigation                       ● → ○ ○
+  ▾  missions
+  └─ ▾  zeller
+     ├─    Settlement reconciliation across acqu… ✓ ✓ ● →
+     └─    Transaction search                     ✓ ✓ → ○
+     Quarterly plan                               ✓ ✓ ✓ ◐
+
+
+
+
+
+
+
+
+
+
+
+  Cancelled
+  Enter open · n new · a archive · s settings
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-57  fg=Gray BOLD
+ 4   2-4   fg=DarkGray
+ 4   5-8   fg=LightBlue
+ 4  51-51  fg=Cyan
+ 4  53-53  fg=LightBlue
+ 4  55-55  fg=DarkGray
+ 4  57-57  fg=DarkGray
+ 5   2-13  fg=Yellow BOLD
+ 6   2-4   fg=DarkGray
+ 6   5-14  fg=Yellow BOLD
+ 7   2-57  fg=Black bg=Cyan BOLD
+ 8   2-7   fg=DarkGray
+ 8   8-11  fg=LightBlue
+ 8  51-51  fg=LightGreen
+ 8  53-53  fg=LightGreen
+ 8  55-55  fg=LightBlue
+ 8  57-57  fg=DarkGray
+ 9   2-5   fg=LightBlue
+ 9  51-51  fg=LightGreen
+ 9  53-53  fg=LightGreen
+ 9  55-55  fg=LightGreen
+ 9  57-57  fg=Yellow
