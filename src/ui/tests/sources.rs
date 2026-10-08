@@ -39,40 +39,11 @@ fn press(app: &mut App, code: KeyCode) -> Result<bool> {
     handle_key(app, KeyEvent::new(code, KeyModifiers::NONE))
 }
 
-fn render(app: &mut App, width: u16, height: u16, label: &str) -> Result<Vec<String>> {
-    let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| draw::draw(frame, app))?;
-    let cells: Vec<Vec<_>> = terminal
-        .backend()
-        .buffer()
-        .content()
-        .chunks(width as usize)
-        .map(|row| row.to_vec())
-        .collect();
-    let lines: Vec<String> = cells
-        .iter()
-        .map(|row| row.iter().map(|cell| cell.symbol()).collect())
-        .collect();
-    if let Some(directory) = std::env::var_os("HERDR_INBOX_UI_SNAPSHOTS") {
-        let directory = PathBuf::from(directory);
-        fs::create_dir_all(&directory)?;
-        let name = format!("settings-{label}-{width}x{height}");
-        fs::write(directory.join(format!("{name}.txt")), lines.join("\n"))?;
-        let json: Vec<Vec<_>> = cells.iter().map(|row| row.iter().map(|cell| {
-            serde_json::json!({"symbol": cell.symbol(), "fg": format!("{:?}", cell.fg),
-                "bg": format!("{:?}", cell.bg), "bold": cell.modifier.contains(ratatui::style::Modifier::BOLD)})
-        }).collect()).collect();
-        fs::write(
-            directory.join(format!("{name}.json")),
-            serde_json::to_vec(&json)?,
-        )?;
-    }
-    Ok(lines)
-}
+use super::support::lines as render;
 
-fn assert_minimal(app: &mut App, label: &str) -> Result<()> {
+fn assert_minimal(app: &mut App) -> Result<()> {
     for (width, height) in [(40, 18), (100, 35)] {
-        let lines = render(app, width, height, label)?;
+        let lines = render(app, width, height)?;
         assert!(lines[1].starts_with("  Inbox / Settings"), "{}", lines[1]);
         for (offset, label) in ["Specs folder", "Jira", "Archive"].into_iter().enumerate() {
             assert!(
@@ -115,7 +86,7 @@ fn assert_minimal(app: &mut App, label: &str) -> Result<()> {
 fn picking_a_folder_immediately_imports_and_persists_without_save() -> Result<()> {
     let mut fixture = Fixture::new()?;
     assert_eq!(fixture.app.screen, Screen::Settings);
-    assert_minimal(&mut fixture.app, "empty")?;
+    assert_minimal(&mut fixture.app)?;
     fixture.connect()?;
     assert_eq!(fixture.app.screen, Screen::Settings);
     assert_eq!(fixture.app.records.len(), 1);
@@ -130,8 +101,8 @@ fn picking_a_folder_immediately_imports_and_persists_without_save() -> Result<()
         fixture.app.settings.config.sources[0].id,
         persisted.sources[0].id
     );
-    assert_minimal(&mut fixture.app, "selected")?;
-    let wide = render(&mut fixture.app, 100, 35, "selected-path")?.join("\n");
+    assert_minimal(&mut fixture.app)?;
+    let wide = render(&mut fixture.app, 100, 35)?.join("\n");
     assert!(wide.contains("specs with a deliberately long folder name"));
     press(&mut fixture.app, KeyCode::Esc)?;
     assert_eq!(fixture.app.screen, Screen::List);
@@ -223,7 +194,7 @@ fn native_picker_cancel_and_failure_preserve_existing_folder_and_records() -> Re
         assert_eq!(fs::read(&record.spec_path)?, content);
     }
     for (width, height) in [(40, 18), (100, 35)] {
-        let lines = render(&mut fixture.app, width, height, "picker-error")?;
+        let lines = render(&mut fixture.app, width, height)?;
         assert!(lines.iter().any(|line| line.contains("Specs folder")));
         assert!(
             lines
@@ -254,7 +225,7 @@ fn removed_setup_shortcuts_cannot_edit_or_scan_settings() -> Result<()> {
 #[test]
 fn clicking_change_opens_the_selector_and_background_clicks_do_not() -> Result<()> {
     let mut fixture = Fixture::new()?;
-    render(&mut fixture.app, 40, 18, "mouse-change")?;
+    render(&mut fixture.app, 40, 18)?;
     let change = fixture.app.settings.rows_area;
     assert_eq!(change.height, 3);
     super::super::picker::set_test_result(Ok(Some(fixture.specs.clone())));

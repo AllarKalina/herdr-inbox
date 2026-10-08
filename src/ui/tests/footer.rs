@@ -46,11 +46,6 @@ fn minimal_footer_is_one_line_and_folder_change_scans_immediately_in_settings() 
             root.join(format!("footer-{width}x{height}.txt")),
             lines.join("\n"),
         )?;
-        save_snapshot(
-            terminal.backend().buffer(),
-            &lines,
-            &format!("footer-list-{width}x{height}"),
-        )?;
     }
     for key in ['d', 'S', 'u'] {
         press(&mut app, KeyCode::Char(key))?;
@@ -70,24 +65,6 @@ fn minimal_footer_is_one_line_and_folder_change_scans_immediately_in_settings() 
     assert_eq!(app.records.len(), 1);
     assert_eq!(app.records[0].title, "New item");
     fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-fn save_snapshot(buffer: &ratatui::buffer::Buffer, lines: &[String], name: &str) -> Result<()> {
-    if let Some(directory) = std::env::var_os("HERDR_INBOX_UI_SNAPSHOTS") {
-        let directory = PathBuf::from(directory);
-        fs::create_dir_all(&directory)?;
-        fs::write(directory.join(format!("{name}.txt")), lines.join("\n"))?;
-        let cells: Vec<Vec<_>> = buffer.content().chunks(buffer.area.width as usize)
-            .map(|row| row.iter().map(|cell| serde_json::json!({
-                "symbol": cell.symbol(), "fg": format!("{:?}", cell.fg),
-                "bg": format!("{:?}", cell.bg), "bold": cell.modifier.contains(ratatui::style::Modifier::BOLD)
-            })).collect()).collect();
-        fs::write(
-            directory.join(format!("{name}.json")),
-            serde_json::to_vec(&cells)?,
-        )?;
-    }
     Ok(())
 }
 
@@ -121,11 +98,6 @@ fn spec_navigation_keeps_shared_inset_without_relink_edit_or_archive_shortcuts()
                     "{screen:?} still displays {removed}"
                 );
             }
-            save_snapshot(
-                terminal.backend().buffer(),
-                &lines,
-                &format!("footer-{screen:?}-{width}x{height}"),
-            )?;
         }
     }
     fs::remove_dir_all(root)?;

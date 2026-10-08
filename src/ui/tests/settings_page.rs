@@ -1,28 +1,6 @@
 use super::proximity::{Fixture, press};
+use super::support::lines;
 use super::*;
-
-fn lines(app: &mut App, width: u16, height: u16) -> Result<Vec<String>> {
-    let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| draw::draw(frame, app))?;
-    let lines: Vec<String> = terminal
-        .backend()
-        .buffer()
-        .content()
-        .chunks(width as usize)
-        .map(|row| row.iter().map(|cell| cell.symbol()).collect())
-        .collect();
-    if let Some(directory) = std::env::var_os("HERDR_INBOX_UI_SNAPSHOTS") {
-        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        let index = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let directory = PathBuf::from(directory);
-        fs::create_dir_all(&directory)?;
-        fs::write(
-            directory.join(format!("settings-page-{index:02}-{width}x{height}.txt")),
-            lines.join("\n"),
-        )?;
-    }
-    Ok(lines)
-}
 
 fn open_settings_row(app: &mut App, row: usize) -> Result<()> {
     press(app, KeyCode::Char('s'))?;

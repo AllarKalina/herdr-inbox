@@ -9,6 +9,7 @@ mod picker;
 mod progress;
 mod scan;
 mod settings;
+mod state;
 mod submit;
 #[cfg(test)]
 mod tests;
@@ -17,6 +18,7 @@ mod theme;
 mod tree;
 use input::{handle_key, handle_mouse};
 use milestone::Milestone;
+use state::{ChoicePurpose, DetailAction, MilestoneFeedback, Prompt};
 
 use crate::launch::Profile;
 use crate::store::{Record, Result, Store};
@@ -29,93 +31,7 @@ use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
 use std::io::{self, stdout};
-use std::path::PathBuf;
 use std::time::Duration;
-
-#[derive(Clone)]
-enum Prompt {
-    LaunchWorkspace {
-        profile: Profile,
-    },
-    LaunchRepo {
-        profile: Profile,
-        workspace: String,
-    },
-    LaunchSpec {
-        profile: Profile,
-        workspace: String,
-        repo: Option<PathBuf>,
-    },
-    LaunchTopic {
-        profile: Profile,
-        workspace: String,
-        repo: Option<PathBuf>,
-        spec: Option<PathBuf>,
-    },
-    Settle {
-        id: String,
-    },
-    FinishTitle {
-        id: String,
-    },
-    Jira {
-        id: String,
-    },
-    JiraUrl {
-        id: String,
-        key: String,
-    },
-    Agent {
-        id: String,
-    },
-    Branch {
-        id: String,
-        agent: Option<String>,
-    },
-    Pr {
-        id: String,
-    },
-    Archive {
-        id: String,
-    },
-}
-
-impl Prompt {
-    /// The item this prompt acts on; launch prompts create a new one.
-    fn item(&self) -> Option<&str> {
-        match self {
-            Self::Settle { id }
-            | Self::FinishTitle { id }
-            | Self::Jira { id }
-            | Self::JiraUrl { id, .. }
-            | Self::Agent { id }
-            | Self::Branch { id, .. }
-            | Self::Pr { id }
-            | Self::Archive { id } => Some(id),
-            Self::LaunchWorkspace { .. }
-            | Self::LaunchRepo { .. }
-            | Self::LaunchSpec { .. }
-            | Self::LaunchTopic { .. } => None,
-        }
-    }
-
-    fn label(&self) -> &'static str {
-        match self {
-            Self::LaunchWorkspace { .. } => "Herdr workspace",
-            Self::LaunchSpec { .. } => "Spec path (blank = first source folder)",
-            Self::Settle { .. } => "Confirm session has ended",
-            Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
-            Self::LaunchTopic { .. } => "Grilling topic (optional)",
-            Self::FinishTitle { .. } => "Finished spec title",
-            Self::Jira { .. } => "Jira key",
-            Self::JiraUrl { .. } => "Jira URL (optional)",
-            Self::Agent { .. } => "Agent name (optional)",
-            Self::Branch { .. } => "Branch (optional)",
-            Self::Pr { .. } => "Draft PR URL",
-            Self::Archive { .. } => "Confirm archive",
-        }
-    }
-}
 
 struct App {
     store: Store,
@@ -152,63 +68,6 @@ enum Screen {
     Settings,
     Archive,
     ScanResult,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum ChoicePurpose {
-    NewSpec,
-    Refine { id: String },
-}
-
-struct MilestoneFeedback {
-    milestone: Milestone,
-}
-
-impl MilestoneFeedback {
-    fn text(&self, compact: bool) -> &'static str {
-        match (self.milestone, compact) {
-            (Milestone::Spec, false) => "Spec sealed",
-            (Milestone::Jira, false) => "Jira bound",
-            (Milestone::Dev, false) => "Dev quest logged",
-            (Milestone::Pr, false) => "Draft PR bound",
-            (Milestone::Spec, true) => "Sealed",
-            (Milestone::Jira | Milestone::Pr, true) => "Bound",
-            (Milestone::Dev, true) => "Logged",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum DetailAction {
-    Finish,
-    Jira,
-    Implement,
-    Pr,
-    ReviewPr,
-    ReadSpec,
-    RefineSpec,
-    OpenJira,
-    UpdateJira,
-    UpdateImplementation,
-    UpdatePr,
-}
-
-impl DetailAction {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Finish => "Seal the spec",
-            Self::Jira => "Bind Jira ticket",
-            Self::Implement => "Log dev quest",
-            Self::Pr => "Bind draft PR",
-            Self::ReviewPr => "Review draft PR",
-            Self::ReadSpec => "Read the scroll",
-            Self::RefineSpec => "Refine the spec",
-            Self::OpenJira => "Visit Jira ticket",
-            Self::UpdateJira => "Update Jira link",
-            Self::UpdateImplementation => "Update dev quest",
-            Self::UpdatePr => "Update PR link",
-        }
-    }
 }
 
 impl App {

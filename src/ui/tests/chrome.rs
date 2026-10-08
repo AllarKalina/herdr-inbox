@@ -34,88 +34,11 @@ impl Drop for Fixture {
     }
 }
 
-fn render(app: &mut App, width: u16, height: u16, label: &str) -> Result<Vec<String>> {
-    let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| draw::draw(frame, app))?;
-    let cells: Vec<Vec<_>> = terminal
-        .backend()
-        .buffer()
-        .content()
-        .chunks(width as usize)
-        .map(|row| row.to_vec())
-        .collect();
-    let lines: Vec<String> = cells
-        .iter()
-        .map(|row| row.iter().map(|cell| cell.symbol()).collect())
-        .collect();
-    if let Some(directory) = std::env::var_os("HERDR_INBOX_UI_SNAPSHOTS") {
-        let directory = PathBuf::from(directory);
-        fs::create_dir_all(&directory)?;
-        let name = format!("chrome-{label}-{width}x{height}");
-        fs::write(directory.join(format!("{name}.txt")), lines.join("\n"))?;
-        let json: Vec<Vec<_>> = cells.iter().map(|row| row.iter().map(|cell| {
-            serde_json::json!({"symbol": cell.symbol(), "fg": format!("{:?}", cell.fg),
-                "bg": format!("{:?}", cell.bg), "bold": cell.modifier.contains(ratatui::style::Modifier::BOLD)})
-        }).collect()).collect();
-        fs::write(
-            directory.join(format!("{name}.json")),
-            serde_json::to_vec(&json)?,
-        )?;
-    }
-    assert!(
-        lines[0].trim().is_empty(),
-        "{label}: header moved to outer edge"
-    );
-    assert!(lines[1].starts_with("  Inbox"), "{label}: {}", lines[1]);
-    assert!(
-        lines[2].trim().is_empty(),
-        "{label}: header spacing changed"
-    );
-    assert!(
-        !lines.iter().any(|line| line.contains("← Inbox")),
-        "{label}: duplicate back-arrow header"
-    );
-    let header = &cells[1];
-    let final_start = header
-        .iter()
-        .rposition(|cell| cell.symbol() == "/")
-        .map_or(2, |separator| separator + 2);
-    let final_end = header
-        .iter()
-        .rposition(|cell| !cell.symbol().trim().is_empty())
-        .unwrap();
-    for (column, cell) in header.iter().enumerate().take(final_end + 1).skip(2) {
-        if cell.symbol().trim().is_empty() {
-            continue;
-        }
-        if column < final_start {
-            assert_eq!(
-                cell.fg,
-                Color::Gray,
-                "{label}: ancestor at {column} must be muted"
-            );
-            assert!(
-                !cell.modifier.contains(ratatui::style::Modifier::BOLD),
-                "{label}: ancestor at {column} must not be bold"
-            );
-        } else {
-            assert_eq!(
-                cell.fg,
-                Color::LightCyan,
-                "{label}: current crumb at {column} must be teal"
-            );
-            assert!(
-                cell.modifier.contains(ratatui::style::Modifier::BOLD),
-                "{label}: current crumb at {column} must be bold"
-            );
-        }
-    }
-    Ok(lines)
-}
+use super::support::lines as render;
 
 fn assert_header(app: &mut App, suffix: &str, label: &str) -> Result<()> {
     for (width, height) in [(40, 18), (100, 35)] {
-        let lines = render(app, width, height, label)?;
+        let lines = render(app, width, height)?;
         assert!(
             lines[1].trim_end().ends_with(suffix),
             "{label}: {}",
@@ -131,7 +54,7 @@ fn every_view_keeps_the_same_inbox_header_anchor_and_current_crumb() -> Result<(
     assert_header(&mut fixture.app, "Inbox", "list")?;
     fixture.app.screen = Screen::Detail;
     assert_header(&mut fixture.app, "Payment retries", "detail")?;
-    let lines = render(&mut fixture.app, 100, 35, "detail-domains")?;
+    let lines = render(&mut fixture.app, 100, 35)?;
     assert!(lines[1].contains("missions"));
     assert!(lines[1].contains("zeller"));
     let detail_header = lines[1].clone();
@@ -142,7 +65,7 @@ fn every_view_keeps_the_same_inbox_header_anchor_and_current_crumb() -> Result<(
     fixture.app.screen = Screen::ScanResult;
     fixture.app.scan_issues = vec!["Mock unavailable source".into()];
     assert_header(&mut fixture.app, "Scan results", "scan-results")?;
-    let lines = render(&mut fixture.app, 100, 35, "scan-results-domains")?;
+    let lines = render(&mut fixture.app, 100, 35)?;
     assert!(lines[1].contains("Settings"));
     assert!(!detail_header.contains("context"));
     Ok(())
@@ -195,7 +118,7 @@ fn long_domain_paths_keep_inbox_and_terminal_crumb_readable() -> Result<()> {
     assert_header(&mut fixture.app, "Brief", "long-detail")?;
     fixture.app.screen = Screen::Reader;
     assert_header(&mut fixture.app, "FULL SPEC", "long-reader")?;
-    let lines = render(&mut fixture.app, 40, 18, "long-reader-final")?;
+    let lines = render(&mut fixture.app, 40, 18)?;
     assert!(lines[1].contains('…'));
     Ok(())
 }

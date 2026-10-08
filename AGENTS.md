@@ -10,4 +10,5 @@
 - Commits: use `/Users/allarkalina/git/ai-boiler-room/scripts/committer`.
 - Gate: run `scripts/regress` after every change and before every commit or handoff; it must print `PASS`. Use `--quick` while iterating. Skill: `herdr-inbox-regress`.
 - UI snapshots in `tests/snapshots/ui/` specify every screen. Re-record with `scripts/regress --update-snapshots` only for an intended UI change, review `git diff tests/snapshots`, and commit them with the change. Never re-record, loosen, or skip a check to pass.
+- Code map: workflow statuses and every stage rule in `src/store/workflow.rs`; colour roles in `src/ui/theme.rs`; text fitting in `src/ui/text.rs`; prompts and actions in `src/ui/state.rs`; test rendering in `src/ui/tests/support.rs`. Extend these instead of adding parallel copies.
 - New screen or state: add a scenario to `src/ui/tests/golden.rs`. New or changed CLI behavior: extend `tests/cli_workflow.rs`.

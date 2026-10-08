@@ -5,6 +5,7 @@ use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::style::Color;
 use std::fs;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 mod chrome;
@@ -20,6 +21,7 @@ mod resize;
 mod scope;
 mod settings_page;
 mod sources;
+mod support;
 mod timeline;
 mod tree;
 

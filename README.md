@@ -84,7 +84,7 @@ herdr plugin action invoke personal.inbox.open
 Run the gate after every change:
 
 ```sh
-scripts/regress                     # everything, about 25 seconds
+scripts/regress                     # everything, under a minute
 scripts/regress --quick             # skip the release build and smoke runs
 scripts/regress --update-snapshots  # re-record UI snapshots after an intended UI change
 ```

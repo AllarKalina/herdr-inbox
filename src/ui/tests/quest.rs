@@ -1,16 +1,6 @@
 use super::*;
 
-fn rendered(app: &mut App, width: u16, height: u16) -> Result<Vec<String>> {
-    let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| draw::draw(frame, app))?;
-    Ok(terminal
-        .backend()
-        .buffer()
-        .content()
-        .chunks(width as usize)
-        .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
-        .collect())
-}
+use super::support::lines as rendered;
 
 #[test]
 fn progress_timeline_keeps_linked_evidence_visible() -> Result<()> {

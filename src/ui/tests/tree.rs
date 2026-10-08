@@ -66,34 +66,8 @@ fn focus(app: &mut App, label: &str) -> Result<()> {
 type Rendered = (Vec<String>, Vec<Vec<ratatui::buffer::Cell>>);
 
 fn render(app: &mut App, width: u16, height: u16) -> Result<Rendered> {
-    let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-    terminal.draw(|frame| draw::draw(frame, app))?;
-    let cells: Vec<Vec<_>> = terminal
-        .backend()
-        .buffer()
-        .content()
-        .chunks(width as usize)
-        .map(|row| row.to_vec())
-        .collect();
-    let lines: Vec<String> = cells
-        .iter()
-        .map(|row| row.iter().map(|cell| cell.symbol()).collect())
-        .collect();
-    if let Some(directory) = std::env::var_os("HERDR_INBOX_UI_SNAPSHOTS") {
-        let directory = PathBuf::from(directory);
-        fs::create_dir_all(&directory)?;
-        let name = format!("tree-{width}x{height}");
-        fs::write(directory.join(format!("{name}.txt")), lines.join("\n"))?;
-        let json: Vec<Vec<_>> = cells.iter().map(|row| row.iter().map(|cell| {
-            serde_json::json!({"symbol": cell.symbol(), "fg": format!("{:?}", cell.fg),
-                "bg": format!("{:?}", cell.bg), "bold": cell.modifier.contains(ratatui::style::Modifier::BOLD)})
-        }).collect()).collect();
-        fs::write(
-            directory.join(format!("{name}.json")),
-            serde_json::to_vec(&json)?,
-        )?;
-    }
-    Ok((lines, cells))
+    let cells = super::support::cells(app, width, height)?;
+    Ok((super::support::text(&cells), cells))
 }
 
 #[test]
