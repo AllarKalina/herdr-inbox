@@ -67,7 +67,8 @@ fn deleting_an_archived_spec_trashes_its_file_and_removes_the_record() -> Result
     );
     assert!(gone.spec_path.is_file());
     store.archive(&gone.id)?;
-    assert_eq!(store.delete_archived(&gone.id)?.id, gone.id);
+    let (deleted, moved) = store.delete_archived(&gone.id)?;
+    assert_eq!((deleted.id, moved), (gone.id.clone(), true));
     assert!(!gone.spec_path.exists());
     assert_eq!(
         fs::read_to_string(root.join("test-macos-trash/gone.md"))?,
@@ -85,8 +86,103 @@ fn deleting_an_archived_spec_trashes_its_file_and_removes_the_record() -> Result
     let kept = store.list()?.remove(0);
     store.archive(&kept.id)?;
     fs::remove_file(&kept.spec_path)?;
-    store.delete_archived(&kept.id)?;
+    assert!(!store.delete_archived(&kept.id)?.1);
     assert!(store.trash_list()?.is_empty());
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn relinking_a_renamed_spec_replaces_the_placeholder_a_scan_imported() -> Result<()> {
+    let root = temp_root("relink-rename");
+    let store = configured_store(&root)?;
+    let source = root.join("selected");
+    fs::write(source.join("one.md"), "# One")?;
+    store.scan()?;
+    let original = store.list()?.remove(0);
+    let jira = |key: &str| Change::Jira {
+        key: key.into(),
+        url: None,
+    };
+    store.update(&original.id, jira("ONE-1"))?;
+
+    // Renamed in Finder, then the Inbox was opened before anyone relinked.
+    fs::rename(source.join("one.md"), source.join("renamed.md"))?;
+    assert_eq!(store.scan()?.imported, 1);
+    assert_eq!(store.list()?.len(), 2);
+
+    let relinked = store.relink(&original.id, source.join("renamed.md"))?;
+    assert_eq!(relinked.id, original.id);
+    assert_eq!(relinked.jira.key.as_deref(), Some("ONE-1"));
+    let records = store.list()?;
+    assert_eq!(records.len(), 1, "the placeholder import is gone");
+    assert_eq!(records[0].id, original.id);
+    let report = store.scan()?;
+    assert_eq!((report.imported, report.known), (0, 1));
+    assert!(report.issues.is_empty(), "{:?}", report.issues);
+
+    // An item someone has worked on is never replaced.
+    fs::write(source.join("other.md"), "# Other")?;
+    store.scan()?;
+    let other = store
+        .list()?
+        .into_iter()
+        .find(|record| record.id != original.id)
+        .unwrap();
+    store.update(&other.id, jira("OTHER-1"))?;
+    assert!(store.relink(&original.id, source.join("other.md")).is_err());
+    assert_eq!(store.get(&other.id)?.jira.key.as_deref(), Some("OTHER-1"));
+    // Neither is an archived one.
+    store.archive(&other.id)?;
+    assert!(store.relink(&original.id, source.join("other.md")).is_err());
+    assert_eq!(store.trash_list()?.len(), 1);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn scans_stay_quiet_about_unwritten_new_specs_and_unselected_folders() -> Result<()> {
+    let root = temp_root("scan-quiet");
+    let store = configured_store(&root)?;
+    let source = root.join("selected");
+    fs::write(source.join("kept.md"), "# Kept")?;
+    store.scan()?;
+
+    // A new spec session is recorded before its agent has written the file.
+    let pending = store.start_untitled(None)?;
+    assert!(!pending.spec_path.exists());
+    let launch = Launch {
+        status: "prompt_sent".into(),
+        harness: "codex".into(),
+        workspace: "ai-boiler-room".into(),
+        workspace_id: None,
+        tab_id: Some("w1:t1".into()),
+        pane_id: None,
+        agent: None,
+        model: "gpt-6.1-sol".into(),
+        effort: "high".into(),
+        prompt: String::new(),
+        error: None,
+    };
+    store.update(
+        &pending.id,
+        Change::Launch(Box::new(launch), pending.spec_path.clone()),
+    )?;
+    assert!(store.scan()?.issues.is_empty());
+
+    // Once the session is settled, a still-missing file is worth reporting.
+    store.settle(&pending.id)?;
+    let issues = store.scan()?.issues;
+    assert_eq!(issues.len(), 1);
+    assert!(issues[0].contains("Spec unavailable"), "{issues:?}");
+
+    // After another folder is selected, the old folder's records are out of scope.
+    let other = root.join("other");
+    fs::create_dir_all(&other)?;
+    let mut settings = store.settings()?;
+    settings.sources = vec![SpecSource::new(other)?];
+    store.save_settings(&settings)?;
+    assert!(store.scan()?.issues.is_empty());
     fs::remove_dir_all(root)?;
     Ok(())
 }

@@ -95,7 +95,7 @@ impl Store {
                 .extension()
                 .is_some_and(|extension| extension == "json")
             {
-                records.push(self.read_record(&path)?);
+                records.extend(self.read_listed(&path)?);
             }
         }
         records.sort_by(|a, b| {

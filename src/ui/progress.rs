@@ -143,20 +143,24 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
     {
         // A terminal-native circle, drawn inside space reserved for every stage.
         // Overlay only the focus ring; retain the semantic status at its center.
-        frame.render_widget(
-            Canvas::default()
-                .x_bounds([-1.0, 1.0])
-                .y_bounds([-1.0, 1.0])
-                .paint(|context| {
-                    context.draw(&Circle {
-                        x: 0.0,
-                        y: 0.0,
-                        radius: 0.9,
-                        color: Color::Cyan,
-                    })
-                }),
-            Rect::new(area.x + NODE_COLUMN - 2, selected_area.y - 1, 5, 3),
-        );
+        let ring = Rect::new(area.x + NODE_COLUMN - 2, selected_area.y - 1, 5, 3);
+        // Canvas does not clip: a ring that leaves the popup would index past the buffer.
+        if frame.area().intersection(ring) == ring {
+            frame.render_widget(
+                Canvas::default()
+                    .x_bounds([-1.0, 1.0])
+                    .y_bounds([-1.0, 1.0])
+                    .paint(|context| {
+                        context.draw(&Circle {
+                            x: 0.0,
+                            y: 0.0,
+                            radius: 0.9,
+                            color: Color::Cyan,
+                        })
+                    }),
+                ring,
+            );
+        }
         let (node, _, color) = appearance(selected.status(record, jira));
         frame.render_widget(
             Paragraph::new(node).style(Style::default().fg(color)),

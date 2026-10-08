@@ -16,6 +16,7 @@ mod list;
 mod proximity;
 mod quest;
 mod refinement;
+mod resize;
 mod scope;
 mod settings_page;
 mod sources;

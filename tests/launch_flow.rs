@@ -167,3 +167,72 @@ esac
     assert_eq!(records[0]["launch"]["effort"], "high");
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn a_launch_that_never_opens_a_tab_leaves_no_item_behind() {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-launch-fail-{}", Uuid::new_v4()));
+    let bin_dir = root.join("bin");
+    fs::create_dir_all(&bin_dir).unwrap();
+    let herdr = bin_dir.join("herdr-fake");
+    fs::write(&herdr, r##"#!/bin/sh
+case "$1 $2" in
+  "workspace list") printf '%s\n' '{"result":{"workspaces":[{"label":"ai-boiler-room","workspace_id":"w2"}]}}' ;;
+  "tab create") if [ -n "$HERDR_FAKE_TAB_FAILS" ]; then echo "tab limit reached" >&2; exit 1; fi
+    printf '%s\n' '{"result":{"tab":{"tab_id":"w2:t2"},"root_pane":{"pane_id":"w2:p2"}}}' ;;
+  "agent start") echo "agent refused to start" >&2; exit 1 ;;
+  *) printf '%s\n' '{"result":{"type":"ok"}}' ;;
+esac
+"##).unwrap();
+    fs::write(bin_dir.join("claude"), "#!/bin/sh\nexit 0\n").unwrap();
+    for path in [&herdr, &bin_dir.join("claude")] {
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let path = format!("{}:{}", bin_dir.display(), std::env::var("PATH").unwrap());
+    let exe = PathBuf::from(env!("CARGO_BIN_EXE_herdr-inbox"));
+    let run = |args: &[&str], tab_fails: bool| {
+        let mut command = Command::new(&exe);
+        command
+            .args(args)
+            .env("HERDR_ENV", "1")
+            .env("HERDR_BIN_PATH", &herdr)
+            .env("HERDR_INBOX_HOME", root.join("data"))
+            .env("PATH", &path);
+        if tab_fails {
+            command.env("HERDR_FAKE_TAB_FAILS", "1");
+        }
+        command.output().unwrap()
+    };
+    let records = |run: &dyn Fn(&[&str], bool) -> std::process::Output| -> Value {
+        serde_json::from_slice(&run(&["list", "--json"], false).stdout).unwrap()
+    };
+    let source = root.join("chosen");
+    fs::create_dir_all(&source).unwrap();
+    assert!(
+        run(&["settings", "add-source", source.to_str().unwrap()], false)
+            .status
+            .success()
+    );
+
+    // No tab: nothing to inspect, so retries must not pile up invisible items.
+    for _ in 0..2 {
+        let failed = run(&["launch"], true);
+        assert!(!failed.status.success());
+        assert!(String::from_utf8_lossy(&failed.stderr).contains("tab limit reached"));
+        assert_eq!(records(&run).as_array().unwrap().len(), 0);
+    }
+
+    // A tab exists: the item stays, with the error recorded for inspection.
+    let failed = run(&["launch"], false);
+    assert!(!failed.status.success());
+    let kept = records(&run);
+    assert_eq!(kept.as_array().unwrap().len(), 1);
+    assert_eq!(kept[0]["launch"]["status"], "failed");
+    assert_eq!(kept[0]["launch"]["tab_id"], "w2:t2");
+    assert!(
+        kept[0]["launch"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("agent refused to start")
+    );
+    fs::remove_dir_all(root).unwrap();
+}

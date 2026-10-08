@@ -25,6 +25,16 @@ impl Store {
         })
     }
 
+    /// Applies a change to the current settings under the store lock.
+    pub fn update_settings<T>(&self, change: impl FnOnce(&mut Settings) -> Result<T>) -> Result<T> {
+        self.locked(|| {
+            let mut settings = self.settings()?;
+            let value = change(&mut settings)?;
+            self.write_settings(&settings)?;
+            Ok(value)
+        })
+    }
+
     pub(super) fn write_settings(&self, settings: &Settings) -> Result<()> {
         let mut validated = settings.clone();
         validated.validate()?;
@@ -77,6 +87,22 @@ impl Store {
             .into());
         }
         Ok(record)
+    }
+
+    /// Reads a record found by a directory listing. Listings run without the lock, so a
+    /// record archived or restored in between has simply moved and is not an error.
+    pub(super) fn read_listed(&self, path: &Path) -> Result<Option<Record>> {
+        match self.read_record(path) {
+            Ok(record) => Ok(Some(record)),
+            Err(error)
+                if error
+                    .downcast_ref::<io::Error>()
+                    .is_some_and(|error| error.kind() == io::ErrorKind::NotFound) =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub fn start_untitled_with_spec(
@@ -213,6 +239,19 @@ impl Store {
         Err("Spec destination must be inside a configured spec folder and match its filters".into())
     }
 
+    /// Removes the record of a new spec whose session never opened a tab. Nothing else
+    /// refers to it yet, and its spec file was never written.
+    pub fn discard_unstarted(&self, id: &str) -> Result<()> {
+        self.locked(|| {
+            let record = self.get(id)?;
+            if record.spec_path.symlink_metadata().is_ok() {
+                return Err("Spec file exists; archive the item instead".into());
+            }
+            fs::remove_file(self.path_for(id)?)?;
+            Ok(())
+        })
+    }
+
     /// Acknowledges that the caller has ended or abandoned the local spec session.
     pub fn settle(&self, id: &str) -> Result<Record> {
         self.locked(|| {
@@ -258,15 +297,26 @@ impl Store {
                 return Err("Spec destination must be a readable file".into());
             }
             fs::File::open(&path)?;
-            if self
-                .all_records()?
-                .iter()
-                .any(|other| other.id != id && same_file(&other.spec_path, &path))
-            {
-                return Err("Another item (including Trash) already references this spec".into());
+            // A scan that saw the moved file first imported it as a fresh item. That
+            // placeholder gives way; an item with work on it, or an archived one, does not.
+            let mut placeholder = None;
+            for other in self.all_records()? {
+                if other.id == id || !same_file(&other.spec_path, &path) {
+                    continue;
+                }
+                let active = self.path_for(&other.id)?.is_file();
+                if !active || !other.untouched_import() || placeholder.is_some() {
+                    return Err(
+                        "Another item (including Trash) already references this spec".into(),
+                    );
+                }
+                placeholder = Some(other.id);
             }
             let settings = self.settings()?;
             let (source_id, relative, path) = self.destination_source(&settings, &path)?;
+            if let Some(placeholder) = placeholder {
+                fs::remove_file(self.path_for(&placeholder)?)?;
+            }
             record.spec_path = path;
             record.source_id = Some(source_id);
             record.source_relative_path = Some(relative);

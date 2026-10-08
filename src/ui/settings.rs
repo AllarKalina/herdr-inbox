@@ -117,10 +117,11 @@ fn activate(app: &mut App) {
 }
 
 fn toggle_jira(app: &mut App) -> Result<()> {
-    let mut config = app.store.settings()?;
-    config.jira = !config.jira;
-    app.store.save_settings(&config)?;
-    app.settings.config = config;
+    app.store.update_settings(|settings| {
+        settings.jira = !settings.jira;
+        Ok(())
+    })?;
+    app.settings.config = app.store.settings()?;
     app.settings.error = false;
     app.message.clear();
     Ok(())
@@ -130,10 +131,11 @@ fn select_folder(app: &mut App) -> Result<()> {
     let Some(source) = picking::choose(app)? else {
         return Ok(());
     };
-    let mut config = app.store.settings()?;
-    config.sources = vec![source];
-    app.store.save_settings(&config)?;
-    app.settings.config = config;
+    app.store.update_settings(|settings| {
+        settings.sources = vec![source];
+        Ok(())
+    })?;
+    app.settings.config = app.store.settings()?;
     app.settings.error = false;
     app.message.clear();
     let report = app.store.scan();

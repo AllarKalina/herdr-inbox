@@ -56,6 +56,21 @@ impl Record {
         })
     }
 
+    /// True for a record that a scan created and nobody has worked on since.
+    pub fn untouched_import(&self) -> bool {
+        self.spec == "done"
+            && self.jira.status == "ready"
+            && self.jira.key.is_none()
+            && self.implementation.status == "waiting"
+            && self.implementation.agent.is_none()
+            && self.implementation.branch.is_none()
+            && self.pr.status == "waiting"
+            && self.pr.url.is_none()
+            && self.repo.is_none()
+            && self.launch.is_none()
+            && self.previous_launches.is_empty()
+    }
+
     pub fn display_title(&self) -> &str {
         if self.title.is_empty() {
             "Untitled spec"

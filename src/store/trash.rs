@@ -47,7 +47,9 @@ fn move_to_macos_trash(root: &Path, path: &Path) -> Result<()> {
 
 impl Store {
     /// Deletes an archived record and moves its spec file to the macOS Trash.
-    pub fn delete_archived(&self, id: &str) -> Result<Record> {
+    /// Returns whether a file was moved: it stays when it is already gone or when an
+    /// Inbox item still uses it.
+    pub fn delete_archived(&self, id: &str) -> Result<(Record, bool)> {
         self.locked(|| {
             Uuid::parse_str(id)?;
             let path = self.root.join("trash/items").join(format!("{id}.json"));
@@ -57,11 +59,12 @@ impl Store {
                 .iter()
                 .any(|other| same_file(&other.spec_path, &record.spec_path));
             // The file goes first: a failed move must leave the archived record recoverable.
-            if !in_use && record.spec_path.symlink_metadata().is_ok() {
+            let moved = !in_use && record.spec_path.symlink_metadata().is_ok();
+            if moved {
                 move_to_macos_trash(&self.root, &record.spec_path)?;
             }
             fs::remove_file(&path)?;
-            Ok(record)
+            Ok((record, moved))
         })
     }
 }

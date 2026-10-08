@@ -284,3 +284,32 @@ fn clicking_change_opens_the_selector_and_background_clicks_do_not() -> Result<(
     assert_eq!(fixture.app.screen, Screen::Settings);
     Ok(())
 }
+
+#[test]
+fn picking_the_same_folder_again_keeps_its_cli_configured_filters() -> Result<()> {
+    let mut fixture = Fixture::new()?;
+    fixture.connect()?;
+    fs::write(fixture.specs.join("page.html"), "<h1>Page</h1>")?;
+    let mut settings = fixture.app.store.settings()?;
+    settings.sources[0].include = vec!["**/*.md".into(), "**/*.html".into()];
+    settings.sources[0].exclude = vec!["drafts/**".into()];
+    settings.sources[0].recursive = false;
+    fixture.app.store.save_settings(&settings)?;
+    fixture.app.refresh()?;
+
+    fixture.connect()?;
+    let kept = fixture.app.store.settings()?;
+    assert_eq!(kept.sources.len(), 1);
+    assert_eq!(kept.sources[0].id, settings.sources[0].id);
+    assert_eq!(kept.sources[0].include, settings.sources[0].include);
+    assert_eq!(kept.sources[0].exclude, settings.sources[0].exclude);
+    assert!(!kept.sources[0].recursive);
+    assert!(
+        fixture
+            .app
+            .records
+            .iter()
+            .any(|record| record.spec_path.ends_with("page.html"))
+    );
+    Ok(())
+}

@@ -181,3 +181,41 @@ fn archive_list_restores_with_progress_and_deletes_only_after_confirmation() -> 
     assert_eq!(app.store.scan()?.imported, 0);
     Ok(())
 }
+
+#[test]
+fn a_prompt_is_dropped_only_when_its_own_item_leaves_the_inbox() -> Result<()> {
+    let mut fixture = Fixture::new(1)?;
+    let app = &mut fixture.app;
+    press(app, KeyCode::Esc)?;
+    let first = app.current().unwrap().id.clone();
+    let folder = app.settings.config.sources[0].path.clone();
+    fs::write(folder.join("second.md"), "# Second spec\n")?;
+    app.store.scan()?;
+    app.refresh()?;
+    let second = app
+        .records
+        .iter()
+        .find(|record| record.id != first)
+        .unwrap()
+        .id
+        .clone();
+
+    // Typing a new spec's details must survive some other item being archived elsewhere.
+    app.begin(Prompt::LaunchWorkspace {
+        profile: Profile::Opus,
+    });
+    app.input = "my-workspace".into();
+    app.store.archive(&first)?;
+    app.refresh()?;
+    assert!(matches!(app.prompt, Some(Prompt::LaunchWorkspace { .. })));
+    assert_eq!(app.input, "my-workspace");
+
+    // A prompt about an item goes away with that item.
+    app.begin(Prompt::Jira { id: second.clone() });
+    app.input = "PAY-".into();
+    app.store.archive(&second)?;
+    app.refresh()?;
+    assert!(app.prompt.is_none());
+    assert!(app.input.is_empty());
+    Ok(())
+}

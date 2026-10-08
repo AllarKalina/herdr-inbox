@@ -79,6 +79,24 @@ enum Prompt {
 }
 
 impl Prompt {
+    /// The item this prompt acts on; launch prompts create a new one.
+    fn item(&self) -> Option<&str> {
+        match self {
+            Self::Settle { id }
+            | Self::FinishTitle { id }
+            | Self::Jira { id }
+            | Self::JiraUrl { id, .. }
+            | Self::Agent { id }
+            | Self::Branch { id, .. }
+            | Self::Pr { id }
+            | Self::Archive { id } => Some(id),
+            Self::LaunchWorkspace { .. }
+            | Self::LaunchRepo { .. }
+            | Self::LaunchSpec { .. }
+            | Self::LaunchTopic { .. } => None,
+        }
+    }
+
     fn label(&self) -> &'static str {
         match self {
             Self::LaunchWorkspace { .. } => "Herdr workspace",
@@ -265,10 +283,23 @@ impl App {
         let still_present = id
             .as_ref()
             .and_then(|id| self.records.iter().position(|record| &record.id == id));
-        if id.is_some() && still_present.is_none() {
+        let shown = |id: &str| self.records.iter().any(|record| record.id == id);
+        if self
+            .prompt
+            .as_ref()
+            .and_then(Prompt::item)
+            .is_some_and(|id| !shown(id))
+        {
             self.prompt = None;
             self.input.clear();
+        }
+        if let ChoicePurpose::Refine { id } = &self.choice_purpose
+            && self.choice_selected.is_some()
+            && !shown(id)
+        {
             self.choice_selected = None;
+        }
+        if id.is_some() && still_present.is_none() {
             self.feedback = None;
         }
         if still_present.is_none() && matches!(self.screen, Screen::Detail | Screen::Reader) {
@@ -283,6 +314,9 @@ impl App {
         {
             self.screen = Screen::Settings;
             self.settings = settings::SettingsView::new(settings);
+            self.prompt = None;
+            self.input.clear();
+            self.choice_selected = None;
         }
         if matches!(self.screen, Screen::Detail | Screen::Reader) {
             self.tree.focus_record(self.selected);
@@ -398,20 +432,34 @@ fn nonempty(value: String) -> Option<String> {
     if value.is_empty() { None } else { Some(value) }
 }
 
+fn restore_terminal() -> io::Result<()> {
+    disable_raw_mode()?;
+    crossterm::execute!(stdout(), DisableMouseCapture, LeaveAlternateScreen)
+}
+
 pub fn run(store: Store) -> Result<()> {
+    // A panic must not strand the popup in raw mode on the alternate screen.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = restore_terminal();
+        default_hook(info);
+    }));
     enable_raw_mode()?;
     crossterm::execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-    let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-    let result = run_loop(&mut terminal, store);
-    disable_raw_mode()?;
-    crossterm::execute!(stdout(), DisableMouseCapture, LeaveAlternateScreen)?;
+    let result = Terminal::new(CrosstermBackend::new(stdout()))
+        .map_err(Into::into)
+        .and_then(|mut terminal| run_loop(&mut terminal, store));
+    restore_terminal()?;
     result
 }
 
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: Store) -> Result<()> {
     let mut app = App::new(store)?;
     loop {
-        app.refresh()?;
+        // Another process may be mid-write; a failed refresh is reported, not fatal.
+        if let Err(error) = app.refresh() {
+            app.message = error.to_string();
+        }
         terminal.draw(|frame| draw::draw(frame, &mut app))?;
         if event::poll(Duration::from_secs(1))? {
             match event::read()? {

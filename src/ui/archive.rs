@@ -123,11 +123,10 @@ fn delete(app: &mut App) -> Result<()> {
     let Some(record) = app.archive.current().cloned() else {
         return Ok(());
     };
-    let had_file = record.spec_path.symlink_metadata().is_ok();
-    app.store.delete_archived(&record.id)?;
+    let (_, moved) = app.store.delete_archived(&record.id)?;
     app.refresh()?;
     let title = record.display_title();
-    app.message = if had_file {
+    app.message = if moved {
         format!("Deleted {title}; file moved to the macOS Trash")
     } else {
         format!("Deleted {title}")

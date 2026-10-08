@@ -35,7 +35,7 @@ impl Store {
             for entry in fs::read_dir(trash)? {
                 let path = entry?.path();
                 if path.extension().is_some_and(|ext| ext == "json") {
-                    records.push(self.read_record(&path)?);
+                    records.extend(self.read_listed(&path)?);
                 }
             }
         }
@@ -166,6 +166,15 @@ impl Store {
             }
         }
         for record in &known {
+            // A new spec session has no file until its agent writes one, and records from
+            // folders that are no longer selected are not this scan's concern.
+            let selected = settings
+                .sources
+                .iter()
+                .any(|source| record.source_id.as_deref() == Some(source.id.as_str()));
+            if record.active_spec_session() || !selected {
+                continue;
+            }
             if let Err(error) = fs::File::open(&record.spec_path) {
                 report.issues.push(format!(
                     "Spec unavailable for {}: {} ({error})",

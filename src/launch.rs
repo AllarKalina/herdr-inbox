@@ -262,7 +262,7 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
         &settings.context_paths,
     )?;
     mark(store, &record, &launch)?;
-    complete(
+    let result = complete(
         store,
         &herdr,
         &record,
@@ -273,7 +273,12 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
             agent: format!("spec_{}", &record.id[..8]),
             refinement: false,
         },
-    )
+    );
+    // Without a tab there is no session to inspect: leave the Inbox as it was.
+    if result.is_err() && launch.tab_id.is_none() {
+        store.discard_unstarted(&record.id)?;
+    }
+    result
 }
 
 pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
