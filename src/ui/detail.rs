@@ -1,7 +1,6 @@
-use super::{App, Screen, progress};
+use super::{App, Screen, progress, theme};
 use crate::store::Record;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Paragraph, Wrap};
 use std::fs;
 
@@ -62,7 +61,7 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
             hints.y.saturating_add(1)
         };
         frame.render_widget(
-            Paragraph::new(app.message.as_str()).style(Style::default().fg(Color::LightGreen)),
+            Paragraph::new(app.message.as_str()).style(theme::success()),
             Rect::new(hints.x, y, hints.width, 1),
         );
     }
@@ -81,19 +80,6 @@ fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
             .wrap(Wrap { trim: false }),
         Rect::new(area.x, area.y, area.width.min(86), area.height),
     );
-}
-
-pub(super) fn fit_label(value: &str, width: usize) -> String {
-    let count = value.chars().count();
-    if count <= width {
-        return value.to_owned();
-    }
-    if width == 0 {
-        return String::new();
-    }
-    let mut result: String = value.chars().take(width - 1).collect();
-    result.push('…');
-    result
 }
 
 fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {

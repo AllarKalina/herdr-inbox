@@ -226,7 +226,6 @@ fn clicking_and_scrolling_the_milestone_rail_dismisses_feedback() -> Result<()> 
                     row: owner.y,
                     modifiers: KeyModifiers::NONE,
                 },
-                height,
             )?;
             assert!(fixture.app.feedback.is_none());
         }

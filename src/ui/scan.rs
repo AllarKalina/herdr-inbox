@@ -1,8 +1,7 @@
-use super::{App, Screen};
+use super::{App, Screen, theme};
 use crate::store::{Result, ScanReport};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Color, Style};
 use ratatui::widgets::{Paragraph, Wrap};
 
 pub(super) fn apply(app: &mut App, report: ScanReport) {
@@ -47,7 +46,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         app.scan_issues.join("\n\n")
     );
     let content = Paragraph::new(text)
-        .style(Style::default().fg(Color::Yellow))
+        .style(theme::warning())
         .wrap(Wrap { trim: false });
     app.reader_max_scroll = content
         .line_count(blocks[1].width)

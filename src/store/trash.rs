@@ -51,8 +51,7 @@ impl Store {
     /// Inbox item still uses it.
     pub fn delete_archived(&self, id: &str) -> Result<(Record, bool)> {
         self.locked(|| {
-            Uuid::parse_str(id)?;
-            let path = self.root.join("trash/items").join(format!("{id}.json"));
+            let path = self.archived_path(id)?;
             let record = self.read_record(&path)?;
             let in_use = self
                 .list()?

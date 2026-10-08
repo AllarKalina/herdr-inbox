@@ -239,7 +239,6 @@ fn timeline_nodes_share_one_column_and_clicks_select_without_acting() -> Result<
                 row: area.y,
                 modifiers: KeyModifiers::NONE,
             },
-            35,
         )?;
         assert_eq!(fixture.app.milestone_selected, *milestone);
         assert!(fixture.app.prompt.is_none());

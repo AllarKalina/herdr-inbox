@@ -12,6 +12,8 @@ mod settings;
 mod submit;
 #[cfg(test)]
 mod tests;
+mod text;
+mod theme;
 mod tree;
 use input::{handle_key, handle_mouse};
 use milestone::Milestone;
@@ -461,7 +463,7 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, store: Store)
                     Err(error) => app.message = error.to_string(),
                 },
                 Event::Mouse(mouse) => {
-                    if let Err(error) = handle_mouse(&mut app, mouse, terminal.size()?.height) {
+                    if let Err(error) = handle_mouse(&mut app, mouse) {
                         app.message = error.to_string();
                     }
                 }

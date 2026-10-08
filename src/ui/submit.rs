@@ -1,4 +1,4 @@
-use super::{App, Milestone, Prompt, Screen, nonempty, settings};
+use super::{App, Milestone, Prompt, Screen, nonempty, text};
 use crate::launch::{self, Options};
 use crate::store::{Change, Result};
 use std::path::PathBuf;
@@ -34,7 +34,7 @@ impl App {
                 spec: if value.is_empty() {
                     None
                 } else {
-                    Some(settings::path(&value)?)
+                    Some(text::typed_path(&value)?)
                 },
             }),
             Prompt::Settle { id } => {

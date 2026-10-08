@@ -88,7 +88,6 @@ fn every_edge_of_the_larger_circle_selects_without_activating_an_action() -> Res
                     row,
                     modifiers: KeyModifiers::NONE,
                 },
-                18,
             )?;
             assert_eq!(fixture.app.milestone_selected, stage);
             assert!(fixture.app.prompt.is_none());

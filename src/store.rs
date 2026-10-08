@@ -44,6 +44,15 @@ impl Store {
         self.root.join("items")
     }
 
+    fn archive_dir(&self) -> PathBuf {
+        self.root.join("trash/items")
+    }
+
+    fn archived_path(&self, id: &str) -> Result<PathBuf> {
+        Uuid::parse_str(id)?;
+        Ok(self.archive_dir().join(format!("{id}.json")))
+    }
+
     fn path_for(&self, id: &str) -> Result<PathBuf> {
         Uuid::parse_str(id)?;
         Ok(self.items().join(format!("{id}.json")))
@@ -121,8 +130,7 @@ impl Store {
     pub fn archive(&self, id: &str) -> Result<Record> {
         self.locked(|| {
             let record = self.get(id)?;
-            let trash = self.root.join("trash");
-            let item_trash = trash.join("items").join(format!("{id}.json"));
+            let item_trash = self.archived_path(id)?;
             if item_trash.symlink_metadata().is_ok() {
                 return Err("Archive already contains this item; restore it first".into());
             }

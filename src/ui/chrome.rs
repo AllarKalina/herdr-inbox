@@ -1,6 +1,5 @@
-use super::{App, ChoicePurpose, Prompt, Screen, detail};
+use super::{App, ChoicePurpose, Prompt, Screen, text, theme};
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
@@ -39,10 +38,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
     );
     let labels = crumbs(app);
     let labels = fit_crumbs(&labels, header.width.saturating_sub(8) as usize);
-    let accent = Style::default()
-        .fg(Color::LightCyan)
-        .add_modifier(Modifier::BOLD);
-    let muted = Style::default().fg(Color::Gray);
+    let accent = theme::accent();
+    let muted = theme::muted();
     let mut spans = vec![Span::styled(
         "Inbox",
         if labels.is_empty() { accent } else { muted },
@@ -128,7 +125,7 @@ fn fit_crumbs(labels: &[String], budget: usize) -> Vec<String> {
         return labels.to_vec();
     }
     if labels.len() == 1 {
-        return vec![detail::fit_label(&labels[0], budget)];
+        return vec![text::fit_label(&labels[0], budget)];
     }
     let last = labels.last().unwrap();
     let previous = &labels[labels.len() - 2];
@@ -144,8 +141,8 @@ fn fit_crumbs(labels: &[String], budget: usize) -> Vec<String> {
         result.push("…".into());
     }
     if previous_width > 0 {
-        result.push(detail::fit_label(previous, previous_width));
+        result.push(text::fit_label(previous, previous_width));
     }
-    result.push(detail::fit_label(last, last_width));
+    result.push(text::fit_label(last, last_width));
     result
 }

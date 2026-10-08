@@ -188,7 +188,6 @@ fn inline_mouse_buttons_execute_the_selected_milestones_action() -> Result<()> {
                 row: area.bottom() - 1,
                 modifiers: KeyModifiers::NONE,
             },
-            18,
         )?;
         assert_eq!(fixture.app.action_selected, index);
         assert_eq!(fixture.app.milestone_selected, milestone);
@@ -201,7 +200,6 @@ fn inline_mouse_buttons_execute_the_selected_milestones_action() -> Result<()> {
                 row: area.bottom() - 1,
                 modifiers: KeyModifiers::NONE,
             },
-            18,
         )?;
         match milestone {
             Milestone::Spec => assert_eq!(fixture.app.screen, Screen::Reader),

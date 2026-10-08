@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 pub const SCHEMA_VERSION: u32 = 1;
+pub const DEFAULT_WORKSPACE: &str = "ai-boiler-room";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
@@ -25,7 +26,7 @@ impl Default for Settings {
             sources: Vec::new(),
             context_paths: Vec::new(),
             preferred_client: None,
-            workspace: "ai-boiler-room".into(),
+            workspace: DEFAULT_WORKSPACE.into(),
             jira: true,
         }
     }

@@ -86,7 +86,6 @@ fn narrow_detail_keeps_progress_and_actions_visible() -> Result<()> {
             row: button.y,
             modifiers: KeyModifiers::NONE,
         },
-        24,
     )?;
     assert_eq!(app.current().unwrap().spec, "done");
     fs::remove_dir_all(root)?;

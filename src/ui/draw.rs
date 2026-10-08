@@ -1,6 +1,5 @@
-use super::{App, ChoicePurpose, Prompt, Screen, detail};
+use super::{App, ChoicePurpose, Prompt, Screen, detail, theme};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
 
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
 
@@ -36,7 +35,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             );
             frame.render_widget(
                 Paragraph::new(app.message.as_str())
-                    .style(Style::default().fg(Color::Red))
+                    .style(theme::error())
                     .wrap(Wrap { trim: false }),
                 Rect::new(
                     popup.x + 1,
@@ -70,10 +69,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             list_area.width,
             list_area.height.saturating_sub(2),
         );
-        frame.render_widget(
-            Paragraph::new("No specs yet.").style(Style::default().fg(Color::Gray)),
-            hint,
-        );
+        frame.render_widget(Paragraph::new("No specs yet.").style(theme::muted()), hint);
     }
 
     if let Some(Prompt::Archive { id }) = &app.prompt {
@@ -125,12 +121,7 @@ fn draw_client_choices(frame: &mut ratatui::Frame, app: &App, selected: usize, a
     };
     let list = List::new(choices)
         .block(Block::default().title(title).borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
+        .highlight_style(theme::selection());
     let mut state = ListState::default().with_selected(Some(selected));
     frame.render_stateful_widget(list, area, &mut state);
 }

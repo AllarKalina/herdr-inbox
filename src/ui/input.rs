@@ -251,7 +251,7 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, _height: u16) -> Result<()> {
+pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent) -> Result<()> {
     if app.screen == Screen::Settings {
         return super::settings::handle_mouse(app, mouse).map(|_| ());
     }

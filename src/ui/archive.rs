@@ -1,9 +1,8 @@
-use super::settings::{fit_tail, tilde};
-use super::{App, Screen, detail::fit_label, tree};
+use super::{App, Screen, text, theme, tree};
 use crate::store::{Record, Result};
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::Style;
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
 
 #[derive(Default)]
@@ -139,7 +138,7 @@ fn location(app: &App, record: &Record) -> String {
     let sources = &app.settings.config.sources;
     match &record.source_relative_path {
         Some(relative) if tree::includes(record, sources) => relative.display().to_string(),
-        _ => tilde(&record.spec_path),
+        _ => text::tilde(&record.spec_path),
     }
 }
 
@@ -158,7 +157,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     app.archive.list_area = Rect::default();
     if app.archive.records.is_empty() {
         frame.render_widget(
-            Paragraph::new("No archived specs.").style(Style::default().fg(Color::Gray)),
+            Paragraph::new("No archived specs.").style(theme::muted()),
             areas[0],
         );
     } else {
@@ -173,8 +172,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         };
         let text = format!(
             "DELETE SPEC\n{}\n{}\n{file}\nIts archived record is deleted for good.",
-            fit_label(record.display_title(), width),
-            fit_tail(&tilde(&record.spec_path), width),
+            text::fit_label(record.display_title(), width),
+            text::fit_tail(&text::tilde(&record.spec_path), width),
         );
         frame.render_widget(
             Paragraph::new(text).wrap(Wrap { trim: false }).block(
@@ -187,7 +186,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     }
     if !app.message.is_empty() {
         frame.render_widget(
-            Paragraph::new(fit_label(&app.message, usize::from(footer.width))),
+            Paragraph::new(text::fit_label(&app.message, usize::from(footer.width))),
             Rect::new(footer.x, footer.y.saturating_sub(1), footer.width, 1),
         );
     }
@@ -234,14 +233,17 @@ fn draw_list(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
             } else {
                 format!("{} [unavailable]", record.display_title())
             };
-            let location = Cell::from(fit_tail(location, location_width)).style(
+            let location = Cell::from(text::fit_tail(location, location_width)).style(
                 if index == app.archive.selected {
                     Style::default()
                 } else {
-                    Style::default().fg(Color::Gray)
+                    theme::muted()
                 },
             );
-            Row::new(vec![Cell::from(fit_label(&title, title_width)), location])
+            Row::new(vec![
+                Cell::from(text::fit_label(&title, title_width)),
+                location,
+            ])
         })
         .collect::<Vec<_>>();
     let table = Table::new(
@@ -252,12 +254,7 @@ fn draw_list(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
         ],
     )
     .column_spacing(2)
-    .row_highlight_style(
-        Style::default()
-            .fg(Color::Black)
-            .bg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    );
+    .row_highlight_style(theme::selection());
     let mut state = TableState::default()
         .with_offset(app.archive.offset)
         .with_selected(Some(app.archive.selected));

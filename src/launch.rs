@@ -1,3 +1,4 @@
+use crate::settings::DEFAULT_WORKSPACE;
 use crate::store::{Change, Launch, LaunchStatus, Record, Result, Store, absolute};
 use serde_json::Value;
 use std::env;
@@ -11,7 +12,6 @@ use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub const DEFAULT_WORKSPACE: &str = "ai-boiler-room";
 pub const DEFAULT_MODEL: &str = "claude-opus-5-5";
 pub const DEFAULT_EFFORT: &str = "high";
 

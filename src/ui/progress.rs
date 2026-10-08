@@ -1,7 +1,7 @@
-use super::{App, Prompt, detail::fit_label, milestone::Milestone};
+use super::{App, Prompt, milestone::Milestone, text::fit_label, theme};
 use crate::store::Record;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::canvas::{Canvas, Circle};
 use ratatui::widgets::{Paragraph, Wrap};
@@ -12,7 +12,7 @@ const CONTENT_COLUMN: u16 = 11;
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, area: Rect) {
     app.milestone_hitboxes.clear();
     app.action_hitboxes.clear();
-    let muted = Style::default().fg(Color::Gray);
+    let muted = theme::muted();
     frame.render_widget(
         Paragraph::new("PROGRESS").style(muted),
         Rect::new(area.x, area.y, area.width, 1),
@@ -69,7 +69,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
                     content_width as usize,
                 ))
                 .style(if feedback.is_some() {
-                    Style::default().fg(Color::LightGreen)
+                    theme::success()
                 } else {
                     muted
                 }),
@@ -86,7 +86,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
             }
         } else if let Some(feedback) = feedback {
             frame.render_widget(
-                Paragraph::new(feedback.text(true)).style(Style::default().fg(Color::LightGreen)),
+                Paragraph::new(feedback.text(true)).style(theme::success()),
                 Rect::new(
                     area.x + CONTENT_COLUMN,
                     y + 1,
@@ -101,7 +101,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
                 .min(area.bottom().saturating_sub(y + 1));
             frame.render_widget(
                 Paragraph::new(vec![Line::from("│"); connector_height as usize])
-                    .style(Style::default().fg(Color::DarkGray)),
+                    .style(theme::faint()),
                 Rect::new(area.x + NODE_COLUMN, y + 1, 1, connector_height),
             );
         }
@@ -179,7 +179,7 @@ fn draw_actions(
 ) {
     if app.prompt.is_some() {
         frame.render_widget(
-            Paragraph::new(prompt_lines(app, record, area.width)).wrap(Wrap { trim: false }),
+            Paragraph::new(prompt_lines(app, area.width)).wrap(Wrap { trim: false }),
             area,
         );
         return;
@@ -188,7 +188,7 @@ fn draw_actions(
     if actions.is_empty() && slot_height == 1 {
         frame.render_widget(
             Paragraph::new(app.milestone_selected.guidance(record, app.jira()))
-                .style(Style::default().fg(Color::Gray))
+                .style(theme::muted())
                 .wrap(Wrap { trim: false }),
             area,
         );
@@ -204,7 +204,7 @@ fn draw_actions(
         let style = if selected {
             selection_style()
         } else {
-            Style::default().fg(Color::LightBlue)
+            theme::action()
         };
         let height = Paragraph::new(label.as_str())
             .wrap(Wrap { trim: false })
@@ -226,34 +226,12 @@ fn draw_actions(
     }
 }
 
-fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
+fn prompt_lines(app: &App, width: u16) -> Vec<Line<'static>> {
     let Some(prompt) = &app.prompt else {
         return Vec::new();
     };
     let width = usize::from(width);
-    let archive_keys = if width < 25 {
-        "Enter archive · Esc"
-    } else {
-        "Enter archive · Esc cancel"
-    };
-    let lines = if matches!(prompt, Prompt::Archive { .. }) {
-        vec![
-            format!(
-                "Archive {}?",
-                fit_label(record.display_title(), width.saturating_sub(9))
-            ),
-            if width < 20 {
-                "Archive record.".into()
-            } else {
-                "Record moves to archive.".into()
-            },
-            if width < 20 {
-                "Spec stays put.".into()
-            } else {
-                "Linked spec stays intact.".into()
-            },
-        ]
-    } else if matches!(prompt, Prompt::Settle { .. }) {
+    let lines = if matches!(prompt, Prompt::Settle { .. }) {
         vec![
             "Session ended?".into(),
             "No tabs closed.".into(),
@@ -276,15 +254,9 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
             "Enter save · Esc cancel".into(),
         ]
     };
-    let mut lines: Vec<Line<'static>> = lines.into_iter().map(Line::from).collect();
-    if matches!(prompt, Prompt::Archive { .. }) {
-        lines.push(Line::from(archive_keys));
-    }
-    lines
+    lines.into_iter().map(Line::from).collect()
 }
 
 fn selection_style() -> Style {
-    Style::default()
-        .fg(Color::Cyan)
-        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+    theme::chosen_action()
 }

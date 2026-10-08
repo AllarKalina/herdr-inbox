@@ -270,7 +270,6 @@ fn reader_scroll_stops_at_last_wrapped_line_with_two_rows_of_padding() -> Result
             row: 6,
             modifiers: KeyModifiers::NONE,
         },
-        16,
     )?;
     assert_eq!(app.reader_scroll, app.reader_max_scroll);
 
@@ -318,7 +317,6 @@ fn progress_actions_require_jira_before_implementation() -> Result<()> {
             row: action.y,
             modifiers: KeyModifiers::NONE,
         },
-        35,
     )?;
     assert!(matches!(app.prompt, Some(Prompt::Jira { .. })));
     for ch in "ABC-123".chars() {
@@ -384,7 +382,6 @@ fn mouse_hover_selects_a_list_item_before_enter() -> Result<()> {
             row: hover_row,
             modifiers: KeyModifiers::NONE,
         },
-        30,
     )?;
     assert_eq!(app.current().unwrap().id, second_id);
     handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))?;

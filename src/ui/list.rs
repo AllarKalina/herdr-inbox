@@ -1,4 +1,4 @@
-use super::{App, detail, milestone::Milestone, tree};
+use super::{App, milestone::Milestone, text, theme, tree};
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -76,20 +76,9 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
     }
     let header = Row::new(header);
     let table = Table::new(rows, widths)
-        .header(
-            header.style(
-                Style::default()
-                    .fg(Color::Gray)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        )
+        .header(header.style(theme::muted().add_modifier(Modifier::BOLD)))
         .column_spacing(if compact { 1 } else { 2 })
-        .row_highlight_style(
-            Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
+        .row_highlight_style(theme::selection());
     let mut state = TableState::default()
         .with_offset(app.list_offset)
         .with_selected((!app.tree.rows.is_empty()).then_some(app.tree.focused));
@@ -115,7 +104,7 @@ fn name_cell(app: &App, node: &tree::TreeRow, width: usize, selected: bool) -> C
     } else {
         Color::LightBlue
     };
-    let prefix = fit_prefix(&node.prefix, width.saturating_sub(14));
+    let prefix = text::fit_prefix(&node.prefix, width.saturating_sub(14));
     let marker = if node.is_folder {
         if node.expanded { "▾ " } else { "▸ " }
     } else {
@@ -130,17 +119,10 @@ fn name_cell(app: &App, node: &tree::TreeRow, width: usize, selected: bool) -> C
     } else {
         node.label.clone()
     };
-    let label = detail::fit_label(&title, width.saturating_sub(prefix.chars().count() + 4));
+    let label = text::fit_label(&title, width.saturating_sub(prefix.chars().count() + 4));
     let plain = Style::default();
     let mut spans = vec![
-        Span::styled(
-            prefix,
-            if selected {
-                plain
-            } else {
-                plain.fg(Color::DarkGray)
-            },
-        ),
+        Span::styled(prefix, if selected { plain } else { theme::faint() }),
         Span::styled(
             format!("{marker}{icon} "),
             if selected { plain } else { plain.fg(color) },
@@ -160,22 +142,4 @@ fn name_cell(app: &App, node: &tree::TreeRow, width: usize, selected: bool) -> C
         spans[1].style = spans[1].style.add_modifier(Modifier::BOLD);
     }
     Cell::from(Line::from(spans))
-}
-
-fn fit_prefix(prefix: &str, available: usize) -> String {
-    if prefix.chars().count() <= available {
-        return prefix.into();
-    }
-    if available < 3 {
-        return String::new();
-    }
-    let suffix = prefix
-        .chars()
-        .rev()
-        .take(available - 1)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect::<String>();
-    format!("…{suffix}")
 }

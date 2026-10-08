@@ -30,7 +30,7 @@ impl Store {
 
     pub fn trash_list(&self) -> Result<Vec<Record>> {
         let mut records = Vec::new();
-        let trash = self.root.join("trash/items");
+        let trash = self.archive_dir();
         if trash.is_dir() {
             for entry in fs::read_dir(trash)? {
                 let path = entry?.path();
@@ -168,34 +168,59 @@ impl Store {
     }
 
     /// The caller confirms this is a relocation of the same source, never a replacement source.
+    /// The source keeps its ID and filters; items whose file did not move with it keep their
+    /// old reference and are reported for explicit relinking.
     pub fn relocate_source(&self, id: &str, path: PathBuf) -> Result<ScanReport> {
         self.locked(|| {
             let mut settings = self.settings()?;
-            let index = settings.sources.iter().position(|s| s.id == id).ok_or("Unknown source ID")?;
+            let index = settings
+                .sources
+                .iter()
+                .position(|source| source.id == id)
+                .ok_or("Unknown source ID")?;
             let new_source = SpecSource::new(path)?;
-            let old_source = &settings.sources[index];
             let all = self.all_records()?;
-            let affected: Vec<_> = all.iter().filter(|r| r.source_id.as_deref() == Some(id)).collect();
-            if affected.iter().any(|r| r.active_spec_session()) {
-                return Err("Settle all affected spec sessions before relocating the source".into());
+            let affected: Vec<_> = all
+                .iter()
+                .filter(|record| record.source_id.as_deref() == Some(id))
+                .collect();
+            if affected.iter().any(|record| record.active_spec_session()) {
+                return Err(
+                    "Settle all affected spec sessions before relocating the source".into(),
+                );
             }
             let mut updates = Vec::new();
             let mut issues = Vec::new();
             let mut destinations = HashSet::new();
             for record in affected {
-                let Some(relative) = &record.source_relative_path else { continue; };
-                if relative.is_absolute() || relative.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+                let Some(relative) = &record.source_relative_path else {
+                    continue;
+                };
+                let escapes = relative
+                    .components()
+                    .any(|part| matches!(part, std::path::Component::ParentDir));
+                if relative.is_absolute() || escapes {
                     return Err("Invalid stored source-relative path".into());
                 }
                 let candidate = new_source.path.join(relative);
-                let expected = fingerprint(&record.spec_path).ok().or_else(|| record.content_fingerprint.clone());
+                let expected = fingerprint(&record.spec_path)
+                    .ok()
+                    .or_else(|| record.content_fingerprint.clone());
                 let actual = fingerprint(&candidate).ok();
                 if expected.is_none() || actual.is_none() || expected != actual {
-                    issues.push(format!("{} kept at {}: relocated file missing, unreadable, or content differs; relink explicitly", record.id, record.spec_path.display()));
+                    issues.push(format!(
+                        "{} kept at {}: relocated file missing, unreadable, or content differs; \
+                         relink explicitly",
+                        record.id,
+                        record.spec_path.display()
+                    ));
                     continue;
                 }
                 let canonical = fs::canonicalize(&candidate)?;
-                if !destinations.insert(canonical.clone()) || all.iter().any(|other| other.id != record.id && same_file(&other.spec_path, &canonical)) {
+                let taken = all
+                    .iter()
+                    .any(|other| other.id != record.id && same_file(&other.spec_path, &canonical));
+                if !destinations.insert(canonical.clone()) || taken {
                     return Err("Relocation would make two items reference the same spec".into());
                 }
                 let mut updated = record.clone();
@@ -203,18 +228,20 @@ impl Store {
                 updated.content_fingerprint = actual;
                 updates.push(updated);
             }
-            // Existing settings retain source ID and filters. Unmatched items retain their old references.
-            let _ = old_source;
             settings.sources[index].path = new_source.path;
             settings.validate()?;
             for record in updates {
-                if self.path_for(&record.id)?.is_file() { self.write(&record)?; }
-                else {
-                    let path = self.root.join("trash/items").join(format!("{}.json", record.id));
-                    self.atomic_file(&path, &serde_json::to_vec_pretty(&record)?)?;
+                if self.path_for(&record.id)?.is_file() {
+                    self.write(&record)?;
+                } else {
+                    let archived = self.archived_path(&record.id)?;
+                    self.atomic_file(&archived, &serde_json::to_vec_pretty(&record)?)?;
                 }
             }
-            self.atomic_file(&self.settings_path(), toml::to_string_pretty(&settings)?.as_bytes())?;
+            self.atomic_file(
+                &self.settings_path(),
+                toml::to_string_pretty(&settings)?.as_bytes(),
+            )?;
             let mut report = self.scan_unlocked()?;
             report.issues.extend(issues);
             Ok(report)

@@ -67,7 +67,6 @@ fn clicking_refine_offers_clients_without_opening_an_editor_or_creating_an_item(
             row: area.y,
             modifiers: KeyModifiers::NONE,
         },
-        18,
     )?;
     let id = fixture.app.current().unwrap().id.clone();
     assert!(

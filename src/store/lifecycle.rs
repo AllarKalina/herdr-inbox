@@ -244,8 +244,7 @@ impl Store {
 
     pub fn restore(&self, id: &str) -> Result<Record> {
         self.locked(|| {
-            Uuid::parse_str(id)?;
-            let path = self.root.join("trash/items").join(format!("{id}.json"));
+            let path = self.archived_path(id)?;
             let record = self.read_record(&path)?;
             if self.path_for(id)?.symlink_metadata().is_ok() {
                 return Err("Item already exists".into());

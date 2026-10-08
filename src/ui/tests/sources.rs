@@ -266,7 +266,6 @@ fn clicking_change_opens_the_selector_and_background_clicks_do_not() -> Result<(
             row: 0,
             modifiers: KeyModifiers::NONE,
         },
-        18,
     )?;
     assert!(fixture.app.store.settings()?.sources.is_empty());
     handle_mouse(
@@ -277,7 +276,6 @@ fn clicking_change_opens_the_selector_and_background_clicks_do_not() -> Result<(
             row: change.y,
             modifiers: KeyModifiers::NONE,
         },
-        18,
     )?;
     assert_eq!(fixture.app.store.settings()?.sources[0].path, fixture.specs);
     assert_eq!(fixture.app.records.len(), 1);

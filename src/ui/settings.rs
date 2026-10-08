@@ -1,11 +1,9 @@
-use super::{App, Screen};
+use super::{App, Screen, text, theme};
 use crate::store::{Result, Settings};
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-use std::path::{Path, PathBuf};
 
 mod picking;
 
@@ -148,48 +146,12 @@ fn select_folder(app: &mut App) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn path(value: &str) -> Result<PathBuf> {
-    if value.is_empty() {
-        return Err("Path cannot be empty".into());
-    }
-    if value == "~" || value.starts_with("~/") {
-        let home = std::env::var_os("HOME").ok_or("HOME unavailable; enter an absolute path")?;
-        return Ok(PathBuf::from(home).join(value.trim_start_matches('~').trim_start_matches('/')));
-    }
-    Ok(PathBuf::from(value))
-}
-
-/// Shortens the home directory to `~` for display.
-pub(super) fn tilde(path: &Path) -> String {
-    std::env::var_os("HOME")
-        .and_then(|home| path.strip_prefix(home).ok())
-        .map_or_else(
-            || path.display().to_string(),
-            |rest| format!("~/{}", rest.display()),
-        )
-}
-
-/// Keeps the end of a path, its most specific part, when it cannot fit.
-pub(super) fn fit_tail(value: &str, width: usize) -> String {
-    let count = value.chars().count();
-    if count <= width {
-        return value.to_owned();
-    }
-    if width == 0 {
-        return String::new();
-    }
-    let tail: String = value.chars().skip(count - (width - 1)).collect();
-    format!("…{tail}")
-}
-
 fn value(app: &App, row: Row) -> String {
     match row {
-        Row::Folder => app
-            .settings
-            .config
-            .sources
-            .first()
-            .map_or_else(|| "No folder selected".into(), |source| tilde(&source.path)),
+        Row::Folder => app.settings.config.sources.first().map_or_else(
+            || "No folder selected".into(),
+            |source| text::tilde(&source.path),
+        ),
         Row::Jira if app.settings.config.jira => "on".into(),
         Row::Jira => "off".into(),
         Row::Archive => match app.archive.records.len() {
@@ -210,14 +172,11 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     let visible = Row::ALL
         .len()
         .min(usize::from(area.height.saturating_sub(1)));
-    let muted = Style::default().fg(Color::Gray);
-    let selection = Style::default()
-        .fg(Color::Black)
-        .bg(Color::Cyan)
-        .add_modifier(Modifier::BOLD);
+    let muted = theme::muted();
+    let selection = theme::selection();
     for (index, row) in Row::ALL.into_iter().take(visible).enumerate() {
         let label = format!("{:<LABEL_WIDTH$}", row.label());
-        let value = fit_tail(
+        let value = text::fit_tail(
             &value(app, row),
             usize::from(area.width).saturating_sub(LABEL_WIDTH),
         );
@@ -242,7 +201,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         let error_y = area.y + visible as u16 + 1;
         frame.render_widget(
             Paragraph::new(app.message.as_str())
-                .style(Style::default().fg(Color::Red))
+                .style(theme::error())
                 .wrap(Wrap { trim: false }),
             Rect::new(
                 area.x,

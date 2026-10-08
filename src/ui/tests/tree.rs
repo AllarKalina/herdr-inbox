@@ -238,11 +238,7 @@ fn tree_mouse_uses_visible_folder_rows_and_keeps_file_uuid_after_refresh() -> Re
         row,
         modifiers: KeyModifiers::NONE,
     };
-    handle_mouse(
-        &mut fixture.app,
-        mouse(MouseEventKind::Moved, design_row),
-        30,
-    )?;
+    handle_mouse(&mut fixture.app, mouse(MouseEventKind::Moved, design_row))?;
     assert!(fixture.app.current().is_none());
     assert_eq!(
         fixture.app.tree.rows[fixture.app.tree.focused].label,
@@ -251,7 +247,6 @@ fn tree_mouse_uses_visible_folder_rows_and_keeps_file_uuid_after_refresh() -> Re
     handle_mouse(
         &mut fixture.app,
         mouse(MouseEventKind::Down(MouseButton::Left), design_row),
-        30,
     )?;
     let folder_key = fixture.app.tree.rows[fixture.app.tree.focused].key.clone();
     fixture.app.refresh()?;
@@ -273,7 +268,7 @@ fn tree_mouse_uses_visible_folder_rows_and_keeps_file_uuid_after_refresh() -> Re
         .iter()
         .position(|line| line.contains("mission-3"))
         .unwrap() as u16;
-    handle_mouse(&mut fixture.app, mouse(MouseEventKind::Moved, file_row), 30)?;
+    handle_mouse(&mut fixture.app, mouse(MouseEventKind::Moved, file_row))?;
     let id = fixture.app.current().unwrap().id.clone();
     fixture.app.store.update(
         &id,
