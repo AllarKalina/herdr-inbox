@@ -1,8 +1,8 @@
 use super::{App, Screen, progress};
 use crate::store::Record;
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Style};
+use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph, Wrap};
 use std::fs;
 
@@ -18,10 +18,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
 }
 
 fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
-    let mut body = frame.area().inner(Margin {
-        horizontal: 2,
-        vertical: 1,
-    });
+    let mut body = super::chrome::content(frame.area());
     // Reclaim the bottom inset on short terminals to keep the progress controls visible.
     if body.height < 20 {
         body.height = body.height.saturating_add(1);
@@ -30,24 +27,10 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(if body.height < 24 { 1 } else { 2 }),
             Constraint::Min(8),
             Constraint::Length(if body.height < 20 { 2 } else { 3 }),
         ])
         .split(body);
-    let title = Line::from(vec![
-        Span::styled("← Inbox  /  ", Style::default().fg(Color::Gray)),
-        Span::styled(
-            fit_label(
-                record.display_title(),
-                body.width.saturating_sub(13) as usize,
-            ),
-            Style::default()
-                .fg(Color::LightCyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-    ]);
-    frame.render_widget(Paragraph::new(title), areas[0]);
     if !compact {
         let columns = Layout::default()
             .direction(Direction::Horizontal)
@@ -56,22 +39,22 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
                 Constraint::Length(2),
                 Constraint::Length(36),
             ])
-            .split(areas[1]);
+            .split(areas[0]);
         draw_spec(frame, record, columns[0]);
         progress::draw(frame, app, record, columns[2]);
     } else {
         let rows = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(if areas[1].height < 18 { 0 } else { 3 }),
-                Constraint::Length(15.min(areas[1].height)),
+                Constraint::Min(if areas[0].height < 18 { 0 } else { 3 }),
+                Constraint::Length(15.min(areas[0].height)),
             ])
-            .split(areas[1]);
+            .split(areas[0]);
         draw_spec(frame, record, rows[0]);
         progress::draw(frame, app, record, rows[1]);
     }
     let mut footer = Vec::new();
-    if areas[2].height >= 3 {
+    if areas[1].height >= 3 {
         footer.push(Line::default());
     }
     footer.push(
@@ -90,7 +73,7 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
         })
         .style(Style::default().fg(Color::LightGreen)),
     );
-    frame.render_widget(Paragraph::new(footer), areas[2]);
+    frame.render_widget(Paragraph::new(footer), areas[1]);
 }
 
 fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
@@ -122,40 +105,14 @@ pub(super) fn fit_label(value: &str, width: usize) -> String {
 }
 
 fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
-    let body = frame.area().inner(Margin {
-        horizontal: 2,
-        vertical: 1,
-    });
+    let body = super::chrome::content(frame.area());
     let areas = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(2),
-            Constraint::Min(3),
-            Constraint::Length(2),
-        ])
+        .constraints([Constraint::Min(3), Constraint::Length(2)])
         .split(body);
-    frame.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled("← Inbox  /  ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                fit_label(
-                    record.display_title(),
-                    body.width.saturating_sub(28) as usize,
-                ),
-                Style::default().fg(Color::Gray),
-            ),
-            Span::styled(
-                "  /  FULL SPEC",
-                Style::default()
-                    .fg(Color::LightCyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-        ])),
-        areas[0],
-    );
     let paragraph = Paragraph::new(spec_text(record)).wrap(Wrap { trim: false });
-    let content_lines = paragraph.line_count(areas[1].width);
-    let viewport_lines = usize::from(areas[1].height);
+    let content_lines = paragraph.line_count(areas[0].width);
+    let viewport_lines = usize::from(areas[0].height);
     app.reader_max_scroll = if content_lines > viewport_lines {
         content_lines
             .saturating_add(2)
@@ -165,13 +122,13 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
         0
     };
     app.reader_scroll = app.reader_scroll.min(app.reader_max_scroll);
-    frame.render_widget(paragraph.scroll((app.reader_scroll, 0)), areas[1]);
+    frame.render_widget(paragraph.scroll((app.reader_scroll, 0)), areas[0]);
     frame.render_widget(
         Paragraph::new(vec![
             Line::default(),
             Line::from("j/k scroll · Shift+J/K 10 lines").style(Style::default().fg(Color::Gray)),
         ]),
-        areas[2],
+        areas[1],
     );
 }
 

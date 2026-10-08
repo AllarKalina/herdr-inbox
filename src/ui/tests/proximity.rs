@@ -330,7 +330,9 @@ fn linked_spec_confirmation_fits_without_hiding_later_nodes() -> Result<()> {
             assert_eq!(coordinates(&fixture.app), fixed);
             let (x, y) = actions_origin(&fixture.app);
             let prompt = panel_text(&terminal, x, y, if roomy(&fixture.app) { 4 } else { 8 });
-            assert!(prompt.contains("Linked spec stays intact."));
+            assert!(
+                prompt.contains("Linked spec stays intact.") || prompt.contains("Spec stays put.")
+            );
             assert!(prompt.contains("Enter archive · Esc"));
             press(&mut fixture.app, KeyCode::Esc)?;
             render(&mut fixture.app, width, height)?;

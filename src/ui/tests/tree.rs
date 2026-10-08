@@ -102,8 +102,12 @@ fn tree_groups_domains_and_distinguishes_folder_markdown_and_html_icons() -> Res
     assert_eq!(fixture.app.records.len(), 11);
     let rows = &fixture.app.tree.rows;
     let row = |label: &str| rows.iter().find(|row| row.label == label).unwrap();
-    assert!(row("context").is_folder);
-    assert_eq!(row("designs").depth, row("context").depth + 1);
+    assert!(
+        !rows
+            .iter()
+            .any(|row| row.label == "context" || row.label == "Inbox specs")
+    );
+    assert_eq!(row("designs").depth, 0);
     assert_eq!(row("missions").depth, row("designs").depth);
     assert_eq!(row("zeller").depth, row("missions").depth + 1);
     assert_eq!(row("mission-1").depth, row("zeller").depth + 1);
@@ -134,7 +138,11 @@ fn tree_groups_domains_and_distinguishes_folder_markdown_and_html_icons() -> Res
     assert!(!html_icons.is_empty());
     assert_ne!(folder_icons, markdown_icons);
     assert_ne!(markdown_icons, html_icons);
-    let status_column = cells[1]
+    let header_row = lines
+        .iter()
+        .position(|line| line.contains("Spec") && line.contains("Jira"))
+        .unwrap();
+    let status_column = cells[header_row]
         .iter()
         .position(|cell| cell.symbol() == "S")
         .unwrap();
@@ -320,17 +328,57 @@ fn tree_deep_long_paths_keep_compact_statuses_and_footer_visible() -> Result<()>
             .unwrap();
         assert!(cells[row].iter().any(|cell| cell.symbol() == "✓"));
         assert!(cells[row].iter().any(|cell| cell.symbol() == "→"));
-        let status_column = cells[1]
+        let header_row = lines
+            .iter()
+            .position(|line| {
+                line.contains("S J D P") || (line.contains("Spec") && line.contains("Jira"))
+            })
+            .unwrap();
+        let status_column = cells[header_row]
             .iter()
             .position(|cell| cell.symbol() == "S")
             .unwrap();
         assert_eq!(cells[row][status_column].symbol(), "✓");
-        let footer = lines.last().unwrap();
+        let footer = lines
+            .iter()
+            .rev()
+            .find(|line| line.contains("Enter"))
+            .unwrap();
         assert!(footer.contains("Enter"));
         assert!(footer.contains("n new"));
         assert!(!lines.join("\n").contains("S scan"));
         assert_eq!(fixture.app.current().unwrap().id, id);
     }
+    press(&mut fixture.app, KeyCode::Enter)?;
+    assert_eq!(fixture.app.screen, Screen::Detail);
+    assert_eq!(fixture.app.current().unwrap().id, id);
+    Ok(())
+}
+
+#[test]
+fn legacy_managed_specs_stay_loose_and_openable_without_a_synthetic_folder() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("inbox-tree-legacy-{}", Uuid::new_v4()));
+    let store = Store::new(root.join("data"));
+    store.start("Legacy first", None, None)?;
+    store.start("Legacy second", None, None)?;
+    let mut fixture = Fixture {
+        root,
+        app: App::new(store)?,
+    };
+    assert_eq!(fixture.app.tree.rows.len(), 2);
+    assert!(
+        fixture
+            .app
+            .tree
+            .rows
+            .iter()
+            .all(|row| !row.is_folder && row.depth == 0 && row.record_index.is_some())
+    );
+    let id = fixture.app.current().unwrap().id.clone();
+    let (lines, _) = render(&mut fixture.app, 100, 24)?;
+    assert!(!lines.iter().any(|line| line.contains("Inbox specs")));
+    assert!(lines.iter().any(|line| line.contains("Legacy first")));
+    assert!(lines.iter().any(|line| line.contains("Legacy second")));
     press(&mut fixture.app, KeyCode::Enter)?;
     assert_eq!(fixture.app.screen, Screen::Detail);
     assert_eq!(fixture.app.current().unwrap().id, id);

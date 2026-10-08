@@ -1,8 +1,8 @@
 use super::{App, Screen};
 use crate::store::{Result, ScanReport};
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::{Constraint, Layout, Margin};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::layout::{Constraint, Layout};
+use ratatui::style::{Color, Style};
 use ratatui::widgets::{Paragraph, Wrap};
 
 pub(super) fn apply(app: &mut App, report: ScanReport) {
@@ -31,28 +31,16 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
 }
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
-    let area = frame.area().inner(Margin {
-        horizontal: 2,
-        vertical: 1,
-    });
+    let area = super::chrome::content(frame.area());
     let blocks = Layout::vertical([
-        Constraint::Length(1),
         Constraint::Length(2),
         Constraint::Min(2),
         Constraint::Length(2),
     ])
     .split(area);
     frame.render_widget(
-        Paragraph::new("Inbox / Scan results").style(
-            Style::default()
-                .fg(Color::LightCyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        blocks[0],
-    );
-    frame.render_widget(
         Paragraph::new(app.message.as_str()).wrap(Wrap { trim: false }),
-        blocks[1],
+        blocks[0],
     );
     let text = format!(
         "Existing items stay in your inbox. Correct the paths or permissions, then rescan.\n\n{}",
@@ -62,13 +50,13 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .style(Style::default().fg(Color::Yellow))
         .wrap(Wrap { trim: false });
     app.reader_max_scroll = content
-        .line_count(blocks[2].width)
-        .saturating_sub(blocks[2].height as usize)
+        .line_count(blocks[1].width)
+        .saturating_sub(blocks[1].height as usize)
         .min(u16::MAX as usize) as u16;
-    frame.render_widget(content.scroll((app.reader_scroll, 0)), blocks[2]);
+    frame.render_widget(content.scroll((app.reader_scroll, 0)), blocks[1]);
     frame.render_widget(
         Paragraph::new("j/k scroll · s settings\nEnter / Esc back to Inbox")
             .style(Style::default().fg(Color::Gray)),
-        blocks[3],
+        blocks[2],
     );
 }

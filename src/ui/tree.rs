@@ -72,17 +72,15 @@ impl Tree {
                 });
             roots[root_index].insert(&relative, record, index);
         }
-        let labels: Vec<_> = roots.iter().map(|root| root.label.clone()).collect();
         for root in &mut roots {
-            if labels.iter().filter(|label| **label == root.label).count() > 1 {
-                root.label = root.path.display().to_string();
-            }
             root.sort();
         }
-        roots.sort_by(|a, b| natural_cmp(&a.label, &b.label).then_with(|| a.key.cmp(&b.key)));
+        // Source directories define the Inbox boundary. Only their contents are rows.
+        let mut top_level: Vec<_> = roots.iter().flat_map(|root| &root.children).collect();
+        top_level.sort_by(|a, b| a.compare(b));
         self.all_rows.clear();
-        for root in &roots {
-            root.flatten(0, "", "", &mut self.all_rows);
+        for node in top_level {
+            node.flatten(0, "", "", &mut self.all_rows);
         }
         self.collapsed.retain(|key| {
             self.all_rows
@@ -231,25 +229,27 @@ impl Node {
     }
 
     fn sort(&mut self) {
-        self.children.sort_by(|a, b| {
-            a.record_index
-                .is_some()
-                .cmp(&b.record_index.is_some())
-                .then_with(|| {
-                    if a.record_index.is_some() && b.record_index.is_some() {
-                        natural_cmp(
-                            &a.path.file_name().unwrap_or_default().to_string_lossy(),
-                            &b.path.file_name().unwrap_or_default().to_string_lossy(),
-                        )
-                    } else {
-                        natural_cmp(&a.label, &b.label)
-                    }
-                })
-                .then_with(|| a.key.cmp(&b.key))
-        });
+        self.children.sort_by(Self::compare);
         for child in &mut self.children {
             child.sort();
         }
+    }
+
+    fn compare(&self, other: &Self) -> Ordering {
+        self.record_index
+            .is_some()
+            .cmp(&other.record_index.is_some())
+            .then_with(|| {
+                if self.record_index.is_some() && other.record_index.is_some() {
+                    natural_cmp(
+                        &self.path.file_name().unwrap_or_default().to_string_lossy(),
+                        &other.path.file_name().unwrap_or_default().to_string_lossy(),
+                    )
+                } else {
+                    natural_cmp(&self.label, &other.label)
+                }
+            })
+            .then_with(|| self.key.cmp(&other.key))
     }
 
     fn flatten(&self, depth: usize, prefix: &str, guides: &str, output: &mut Vec<TreeRow>) {

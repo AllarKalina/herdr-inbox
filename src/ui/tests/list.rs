@@ -29,11 +29,17 @@ fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
             .filter(|line| line.contains("Short") || line.contains("Long title"))
             .collect();
         assert_eq!(rows.len(), 2);
+        let header = lines
+            .iter()
+            .find(|line| {
+                line.contains("S J D P") || (line.contains("Spec") && line.contains("Jira"))
+            })
+            .unwrap();
         if width < 64 {
-            assert!(lines[1].contains("S J D P"));
+            assert!(header.contains("S J D P"));
             assert!(rows.iter().all(|row| row.contains("● ○ ○ ○")));
         } else {
-            assert!(lines[1].contains("Spec") && lines[1].contains("Jira"));
+            assert!(header.contains("Spec") && header.contains("Jira"));
             let columns: Vec<_> = lines
                 .iter()
                 .enumerate()

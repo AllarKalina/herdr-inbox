@@ -233,11 +233,15 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
             ),
             if app.store.manages_spec(record) {
                 "Files move to local archive.".into()
+            } else if width < 20 {
+                "Archive record.".into()
             } else {
                 "Record moves to archive.".into()
             },
             if app.store.manages_spec(record) {
                 archive_keys.into()
+            } else if width < 20 {
+                "Spec stays put.".into()
             } else {
                 "Linked spec stays intact.".into()
             },

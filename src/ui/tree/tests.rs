@@ -91,18 +91,17 @@ fn nested_domains_have_stepped_guides_folders_first_and_natural_filenames() {
     assert_eq!(
         rows,
         vec![
-            ("context", 0, ""),
-            ("designs", 1, "├─ "),
-            ("spec2.md", 2, "│  ├─ "),
-            ("spec10.md", 2, "│  └─ "),
-            ("missions", 1, "├─ "),
-            ("zeller", 2, "│  └─ "),
-            ("spec.html", 3, "│     └─ "),
-            ("a.md", 1, "└─ "),
+            ("designs", 0, ""),
+            ("spec2.md", 1, "├─ "),
+            ("spec10.md", 1, "└─ "),
+            ("missions", 0, ""),
+            ("zeller", 1, "└─ "),
+            ("spec.html", 2, "   └─ "),
+            ("a.md", 0, ""),
         ]
     );
     assert_eq!(tree.selected_record(), Some(0));
-    assert_eq!(tree.rows[1].path, Path::new("/missing/context/designs"));
+    assert_eq!(tree.rows[0].path, Path::new("/missing/context/designs"));
     assert!(
         tree.rows
             .iter()
@@ -112,7 +111,7 @@ fn nested_domains_have_stepped_guides_folders_first_and_natural_filenames() {
 }
 
 #[test]
-fn duplicate_roots_stay_distinct_and_show_parent_context() {
+fn duplicate_source_roots_are_hidden_without_merging_their_records() {
     let records = vec![
         record(
             "one",
@@ -139,8 +138,12 @@ fn duplicate_roots_stay_distinct_and_show_parent_context() {
     let roots: Vec<_> = tree.rows.iter().filter(|row| row.depth == 0).collect();
     assert_eq!(roots.len(), 2);
     assert_ne!(roots[0].key, roots[1].key);
-    assert!(roots[0].label.contains("personal"));
-    assert!(roots[1].label.contains("work"));
+    assert!(
+        roots
+            .iter()
+            .all(|row| row.record_index.is_some() && row.prefix.is_empty())
+    );
+    assert_eq!(tree.rows.len(), 2);
     assert_eq!(
         tree.rows
             .iter()
@@ -190,23 +193,22 @@ fn folding_navigation_and_focus_record_respect_boundaries() {
     assert_eq!(tree.rows[tree.focused].label, "nested");
     tree.collapse_or_parent();
     assert!(!tree.rows[tree.focused].expanded);
-    assert_eq!(tree.rows.len(), 4);
+    assert_eq!(tree.rows.len(), 3);
     tree.collapse_or_parent();
     assert_eq!(tree.rows[tree.focused].label, "domain");
     tree.collapse_or_parent();
-    assert_eq!(tree.rows.len(), 3);
+    assert_eq!(tree.rows.len(), 2);
     assert!(tree.focus_record(0));
-    assert_eq!(tree.rows.len(), 5);
+    assert_eq!(tree.rows.len(), 4);
     tree.focused = 0;
     tree.collapse_or_parent();
-    assert_eq!(tree.rows.len(), 1);
+    assert_eq!(tree.rows.len(), 2);
     tree.move_focus(false);
-    tree.move_focus(true);
     assert_eq!(tree.focused, 0);
     tree.expand_or_child();
-    assert_eq!(tree.rows.len(), 5);
+    assert_eq!(tree.rows.len(), 4);
     tree.expand_or_child();
-    assert_eq!(tree.rows[tree.focused].label, "domain");
+    assert_eq!(tree.rows[tree.focused].label, "nested");
     tree.toggle_focused();
     let focused = tree.rows[tree.focused].key.clone();
     tree.rebuild(
@@ -236,13 +238,13 @@ fn unassociated_records_match_nearest_source_without_existing_files() {
         ],
         Path::new("/managed/specs"),
     );
-    assert_eq!(tree.rows[0].key, "source:inner");
-    assert_eq!(tree.rows[0].label, "missions");
-    assert_eq!(tree.rows[1].label, "zeller");
+    assert_eq!(tree.rows[0].key, "source:inner/folder:zeller");
+    assert_eq!(tree.rows[0].label, "zeller");
+    assert_eq!(tree.rows[0].depth, 0);
 }
 
 #[test]
-fn legacy_and_external_roots_never_expose_managed_uuid_directory_as_domain() {
+fn legacy_and_external_records_are_loose_without_synthetic_section_labels() {
     let mut managed = record("managed", "/app/items/specs/uuid.md", None, None);
     managed.ownership = "managed".into();
     let records = [
@@ -258,9 +260,13 @@ fn legacy_and_external_roots_never_expose_managed_uuid_directory_as_domain() {
         .filter(|row| row.depth == 0)
         .map(|row| row.label.as_str())
         .collect();
-    assert!(roots.contains(&"Inbox specs"));
-    assert!(roots.contains(&"/personal/specs"));
-    assert!(roots.contains(&"/work/specs"));
+    assert_eq!(roots.len(), 3);
+    assert!(!roots.contains(&"Inbox specs"));
+    assert!(
+        tree.rows
+            .iter()
+            .all(|row| row.record_index.is_some() && row.depth == 0 && row.prefix.is_empty())
+    );
     assert_eq!(
         tree.rows
             .iter()
@@ -312,9 +318,9 @@ fn alias_source_matches_physical_paths_and_missing_files() -> crate::store::Resu
         &[source("alias", &alias.to_string_lossy())],
         Path::new("/managed/specs"),
     );
-    assert_eq!(tree.rows[0].key, "source:alias");
-    assert_eq!(tree.rows[1].label, "nested");
-    assert_eq!(tree.rows[2].path, missing);
+    assert_eq!(tree.rows[0].key, "source:alias/folder:nested");
+    assert_eq!(tree.rows[0].label, "nested");
+    assert_eq!(tree.rows[1].path, missing);
     std::fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -336,9 +342,9 @@ fn recorded_source_identity_wins_over_overlapping_roots() {
         ],
         Path::new("/managed/specs"),
     );
-    assert_eq!(tree.rows[0].key, "source:outer");
-    assert_eq!(tree.rows[1].label, "missions");
-    assert_eq!(tree.rows[2].label, "zeller");
+    assert_eq!(tree.rows[0].key, "source:outer/folder:missions");
+    assert_eq!(tree.rows[0].label, "missions");
+    assert_eq!(tree.rows[1].label, "zeller");
 }
 
 #[test]
@@ -373,4 +379,56 @@ fn semantic_titles_do_not_change_filename_order() {
     assert_eq!(leaves[two].label, "Z last alphabetically");
     assert!(leaves.iter().any(|row| row.label == "Human readable spec"));
     assert!(!leaves.iter().any(|row| row.label == "uuid.md"));
+}
+
+#[test]
+fn immediate_children_sort_globally_without_merging_same_named_domains() {
+    let records = [
+        record("z", "/one/zeta/a.md", Some("one"), Some("zeta/a.md")),
+        record("a", "/two/alpha/a.md", Some("two"), Some("alpha/a.md")),
+        record(
+            "d1",
+            "/one/designs/one.md",
+            Some("one"),
+            Some("designs/one.md"),
+        ),
+        record(
+            "d2",
+            "/two/designs/two.md",
+            Some("two"),
+            Some("designs/two.md"),
+        ),
+        record("ten", "/one/spec10.md", Some("one"), Some("spec10.md")),
+        record("two", "/two/spec2.md", Some("two"), Some("spec2.md")),
+    ];
+    let mut tree = Tree::default();
+    tree.rebuild(
+        &records,
+        &[source("one", "/one"), source("two", "/two")],
+        Path::new("/managed/specs"),
+    );
+    let top: Vec<_> = tree.rows.iter().filter(|row| row.depth == 0).collect();
+    assert_eq!(
+        top.iter().map(|row| row.label.as_str()).collect::<Vec<_>>(),
+        vec![
+            "alpha",
+            "designs",
+            "designs",
+            "zeta",
+            "spec2.md",
+            "spec10.md"
+        ]
+    );
+    assert!(top.iter().all(|row| row.prefix.is_empty()));
+    assert_ne!(top[1].key, top[2].key);
+    tree.focused = tree
+        .rows
+        .iter()
+        .position(|row| row.key == "source:one/folder:designs")
+        .unwrap();
+    tree.toggle_focused();
+    assert!(!tree.rows.iter().any(|row| row.key == "record:d1"));
+    assert!(tree.rows.iter().any(|row| row.key == "record:d2"));
+    assert!(tree.focus_record(2));
+    assert_eq!(tree.selected_record(), Some(2));
 }

@@ -131,7 +131,10 @@ fn feedback_stays_beside_its_owner_without_moving_nodes_or_action_slots() -> Res
                 assert_eq!(cell.fg, Color::LightGreen);
                 assert_eq!(cell.bg, Color::Reset);
             }
-            let footer = (height.saturating_sub(3)..height)
+            let footer_start = (0..height)
+                .find(|&y| row(&terminal, y).contains("j/k stage"))
+                .expect("detail navigation footer must remain visible");
+            let footer = (footer_start..height)
                 .map(|y| row(&terminal, y))
                 .collect::<Vec<_>>()
                 .join("\n");

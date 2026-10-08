@@ -7,6 +7,7 @@ use ratatui::style::Color;
 use std::fs;
 use uuid::Uuid;
 
+mod chrome;
 mod delight;
 mod feedback;
 mod footer;
@@ -162,7 +163,7 @@ fn selected_spec_opens_detail_and_full_reader_then_returns() -> Result<()> {
         .map(|cell| cell.symbol())
         .collect();
     assert!(rendered.contains("FULL SPEC"));
-    assert!(rendered.contains("← Inbox  /  Payment retries  /  FULL SPEC"));
+    assert!(rendered.contains("Inbox / Payment retries / FULL SPEC"));
     assert!(rendered.contains("Retry only transient failures"));
     press(&mut app, KeyCode::Char('r'))?;
     assert_eq!(app.screen, Screen::Detail);

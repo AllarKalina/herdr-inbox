@@ -21,7 +21,7 @@ typography:
     fontSize: "16px"
     fontWeight: 700
 spacing:
-  list-inset-cells: 1
+  list-inset-cells: 2
   detail-inset-columns: 2
   detail-inset-rows: 1
   column-gap-cells: 2
@@ -110,7 +110,9 @@ All content shares one terminal cell grid. Uppercase labels such as `SPEC` and `
 
 ## Layout
 
-The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. The footer is one line: `Enter open · n new · a archive · s settings`, with no connect-folder hint. Setup, rescan, and archive restoration belong in Settings, through **Save and scan** and **Restore archived item**; the latter opens **Archived items**. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
+All screens share one header origin: column two, row one, followed by a blank row before content. `Inbox` stays anchored; subsequent breadcrumb segments identify Settings, archives, scan results, a session flow, or the spec's domain folders and current view. Long ancestry elides before the current location, preserving the anchor and final crumb. Source-boundary folders never become breadcrumb segments. Use the same two-column horizontal inset across list, detail, reader, settings, and auxiliary views; compact detail layouts reclaim bottom space when needed to keep every milestone visible.
+
+The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. The footer is one line: `Enter open · n new · a archive · s settings`, with no connect-folder hint. Setup, rescan, and archive restoration belong in Settings, through **Save and scan** and **Restore archived item**; the latter opens **Archived items**. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
 
 The detail view has a two-cell horizontal and one-cell vertical outer inset. A breadcrumb sits above the main content. At a body width of 78 columns, the spec takes the left side and the interactive `PROGRESS` rail occupies 36 columns on the right, separated by a two-column gap. Below that breakpoint, the rail moves under the spec. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
 
@@ -132,13 +134,13 @@ The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular m
 
 ### Inbox folder tree
 
-Source folders lead a waterfall tree reflecting the user's content hierarchy. Each depth adds three cells; quiet branch guides connect parents and children. Folder, Markdown, and HTML Nerd Font icons establish file type beside readable names. Folder rows leave the workflow columns blank; file rows keep Spec, Jira, Dev, and PR aligned at the right. Deep or long names truncate inside the flexible name column and never displace workflow columns.
+Source boundaries and the synthetic `Inbox specs` folder stay hidden. Real immediate child folders lead a waterfall tree at depth zero; source-level and legacy files remain loose rows. Each deeper level adds three cells; quiet branch guides connect parents and children. Folder, Markdown, and HTML Nerd Font icons establish file type beside readable names. Folder rows leave the workflow columns blank; file rows keep Spec, Jira, Dev, and PR aligned at the right. Deep or long names truncate inside the flexible name column and never displace workflow columns.
 
 A selected row uses a teal fill, Surface One text, and bold weight. Unselected status cells use semantic foreground colors. Hover or keyboard movement changes selection without changing the column grid. Enter and folder clicks toggle expansion; Left/Right collapse, expand, or move between parent and child. Expansion and focus survive refreshes. The main footer stays minimal; setup, filters, rescanning, and restoration remain in Settings. Keep the flat transparent canvas and terminal Catppuccin roles rather than introducing nested cards.
 
 ### Breadcrumb and spec
 
-The breadcrumb retains the full path while coloring only the current location teal. `SPEC` introduces a text preview; opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
+The shared breadcrumb shows domain folders and the spec title, with the current location teal. The full reader appends `FULL SPEC`; long ancestry shortens before the final crumb. `SPEC` introduces a text preview; opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
 
 ### Milestone navigation
 

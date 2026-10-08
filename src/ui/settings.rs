@@ -1,7 +1,7 @@
 use super::{App, Screen};
 use crate::store::{Result, Settings, SpecSource};
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::{Constraint, Layout, Margin};
+use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
@@ -332,43 +332,26 @@ fn save(app: &mut App) -> Result<()> {
 }
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
-    let area = frame.area().inner(Margin {
-        horizontal: 2,
-        vertical: 1,
-    });
+    let area = super::chrome::content(frame.area());
     let blocks = Layout::vertical([
-        Constraint::Length(1),
         Constraint::Length(2),
         Constraint::Min(3),
         Constraint::Length(if app.settings.edit.is_some() { 4 } else { 0 }),
         Constraint::Length(4),
     ])
     .split(area);
-    let title = if app.settings.first_use {
-        "Inbox / Connect your specs"
-    } else {
-        "Inbox / Settings"
-    };
-    frame.render_widget(
-        Paragraph::new(title).style(
-            Style::default()
-                .fg(Color::LightCyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        blocks[0],
-    );
     frame.render_widget(
         Paragraph::new("Your folders stay in place. Metadata stays on this Mac.")
             .style(Style::default().fg(Color::Gray))
             .wrap(Wrap { trim: false }),
-        blocks[1],
+        blocks[0],
     );
     let rows = app.settings.rows();
     let offset = app
         .settings
         .selected
         .saturating_add(1)
-        .saturating_sub(blocks[2].height as usize);
+        .saturating_sub(blocks[1].height as usize);
     let lines = rows
         .iter()
         .enumerate()
@@ -402,11 +385,11 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
             ])
         })
         .collect::<Vec<_>>();
-    frame.render_widget(Paragraph::new(lines), blocks[2]);
+    frame.render_widget(Paragraph::new(lines), blocks[1]);
     if app.settings.edit.is_some() {
         let mut lines =
             vec![Line::from(app.settings.label()).style(Style::default().fg(Color::LightBlue))];
-        let width = blocks[3].width.saturating_sub(1) as usize;
+        let width = blocks[2].width.saturating_sub(1) as usize;
         let tail = app
             .settings
             .input
@@ -426,7 +409,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
         } else {
             lines.push(Line::from(format!("{tail}█")));
         }
-        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), blocks[3]);
+        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), blocks[2]);
     }
     let help = if app.settings.edit.is_some() {
         "Enter accept · Esc cancel"
@@ -434,13 +417,13 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
         "j/k move · Enter choose · s save\np path · a specs · c ctx · d rm"
     };
     let message = if app.message.is_empty()
-        && rows[app.settings.selected].chars().count() > blocks[2].width as usize
+        && rows[app.settings.selected].chars().count() > blocks[1].width as usize
     {
         "Left/Right scroll long paths"
     } else {
         app.message.as_str()
     };
-    let footer = Layout::vertical([Constraint::Length(2), Constraint::Length(2)]).split(blocks[4]);
+    let footer = Layout::vertical([Constraint::Length(2), Constraint::Length(2)]).split(blocks[3]);
     frame.render_widget(
         Paragraph::new(message)
             .style(Style::default().fg(if app.settings.error {

@@ -11,7 +11,9 @@ command = ["cargo", "build", "--release", "--locked", "--bin", "herdr-inbox"]
 
 [[panes]]
 id = "inbox"
-title = "Inbox"
+# Herdr requires a nonempty title; a zero-width space leaves the frame unlabeled.
+# The application renders its own anchored Inbox breadcrumb inside the popup.
+title = "\u200B"
 placement = "popup"
 width = "85%"
 height = "85%"

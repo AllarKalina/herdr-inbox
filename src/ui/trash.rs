@@ -1,7 +1,7 @@
 use super::{App, Screen};
 use crate::store::Result;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::{Constraint, Layout, Margin};
+use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
@@ -44,29 +44,17 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
 }
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
-    let area = frame.area().inner(Margin {
-        horizontal: 2,
-        vertical: 1,
-    });
+    let area = super::chrome::content(frame.area());
     let blocks = Layout::vertical([
-        Constraint::Length(2),
         Constraint::Min(2),
         Constraint::Length(5),
         Constraint::Length(2),
     ])
     .split(area);
-    frame.render_widget(
-        Paragraph::new("Inbox / Archived items").style(
-            Style::default()
-                .fg(Color::LightCyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        blocks[0],
-    );
     let offset = app
         .trash_selected
         .saturating_add(1)
-        .saturating_sub(blocks[1].height as usize);
+        .saturating_sub(blocks[0].height as usize);
     let lines = if app.trash.is_empty() {
         vec![
             Line::from("No archived items. Esc goes back.").style(Style::default().fg(Color::Gray)),
@@ -96,7 +84,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
             })
             .collect()
     };
-    frame.render_widget(Paragraph::new(lines), blocks[1]);
+    frame.render_widget(Paragraph::new(lines), blocks[0]);
     if let Some(record) = app.trash.get(app.trash_selected) {
         frame.render_widget(
             Paragraph::new(format!(
@@ -105,12 +93,12 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
                 record.spec_path.display()
             ))
             .wrap(Wrap { trim: false }),
-            blocks[2],
+            blocks[1],
         );
     }
     frame.render_widget(
         Paragraph::new("j/k choose · Enter restore\nEsc back")
             .style(Style::default().fg(Color::Gray)),
-        blocks[3],
+        blocks[2],
     );
 }
