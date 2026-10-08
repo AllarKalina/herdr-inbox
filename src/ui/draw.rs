@@ -41,15 +41,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
                     popup.height.saturating_sub(6),
                 ),
             );
-            frame.render_widget(
-                Paragraph::new("j/k choose").style(Style::default().fg(Color::Gray)),
-                Rect::new(
-                    popup.x + 1,
-                    popup.bottom().saturating_sub(1),
-                    popup.width.saturating_sub(2),
-                    1,
-                ),
-            );
+            let footer = super::chrome::footer_area(frame.area());
+            super::chrome::draw_footer(frame, choice_commands(footer.width));
         } else {
             detail::draw(frame, app);
         }
@@ -141,6 +134,14 @@ fn draw_client_choices(frame: &mut ratatui::Frame, app: &App, selected: usize, a
 const COMMANDS: &str = "Enter open · n new · a archive · s settings";
 const CHOICE_COMMANDS: &str = "j/k choose · Enter continue · Esc cancel";
 
+fn choice_commands(width: u16) -> &'static str {
+    if usize::from(width) >= CHOICE_COMMANDS.chars().count() {
+        CHOICE_COMMANDS
+    } else {
+        "j/k · Enter continue · Esc cancel"
+    }
+}
+
 pub(super) fn footer_text(app: &App, width: u16) -> String {
     let commands = if usize::from(width) >= COMMANDS.chars().count() {
         COMMANDS
@@ -148,12 +149,7 @@ pub(super) fn footer_text(app: &App, width: u16) -> String {
         "↵ · n new · a archive · s settings"
     };
     if app.choice_selected.is_some() {
-        if usize::from(width) >= CHOICE_COMMANDS.chars().count() {
-            CHOICE_COMMANDS
-        } else {
-            "j/k · Enter continue · Esc cancel"
-        }
-        .into()
+        choice_commands(width).into()
     } else if matches!(app.prompt.as_ref(), Some(Prompt::Archive { .. })) {
         "Enter archive this item · Esc cancel".into()
     } else if app.prompt.is_some() {

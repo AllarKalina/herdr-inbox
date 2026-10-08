@@ -13,6 +13,22 @@ pub(super) fn content(area: Rect) -> Rect {
     )
 }
 
+/// Bottom navigation row shared by every screen: the last content row, at the content inset.
+pub(super) fn footer_area(area: Rect) -> Rect {
+    let content = content(area);
+    Rect::new(
+        content.x,
+        content.bottom().saturating_sub(1),
+        content.width,
+        1.min(content.height),
+    )
+}
+
+/// Draws shortcut hints with the main list's placement and unstyled terminal foreground.
+pub(super) fn draw_footer(frame: &mut ratatui::Frame, hints: &str) {
+    frame.render_widget(Paragraph::new(hints), footer_area(frame.area()));
+}
+
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
     let area = frame.area();
     let header = Rect::new(

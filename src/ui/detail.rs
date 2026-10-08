@@ -2,7 +2,6 @@ use super::{App, Screen, progress};
 use crate::store::Record;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
-use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph, Wrap};
 use std::fs;
 
@@ -53,17 +52,20 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
         draw_spec(frame, record, rows[0]);
         progress::draw(frame, app, record, rows[1]);
     }
-    let mut footer = Vec::new();
-    if areas[1].height >= 3 {
-        footer.push(Line::default());
-    }
-    footer.push(
-        Line::from("j/k stage · Tab action · r read").style(Style::default().fg(Color::Gray)),
-    );
+    super::chrome::draw_footer(frame, "j/k stage · Tab action · r read");
     if !app.message.is_empty() {
-        footer.push(Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)));
+        // Roomy layouts reserve the row above the shortcuts; short ones use the reclaimed inset.
+        let hints = super::chrome::footer_area(frame.area());
+        let y = if areas[1].height >= 3 {
+            hints.y.saturating_sub(1)
+        } else {
+            hints.y.saturating_add(1)
+        };
+        frame.render_widget(
+            Paragraph::new(app.message.as_str()).style(Style::default().fg(Color::LightGreen)),
+            Rect::new(hints.x, y, hints.width, 1),
+        );
     }
-    frame.render_widget(Paragraph::new(footer), areas[1]);
 }
 
 fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
@@ -113,13 +115,7 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     };
     app.reader_scroll = app.reader_scroll.min(app.reader_max_scroll);
     frame.render_widget(paragraph.scroll((app.reader_scroll, 0)), areas[0]);
-    frame.render_widget(
-        Paragraph::new(vec![
-            Line::default(),
-            Line::from("j/k scroll · Shift+J/K 10 lines").style(Style::default().fg(Color::Gray)),
-        ]),
-        areas[1],
-    );
+    super::chrome::draw_footer(frame, "j/k scroll · Shift+J/K 10 lines");
 }
 
 fn spec_text(record: &Record) -> String {

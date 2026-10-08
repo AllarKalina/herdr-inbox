@@ -153,8 +153,5 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             ),
         );
     }
-    frame.render_widget(
-        Paragraph::new("Enter change · Esc back").style(Style::default().fg(Color::Gray)),
-        Rect::new(area.x, area.bottom() - 1, area.width, 1),
-    );
+    super::chrome::draw_footer(frame, "Enter change · Esc back");
 }

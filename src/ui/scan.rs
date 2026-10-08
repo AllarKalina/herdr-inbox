@@ -54,9 +54,5 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .saturating_sub(blocks[1].height as usize)
         .min(u16::MAX as usize) as u16;
     frame.render_widget(content.scroll((app.reader_scroll, 0)), blocks[1]);
-    frame.render_widget(
-        Paragraph::new("j/k scroll · s settings\nEnter / Esc back to Inbox")
-            .style(Style::default().fg(Color::Gray)),
-        blocks[2],
-    );
+    super::chrome::draw_footer(frame, "j/k scroll · s settings · Esc back");
 }

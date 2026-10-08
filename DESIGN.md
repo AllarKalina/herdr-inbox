@@ -93,7 +93,7 @@ The active Ghostty profile supplies the Catppuccin Mocha palette. Its source is 
 ### Neutral
 
 - **Mocha Base:** the terminal canvas behind the popup, not an additional fill painted by the inbox.
-- **Subtext Zero:** secondary labels, column headers, breadcrumbs, and shortcuts.
+- **Subtext Zero:** secondary labels, column headers, and breadcrumbs. Bottom navigation uses the terminal's default foreground, as on the main list.
 - **Surface Two:** locked stages and the progress spine. **Surface One:** foreground on teal selections.
 
 **The Host Owns the Canvas Rule.** Never paint an opaque full-screen rectangle merely to recreate Mocha Base. The existing Ghostty profile uses a translucent background; Herdr's panel background is reset.
@@ -110,7 +110,7 @@ All content shares one terminal cell grid. Uppercase labels such as `SPEC` and `
 
 ## Layout
 
-All screens share one header origin: column two, row one, followed by a blank row before content. `Inbox` stays anchored; subsequent breadcrumb segments identify Settings, a session flow, or the spec's domain folders and current view. Only the final segment is bold teal; ancestors and separators use Subtext Zero. On the main list, `Inbox` is itself the final segment. Settings always uses `Inbox / Settings`, including first use. Long ancestry elides before the current location, preserving the anchor and final crumb. Source-boundary folders never become breadcrumb segments. Use the same two-column horizontal inset for content and bottom navigation across list, detail, reader, settings, and auxiliary views; compact detail layouts reclaim bottom space when needed to keep every milestone visible.
+All screens share one header origin: column two, row one, followed by a blank row before content. `Inbox` stays anchored; subsequent breadcrumb segments identify Settings, a session flow, or the spec's domain folders and current view. Only the final segment is bold teal; ancestors and separators use Subtext Zero. On the main list, `Inbox` is itself the final segment. Settings always uses `Inbox / Settings`, including first use. Long ancestry elides before the current location, preserving the anchor and final crumb. Source-boundary folders never become breadcrumb segments. Use the same two-column horizontal inset for content and bottom navigation across list, detail, reader, settings, and auxiliary views. Bottom navigation is one unstyled shortcut line on the same row everywhere: the second row from the bottom edge, matching the main list. Client choice and scan results use that row too, instead of hints inside their own content. Status messages take the row above it; short detail layouts place them in the reclaimed bottom inset instead; compact detail layouts reclaim bottom space when needed to keep every milestone visible.
 
 The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. The footer is one line: `Enter open · n new · a archive · s settings`, with no connect-folder hint. Settings exposes only the current specs folder and **Change**, which opens the native selector and immediately applies and scans a chosen folder. Archive restoration stays in the CLI. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
 

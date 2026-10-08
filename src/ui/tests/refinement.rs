@@ -146,7 +146,7 @@ fn refinement_client_choices_remain_readable_at_compact_sizes() -> Result<()> {
                 .join("\n");
             assert!(text.contains(Profile::Opus.label()));
             assert!(text.contains(Profile::Codex.label()));
-            assert!(text.contains("j/k choose"));
+            assert!(text.contains("Enter continue · Esc cancel"));
             for unrelated in ["PROGRESS", "JIRA ACTIONS", "j/k stage", "Bind Jira ticket"] {
                 assert!(
                     !text.contains(unrelated),

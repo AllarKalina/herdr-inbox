@@ -131,3 +131,58 @@ fn spec_navigation_keeps_shared_inset_without_relink_edit_or_archive_shortcuts()
     fs::remove_dir_all(root)?;
     Ok(())
 }
+
+#[test]
+fn every_screen_keeps_the_main_list_shortcut_row_and_styling() -> Result<()> {
+    use super::proximity::Fixture;
+    for (width, height) in [(40, 18), (60, 24), (100, 35)] {
+        let mut fixture = Fixture::new(1)?;
+        let app = &mut fixture.app;
+        let id = app.current().unwrap().id.clone();
+        let shortcut_row = |app: &mut App, label: &str, hint: &str| -> Result<()> {
+            let mut terminal = Terminal::new(TestBackend::new(width, height))?;
+            terminal.draw(|frame| draw::draw(frame, app))?;
+            let buffer = terminal.backend().buffer();
+            let rows: Vec<String> = (0..height)
+                .map(|y| (0..width).map(|x| buffer[(x, y)].symbol()).collect())
+                .collect();
+            let found: Vec<_> = (0..height)
+                .filter(|&y| rows[y as usize].contains(hint))
+                .collect();
+            assert_eq!(
+                found,
+                [height - 2],
+                "{label} at {width}x{height}: {rows:#?}"
+            );
+            let line = &rows[usize::from(height - 2)];
+            let start = line.chars().position(|ch| !ch.is_whitespace());
+            assert_eq!(start, Some(2), "{label} inset");
+            for (x, ch) in line.chars().enumerate() {
+                if !ch.is_whitespace() {
+                    let cell = &buffer[(x as u16, height - 2)];
+                    assert_eq!(cell.fg, Color::Reset, "{label} foreground");
+                    assert_eq!(cell.bg, Color::Reset, "{label} background");
+                }
+            }
+            Ok(())
+        };
+        app.screen = Screen::List;
+        shortcut_row(app, "list", "a archive")?;
+        app.screen = Screen::Detail;
+        shortcut_row(app, "detail", "j/k stage")?;
+        app.message = "Saved".into();
+        shortcut_row(app, "detail with message", "j/k stage")?;
+        app.message.clear();
+        app.choose_client(ChoicePurpose::Refine { id }, vec![Profile::Opus]);
+        shortcut_row(app, "refine chooser", "Esc cancel")?;
+        app.choice_selected = None;
+        app.screen = Screen::Reader;
+        shortcut_row(app, "reader", "j/k scroll")?;
+        app.screen = Screen::Settings;
+        shortcut_row(app, "settings", "Enter change")?;
+        app.scan_issues = vec!["Folder unavailable".into()];
+        app.screen = Screen::ScanResult;
+        shortcut_row(app, "scan results", "Esc back")?;
+    }
+    Ok(())
+}
