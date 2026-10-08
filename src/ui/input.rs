@@ -11,9 +11,6 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     if app.screen == Screen::ScanResult {
         return super::scan::handle_key(app, key);
     }
-    if app.screen == Screen::Trash {
-        return super::trash::handle_key(app, key);
-    }
     if app.screen == Screen::Settings {
         return super::settings::handle_key(app, key);
     }
@@ -252,10 +249,10 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
 }
 
 pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, _height: u16) -> Result<()> {
-    if matches!(
-        app.screen,
-        Screen::Settings | Screen::Trash | Screen::ScanResult
-    ) {
+    if app.screen == Screen::Settings {
+        return super::settings::handle_mouse(app, mouse).map(|_| ());
+    }
+    if app.screen == Screen::ScanResult {
         return Ok(());
     }
     if app.screen == Screen::Reader {

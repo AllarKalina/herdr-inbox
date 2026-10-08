@@ -5,7 +5,7 @@ fn press(app: &mut App, code: KeyCode) -> Result<bool> {
 }
 
 #[test]
-fn minimal_footer_is_one_line_and_setup_shortcuts_only_work_in_settings() -> Result<()> {
+fn minimal_footer_is_one_line_and_folder_change_scans_immediately_in_settings() -> Result<()> {
     let root = std::env::temp_dir().join(format!("inbox-minimal-menu-{}", Uuid::new_v4()));
     let store = configured_store(root.join("data"))?;
     let record = store.start("Existing item", None, None)?;
@@ -60,18 +60,15 @@ fn minimal_footer_is_one_line_and_setup_shortcuts_only_work_in_settings() -> Res
     assert!(app.store.get(&record.id).is_ok());
     let specs = root.join("chosen folder");
     fs::create_dir(&specs)?;
-    let mut settings = app.store.settings()?;
-    settings
-        .sources
-        .push(crate::store::SpecSource::new(specs.clone())?);
-    app.store.save_settings(&settings)?;
     fs::write(specs.join("new.md"), "# New item\n")?;
     press(&mut app, KeyCode::Char('S'))?;
     assert_eq!(app.records.len(), 1);
     press(&mut app, KeyCode::Char('s'))?;
     assert_eq!(app.screen, Screen::Settings);
-    press(&mut app, KeyCode::Char('s'))?;
-    assert_eq!(app.records.len(), 2);
+    super::super::picker::set_test_result(Ok(Some(specs)));
+    press(&mut app, KeyCode::Enter)?;
+    assert_eq!(app.records.len(), 1);
+    assert_eq!(app.records[0].title, "New item");
     fs::remove_dir_all(root)?;
     Ok(())
 }

@@ -2,30 +2,23 @@ use crate::store::Result;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-#[derive(Clone, Copy)]
-pub(super) enum Kind {
-    Folder,
-    Context,
-}
-
 // Paths arrive through argv and leave as JSON; neither shell nor JavaScript
 // interprets a user-selected filename.
 const SCRIPT: &str = r#"
 ObjC.import('AppKit');
 function run(argv) {
-    const context = argv[0] === 'context';
     const app = $.NSApplication.sharedApplication;
     app.setActivationPolicy(Number($.NSApplicationActivationPolicyAccessory));
     const panel = $.NSOpenPanel.openPanel;
-    panel.title = context ? 'Choose context file or folder' : 'Choose specs folder';
+    panel.title = 'Choose specs folder';
     panel.prompt = 'Choose';
     panel.canChooseDirectories = true;
-    panel.canChooseFiles = context;
+    panel.canChooseFiles = false;
     panel.allowsMultipleSelection = false;
     panel.resolvesAliases = true;
     panel.canCreateDirectories = false;
-    if (argv[1]) {
-        panel.directoryURL = $.NSURL.fileURLWithPath(argv[1]);
+    if (argv[0]) {
+        panel.directoryURL = $.NSURL.fileURLWithPath(argv[0]);
     }
     app.activateIgnoringOtherApps(true);
     panel.makeKeyAndOrderFront(null);
@@ -36,14 +29,7 @@ function run(argv) {
 }
 "#;
 
-fn command(kind: Kind, initial: Option<&Path>) -> Result<Command> {
-    let initial = initial.map(|path| {
-        if path.is_file() {
-            path.parent().unwrap_or(path)
-        } else {
-            path
-        }
-    });
+fn command(initial: Option<&Path>) -> Result<Command> {
     let initial = initial
         .map(|path| {
             path.to_str()
@@ -52,10 +38,6 @@ fn command(kind: Kind, initial: Option<&Path>) -> Result<Command> {
         .transpose()?;
     let mut command = Command::new("/usr/bin/osascript");
     command.args(["-l", "JavaScript", "-e", SCRIPT]);
-    command.arg(match kind {
-        Kind::Folder => "folder",
-        Kind::Context => "context",
-    });
     command.arg(initial.unwrap_or(""));
     Ok(command)
 }
@@ -65,7 +47,7 @@ fn decode(output: Output) -> Result<Option<PathBuf>> {
         let detail = String::from_utf8_lossy(&output.stderr);
         let detail = detail.trim();
         return Err(format!(
-            "Could not open the macOS selector: {}. Try again or enter the path manually",
+            "Could not open the macOS selector: {}. Try again",
             if detail.is_empty() {
                 "osascript did not finish successfully"
             } else {
@@ -74,9 +56,8 @@ fn decode(output: Output) -> Result<Option<PathBuf>> {
         )
         .into());
     }
-    let path: Option<String> = serde_json::from_slice(&output.stdout).map_err(
-        |_| "The macOS selector returned an invalid path; try again or enter the path manually",
-    )?;
+    let path: Option<String> = serde_json::from_slice(&output.stdout)
+        .map_err(|_| "The macOS selector returned an invalid path; try again")?;
     path.map(|value| {
         let path = PathBuf::from(value);
         if path.is_absolute() {
@@ -89,10 +70,10 @@ fn decode(output: Output) -> Result<Option<PathBuf>> {
 }
 
 #[cfg(not(test))]
-pub(super) fn choose(kind: Kind, initial: Option<&Path>) -> Result<Option<PathBuf>> {
-    let output = command(kind, initial)?.output().map_err(|error| {
-        format!("Could not start the macOS selector: {error}. Enter the path manually instead")
-    })?;
+pub(super) fn choose(initial: Option<&Path>) -> Result<Option<PathBuf>> {
+    let output = command(initial)?
+        .output()
+        .map_err(|error| format!("Could not start the macOS selector: {error}. Try again"))?;
     decode(output)
 }
 
@@ -108,7 +89,7 @@ pub(crate) fn set_test_result(result: Result<Option<PathBuf>>) {
 }
 
 #[cfg(test)]
-pub(super) fn choose(_kind: Kind, _initial: Option<&Path>) -> Result<Option<PathBuf>> {
+pub(super) fn choose(_initial: Option<&Path>) -> Result<Option<PathBuf>> {
     TEST_RESULTS.with(|results| results.borrow_mut().pop_front().unwrap_or(Ok(None)))
 }
 
@@ -143,7 +124,7 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("GUI unavailable"));
-        assert!(error.contains("enter the path manually"));
+        assert!(error.contains("Try again"));
         for invalid in ["", "broken JSON", "42", "\"relative/path\"", "\"\""] {
             assert!(decode(output(invalid.as_bytes().to_vec(), true, "")).is_err());
         }
@@ -152,14 +133,13 @@ mod tests {
     #[test]
     fn path_is_passed_as_an_argument_to_a_static_script() {
         let path = Path::new("/tmp/'\"日本語\n$(touch never)");
-        let command = command(Kind::Context, Some(path)).unwrap();
+        let command = command(Some(path)).unwrap();
         assert_eq!(command.get_program(), "/usr/bin/osascript");
         let args: Vec<_> = command.get_args().collect();
         assert_eq!(args[3], SCRIPT);
-        assert_eq!(args[4], "context");
-        assert_eq!(args[5], path.as_os_str());
+        assert_eq!(args[4], path.as_os_str());
         assert!(!SCRIPT.contains(path.to_str().unwrap()));
-        assert!(SCRIPT.contains("panel.canChooseFiles = context"));
+        assert!(SCRIPT.contains("panel.canChooseFiles = false"));
         assert!(SCRIPT.contains("panel.canChooseDirectories = true"));
         assert!(SCRIPT.contains("panel.allowsMultipleSelection = false"));
         assert!(SCRIPT.contains("JSON.stringify(ObjC.unwrap(panel.URL.path))"));
@@ -167,32 +147,13 @@ mod tests {
 
     #[test]
     fn folder_command_and_mock_results_do_not_open_a_native_panel() {
-        let command = command(Kind::Folder, None).unwrap();
+        let command = command(None).unwrap();
         let args: Vec<_> = command.get_args().collect();
-        assert_eq!(args[4], "folder");
-        assert_eq!(args[5], "");
+        assert_eq!(args[4], "");
         set_test_result(Ok(Some("/tmp/specs".into())));
-        assert_eq!(
-            choose(Kind::Folder, None).unwrap(),
-            Some("/tmp/specs".into())
-        );
-        assert_eq!(choose(Kind::Folder, None).unwrap(), None);
+        assert_eq!(choose(None).unwrap(), Some("/tmp/specs".into()));
+        assert_eq!(choose(None).unwrap(), None);
         set_test_result(Err("picker failed".into()));
-        assert!(choose(Kind::Context, None).is_err());
-    }
-
-    #[test]
-    fn existing_context_file_starts_the_panel_in_its_parent_folder() {
-        let root = std::env::temp_dir().join(format!("herdr-picker-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir(&root).unwrap();
-        let file = root.join("context notes.md");
-        std::fs::write(&file, "context").unwrap();
-        let command = command(Kind::Context, Some(&file)).unwrap();
-        let args: Vec<_> = command.get_args().collect();
-        assert_eq!(args[5], root.as_os_str());
-        // Only the starting directory changes; a selected file remains a file.
-        let selected = serde_json::to_vec(file.to_str().unwrap()).unwrap();
-        assert_eq!(decode(output(selected, true, "")).unwrap(), Some(file));
-        std::fs::remove_dir_all(root).unwrap();
+        assert!(choose(None).is_err());
     }
 }

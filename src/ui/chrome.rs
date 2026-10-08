@@ -44,17 +44,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
 
 fn crumbs(app: &App) -> Vec<String> {
     match app.screen {
-        Screen::Settings => {
-            return vec![
-                if app.settings.first_use {
-                    "Connect your specs"
-                } else {
-                    "Settings"
-                }
-                .into(),
-            ];
-        }
-        Screen::Trash => return vec!["Settings".into(), "Archived items".into()],
+        Screen::Settings => return vec!["Settings".into()],
         Screen::ScanResult => return vec!["Settings".into(), "Scan results".into()],
         _ => {}
     }

@@ -11,7 +11,6 @@ mod settings;
 mod submit;
 #[cfg(test)]
 mod tests;
-mod trash;
 mod tree;
 use input::{handle_key, handle_mouse};
 use milestone::Milestone;
@@ -120,9 +119,6 @@ struct App {
     message: String,
     should_exit: bool,
     settings: settings::SettingsView,
-    trash: Vec<Record>,
-    trash_selected: usize,
-    trash_return: Screen,
     scan_issues: Vec<String>,
 }
 
@@ -132,7 +128,6 @@ enum Screen {
     Detail,
     Reader,
     Settings,
-    Trash,
     ScanResult,
 }
 
@@ -241,10 +236,7 @@ impl App {
             feedback: None,
             message: String::new(),
             should_exit: false,
-            settings: settings::SettingsView::new(settings, first_use),
-            trash: Vec::new(),
-            trash_selected: 0,
-            trash_return: Screen::List,
+            settings: settings::SettingsView::new(settings),
             scan_issues: report.issues.clone(),
         })
     }
@@ -256,6 +248,7 @@ impl App {
             .get(self.selected)
             .map(|record| record.id.clone());
         let settings = self.store.settings()?;
+        self.settings.config = settings.clone();
         self.records = self
             .store
             .list()?
@@ -281,7 +274,7 @@ impl App {
         self.tree.rebuild(&self.records, &settings.sources);
         if settings.sources.is_empty() && self.screen != Screen::Settings {
             self.screen = Screen::Settings;
-            self.settings = settings::SettingsView::new(settings, true);
+            self.settings = settings::SettingsView::new(settings);
         }
         if matches!(self.screen, Screen::Detail | Screen::Reader) {
             self.tree.focus_record(self.selected);

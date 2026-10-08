@@ -10,10 +10,6 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         super::scan::draw(frame, app);
         return;
     }
-    if app.screen == Screen::Trash {
-        super::trash::draw(frame, app);
-        return;
-    }
     if app.screen == Screen::Settings {
         super::settings::draw(frame, app);
         return;

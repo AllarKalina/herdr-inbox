@@ -139,18 +139,10 @@ fn every_view_keeps_the_same_inbox_header_anchor_and_current_crumb() -> Result<(
     assert_header(&mut fixture.app, "FULL SPEC", "reader")?;
     super::super::settings::open(&mut fixture.app)?;
     assert_header(&mut fixture.app, "Settings", "settings")?;
-    fixture.app.settings.first_use = true;
-    assert_header(&mut fixture.app, "Connect your specs", "first-use")?;
-    fixture.app.settings.first_use = false;
     fixture.app.screen = Screen::ScanResult;
     fixture.app.scan_issues = vec!["Mock unavailable source".into()];
     assert_header(&mut fixture.app, "Scan results", "scan-results")?;
     let lines = render(&mut fixture.app, 100, 35, "scan-results-domains")?;
-    assert!(lines[1].contains("Settings"));
-    fixture.app.screen = Screen::Trash;
-    fixture.app.trash = fixture.app.records.clone();
-    assert_header(&mut fixture.app, "Archived items", "archived-items")?;
-    let lines = render(&mut fixture.app, 100, 35, "archive-domains")?;
     assert!(lines[1].contains("Settings"));
     assert!(!detail_header.contains("context"));
     Ok(())
