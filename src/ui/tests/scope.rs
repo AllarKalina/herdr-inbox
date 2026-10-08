@@ -118,6 +118,8 @@ fn selected_folder_is_the_only_authority_for_list_open_and_archive() -> Result<(
     assert_eq!(fixture.app.screen, Screen::Reader);
     assert!(render(&mut fixture.app)?.contains("Only selected content."));
     press(&mut fixture.app, KeyCode::Esc)?;
+    press(&mut fixture.app, KeyCode::Esc)?;
+    assert_eq!(fixture.app.screen, Screen::List);
     press(&mut fixture.app, KeyCode::Char('a'))?;
     press(&mut fixture.app, KeyCode::Enter)?;
     assert!(fixture.app.records.is_empty());

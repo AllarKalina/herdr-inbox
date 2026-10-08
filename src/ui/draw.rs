@@ -112,18 +112,9 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             areas[1],
         );
     }
-    let footer_area = Rect::new(
-        areas[2].x.saturating_sub(1),
-        areas[2].y,
-        areas[2].width.saturating_add(2),
-        areas[2].height,
-    );
+    let footer_area = areas[2];
     frame.render_widget(
-        Paragraph::new(if footer_area.width < COMMANDS.chars().count() as u16 {
-            footer_text(app).replace("Enter open", "Enter")
-        } else {
-            footer_text(app)
-        }),
+        Paragraph::new(footer_text(app, footer_area.width)),
         footer_area,
     );
 }
@@ -152,17 +143,28 @@ fn draw_client_choices(frame: &mut ratatui::Frame, app: &App, selected: usize, a
 }
 
 const COMMANDS: &str = "Enter open · n new · a archive · s settings";
+const CHOICE_COMMANDS: &str = "j/k choose · Enter continue · Esc cancel";
 
-pub(super) fn footer_text(app: &App) -> String {
+pub(super) fn footer_text(app: &App, width: u16) -> String {
+    let commands = if usize::from(width) >= COMMANDS.chars().count() {
+        COMMANDS
+    } else {
+        "↵ · n new · a archive · s settings"
+    };
     if app.choice_selected.is_some() {
-        "j/k choose · Enter continue · Esc cancel".into()
+        if usize::from(width) >= CHOICE_COMMANDS.chars().count() {
+            CHOICE_COMMANDS
+        } else {
+            "j/k · Enter continue · Esc cancel"
+        }
+        .into()
     } else if matches!(app.prompt.as_ref(), Some(Prompt::Archive { .. })) {
         "Enter archive this item · Esc cancel".into()
     } else if app.prompt.is_some() {
         "Enter save · Esc cancel".into()
     } else if !app.message.is_empty() {
-        format!("{}\n{COMMANDS}", app.message)
+        format!("{}\n{commands}", app.message)
     } else {
-        COMMANDS.into()
+        commands.into()
     }
 }

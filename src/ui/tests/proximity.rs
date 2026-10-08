@@ -280,66 +280,82 @@ fn long_inline_input_keeps_the_typed_suffix_and_cursor_visible() -> Result<()> {
 }
 
 #[test]
-fn delete_confirmation_stays_beside_the_selected_stage_until_cancelled() -> Result<()> {
+fn removed_detail_keys_leave_spec_workflow_and_draft_unchanged() -> Result<()> {
     for (width, height) in [(40, 18), (100, 35)] {
         for milestone in Milestone::ALL {
             let mut fixture = Fixture::new(4)?;
             fixture.app.select_milestone(milestone);
             render(&mut fixture.app, width, height)?;
             let fixed = coordinates(&fixture.app);
-            press(&mut fixture.app, KeyCode::Char('a'))?;
+            assert_removed_keys_are_inert(&mut fixture.app, Screen::Detail)?;
             let terminal = render(&mut fixture.app, width, height)?;
             assert_continuous_spine(&fixture.app, &terminal);
             assert_eq!(coordinates(&fixture.app), fixed);
-            let (x, y) = actions_origin(&fixture.app);
-            let prompt = panel_text(&terminal, x, y, if roomy(&fixture.app) { 4 } else { 8 });
-            assert!(prompt.contains("Archive Pay"));
-            assert!(prompt.contains('?'));
-            assert!(prompt.contains("Enter archive · Esc"));
-            assert!(fixture.app.action_hitboxes.is_empty());
-            assert_eq!(fixture.app.store.list()?.len(), 1);
-            press(&mut fixture.app, KeyCode::Esc)?;
-            render(&mut fixture.app, width, height)?;
             assert_eq!(fixture.app.milestone_selected, milestone);
-            assert_eq!(fixture.app.store.list()?.len(), 1);
             assert!(!fixture.app.action_hitboxes.is_empty());
-            assert_eq!(coordinates(&fixture.app), fixed);
         }
     }
     Ok(())
 }
 
 #[test]
-fn linked_spec_confirmation_fits_without_hiding_later_nodes() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-inbox-linked-confirm-{}", Uuid::new_v4()));
+fn removed_reader_keys_preserve_linked_file_workflow_and_scroll() -> Result<()> {
+    let root = std::env::temp_dir().join(format!("herdr-inbox-reader-keys-{}", Uuid::new_v4()));
     let store = configured_store(root.clone())?;
     let record = store.start("Linked spec", None, Some(root.join("specs/linked.md")))?;
+    fs::write(&record.spec_path, "# Linked spec\nUser-owned contents.\n")?;
     let mut fixture = Fixture {
         app: App::new(store)?,
         root,
     };
     press(&mut fixture.app, KeyCode::Enter)?;
-    for (width, height) in [(40, 18), (60, 24), (100, 35)] {
-        for milestone in Milestone::ALL {
-            fixture.app.select_milestone(milestone);
-            render(&mut fixture.app, width, height)?;
-            let fixed = coordinates(&fixture.app);
-            press(&mut fixture.app, KeyCode::Char('a'))?;
-            let terminal = render(&mut fixture.app, width, height)?;
-            assert_continuous_spine(&fixture.app, &terminal);
-            assert_eq!(coordinates(&fixture.app), fixed);
-            let (x, y) = actions_origin(&fixture.app);
-            let prompt = panel_text(&terminal, x, y, if roomy(&fixture.app) { 4 } else { 8 });
-            assert!(
-                prompt.contains("Linked spec stays intact.") || prompt.contains("Spec stays put.")
-            );
-            assert!(prompt.contains("Enter archive · Esc"));
-            press(&mut fixture.app, KeyCode::Esc)?;
-            render(&mut fixture.app, width, height)?;
-            assert_eq!(coordinates(&fixture.app), fixed);
-        }
+    press(&mut fixture.app, KeyCode::Char('r'))?;
+    fixture.app.reader_scroll = 3;
+    fixture.app.reader_max_scroll = 10;
+    assert_removed_keys_are_inert(&mut fixture.app, Screen::Reader)?;
+    assert_eq!(fixture.app.reader_scroll, 3);
+    assert_eq!(fixture.app.reader_max_scroll, 10);
+    assert_eq!(
+        fs::read_to_string(&record.spec_path)?,
+        "# Linked spec\nUser-owned contents.\n"
+    );
+    Ok(())
+}
+
+fn assert_removed_keys_are_inert(app: &mut App, screen: Screen) -> Result<()> {
+    let record = app.current().unwrap().clone();
+    let metadata = app
+        .store
+        .path()
+        .join("items")
+        .join(format!("{}.json", record.id));
+    let metadata_before = fs::read(&metadata)?;
+    let spec_before = fs::read(&record.spec_path)?;
+    app.input = "Unsubmitted draft".into();
+    app.message = "Existing feedback".into();
+    for key in ['L', 'e', 'a'] {
+        // `e` must succeed in TestBackend without switching terminal modes or starting an editor.
+        assert!(!handle_key(
+            app,
+            KeyEvent::new(KeyCode::Char(key), KeyModifiers::NONE)
+        )?);
+        assert_eq!(app.screen, screen);
+        assert!(app.prompt.is_none());
+        assert!(app.choice_selected.is_none());
+        assert!(!app.should_exit);
+        assert_eq!(app.input, "Unsubmitted draft");
+        assert_eq!(app.message, "Existing feedback");
+        assert_eq!(fs::read(&metadata)?, metadata_before);
+        assert_eq!(fs::read(&record.spec_path)?, spec_before);
+        assert_eq!(app.store.list()?.len(), 1);
+        assert!(
+            !app.store
+                .path()
+                .join("trash/items")
+                .join(format!("{}.json", record.id))
+                .exists()
+        );
     }
-    assert!(record.spec_path.is_file());
     Ok(())
 }
 

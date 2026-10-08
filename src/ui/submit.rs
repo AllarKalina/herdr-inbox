@@ -41,10 +41,6 @@ impl App {
                 self.store.settle(&id)?;
                 self.message = "Session settled; its spec and progress stay unchanged".into();
             }
-            Prompt::Relink { id } => {
-                let record = self.store.relink(&id, settings::path(&value)?)?;
-                self.message = format!("Relinked {}", record.display_title());
-            }
             Prompt::LaunchTopic {
                 profile,
                 workspace,

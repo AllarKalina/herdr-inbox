@@ -1,12 +1,7 @@
 use super::{App, ChoicePurpose, DetailAction, Milestone, Prompt, Screen};
 use crate::launch;
 use crate::store::{Change, Result};
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
-use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
-};
-use std::io::stdout;
 use std::process::Command;
 
 pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
@@ -118,18 +113,6 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
             KeyCode::PageUp => app.reader_scroll = app.reader_scroll.saturating_sub(15),
             KeyCode::Char('g') => app.reader_scroll = 0,
-            KeyCode::Char('L') => {
-                if let Some(record) = app.current() {
-                    app.begin(Prompt::Relink {
-                        id: record.id.clone(),
-                    });
-                }
-            }
-            KeyCode::Char('e') => {
-                if let Some(record) = app.current() {
-                    open_editor(&record.spec_path)?;
-                }
-            }
             _ => {}
         }
         return Ok(false);
@@ -157,18 +140,6 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                     });
                 }
             }
-            KeyCode::Char('L') => {
-                if let Some(record) = app.current() {
-                    app.begin(Prompt::Relink {
-                        id: record.id.clone(),
-                    });
-                }
-            }
-            KeyCode::Char('e') => {
-                if let Some(record) = app.current() {
-                    open_editor(&record.spec_path)?;
-                }
-            }
             KeyCode::Char('o') => {
                 if let Some(url) = app.current().and_then(|record| record.jira.url.as_deref()) {
                     open_url(url)?;
@@ -183,13 +154,6 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
             KeyCode::Enter if !actions.is_empty() => {
                 start_detail_action(app, actions[app.action_selected])?;
-            }
-            KeyCode::Char('a') => {
-                if let Some(record) = app.current() {
-                    app.begin(Prompt::Archive {
-                        id: record.id.clone(),
-                    });
-                }
             }
             _ => {}
         }
@@ -374,19 +338,6 @@ pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, _height: u16) -> Re
             app.sync_tree_selection();
         }
         _ => {}
-    }
-    Ok(())
-}
-
-fn open_editor(path: &std::path::Path) -> Result<()> {
-    disable_raw_mode()?;
-    crossterm::execute!(stdout(), DisableMouseCapture, LeaveAlternateScreen)?;
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "code".into());
-    let result = Command::new(editor).arg(path).status();
-    crossterm::execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-    enable_raw_mode()?;
-    if !result?.success() {
-        return Err("Editor failed".into());
     }
     Ok(())
 }

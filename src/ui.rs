@@ -50,9 +50,6 @@ enum Prompt {
         repo: Option<PathBuf>,
         spec: Option<PathBuf>,
     },
-    Relink {
-        id: String,
-    },
     Settle {
         id: String,
     },
@@ -86,7 +83,6 @@ impl Prompt {
         match self {
             Self::LaunchWorkspace { .. } => "Herdr workspace",
             Self::LaunchSpec { .. } => "Spec path (blank = first source folder)",
-            Self::Relink { .. } => "Existing spec file to relink",
             Self::Settle { .. } => "Confirm session has ended",
             Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
             Self::LaunchTopic { .. } => "Grilling topic (optional)",

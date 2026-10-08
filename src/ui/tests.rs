@@ -49,7 +49,7 @@ fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
     assert!(app.input.is_empty());
     press(&mut app, KeyCode::Enter)?;
     assert!(app.store.list()?.is_empty());
-    let footer = draw::footer_text(&app);
+    let footer = draw::footer_text(&app, 100);
     assert!(footer.starts_with("Item archived\n"));
     assert!(footer.contains("Enter open · n new · a archive · s settings"));
     assert!(
@@ -76,7 +76,7 @@ fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
         assert!(app.prompt.is_none());
     }
     assert_eq!(app.store.get(&record.id)?.spec, "in_progress");
-    assert!(draw::footer_text(&app).contains("Enter open · n new · a archive · s settings"));
+    assert!(draw::footer_text(&app, 100).contains("Enter open · n new · a archive · s settings"));
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -391,7 +391,7 @@ fn mouse_hover_selects_a_list_item_before_enter() -> Result<()> {
 }
 
 #[test]
-fn detail_delete_still_requires_confirmation_and_returns_to_list() -> Result<()> {
+fn archive_requires_returning_to_list_before_confirmation() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-detail-delete-{}", Uuid::new_v4()));
     let store = configured_store(root.clone())?;
     store.start("Keep until confirmed", None, None)?;
@@ -400,9 +400,9 @@ fn detail_delete_still_requires_confirmation_and_returns_to_list() -> Result<()>
 
     press(&mut app, KeyCode::Enter)?;
     press(&mut app, KeyCode::Char('a'))?;
-    assert!(matches!(app.prompt, Some(Prompt::Archive { .. })));
+    assert!(app.prompt.is_none());
     press(&mut app, KeyCode::Esc)?;
-    assert_eq!(app.screen, Screen::Detail);
+    assert_eq!(app.screen, Screen::List);
     assert_eq!(app.store.list()?.len(), 1);
     press(&mut app, KeyCode::Char('a'))?;
     press(&mut app, KeyCode::Enter)?;

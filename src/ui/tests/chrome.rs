@@ -75,6 +75,41 @@ fn render(app: &mut App, width: u16, height: u16, label: &str) -> Result<Vec<Str
         !lines.iter().any(|line| line.contains("← Inbox")),
         "{label}: duplicate back-arrow header"
     );
+    let header = &cells[1];
+    let final_start = header
+        .iter()
+        .rposition(|cell| cell.symbol() == "/")
+        .map_or(2, |separator| separator + 2);
+    let final_end = header
+        .iter()
+        .rposition(|cell| !cell.symbol().trim().is_empty())
+        .unwrap();
+    for (column, cell) in header.iter().enumerate().take(final_end + 1).skip(2) {
+        if cell.symbol().trim().is_empty() {
+            continue;
+        }
+        if column < final_start {
+            assert_eq!(
+                cell.fg,
+                Color::Gray,
+                "{label}: ancestor at {column} must be muted"
+            );
+            assert!(
+                !cell.modifier.contains(ratatui::style::Modifier::BOLD),
+                "{label}: ancestor at {column} must not be bold"
+            );
+        } else {
+            assert_eq!(
+                cell.fg,
+                Color::LightCyan,
+                "{label}: current crumb at {column} must be teal"
+            );
+            assert!(
+                cell.modifier.contains(ratatui::style::Modifier::BOLD),
+                "{label}: current crumb at {column} must be bold"
+            );
+        }
+    }
     Ok(lines)
 }
 
@@ -170,5 +205,18 @@ fn long_domain_paths_keep_inbox_and_terminal_crumb_readable() -> Result<()> {
     assert_header(&mut fixture.app, "FULL SPEC", "long-reader")?;
     let lines = render(&mut fixture.app, 40, 18, "long-reader-final")?;
     assert!(lines[1].contains('…'));
+    Ok(())
+}
+
+#[test]
+fn list_inbox_is_accented_but_ancestor_inbox_is_muted_in_other_views() -> Result<()> {
+    let mut fixture = Fixture::new()?;
+    assert_header(&mut fixture.app, "Inbox", "accent-list")?;
+    fixture.app.screen = Screen::Detail;
+    assert_header(&mut fixture.app, "Payment retries", "accent-detail")?;
+    fixture.app.screen = Screen::Reader;
+    assert_header(&mut fixture.app, "FULL SPEC", "accent-reader")?;
+    super::super::settings::open(&mut fixture.app)?;
+    assert_header(&mut fixture.app, "Settings", "accent-settings")?;
     Ok(())
 }

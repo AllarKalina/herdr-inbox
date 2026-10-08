@@ -342,9 +342,9 @@ fn tree_deep_long_paths_keep_compact_statuses_and_footer_visible() -> Result<()>
         let footer = lines
             .iter()
             .rev()
-            .find(|line| line.contains("Enter"))
+            .find(|line| line.contains("s settings"))
             .unwrap();
-        assert!(footer.contains("Enter"));
+        assert!(footer.contains("Enter") || footer.contains('↵'));
         assert!(footer.contains("n new"));
         assert!(!lines.join("\n").contains("S scan"));
         assert_eq!(fixture.app.current().unwrap().id, id);

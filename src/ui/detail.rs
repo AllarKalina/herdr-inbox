@@ -60,19 +60,9 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     footer.push(
         Line::from("j/k stage · Tab action · r read").style(Style::default().fg(Color::Gray)),
     );
-    let hint = if record.active_spec_session() {
-        "L relink · x settle · e edit"
-    } else {
-        "L relink · e edit · a archive"
-    };
-    footer.push(
-        Line::from(if app.message.is_empty() {
-            hint
-        } else {
-            app.message.as_str()
-        })
-        .style(Style::default().fg(Color::LightGreen)),
-    );
+    if !app.message.is_empty() {
+        footer.push(Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)));
+    }
     frame.render_widget(Paragraph::new(footer), areas[1]);
 }
 
@@ -134,11 +124,10 @@ fn draw_reader(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
 
 fn spec_text(record: &Record) -> String {
     match fs::read_to_string(&record.spec_path) {
-        Ok(text) if text.trim().is_empty() => "Spec file is empty. Press e to edit it.".into(),
+        Ok(text) if text.trim().is_empty() => "Spec file is empty.".into(),
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            "Spec unavailable. Press L to relink to its current file, or restore the file at its original path."
-                .into()
+            "Spec unavailable. Restore the file at its original path.".into()
         }
         Err(error) => format!("Cannot read spec: {error}"),
     }

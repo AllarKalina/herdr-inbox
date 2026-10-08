@@ -27,7 +27,10 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
         .fg(Color::LightCyan)
         .add_modifier(Modifier::BOLD);
     let muted = Style::default().fg(Color::Gray);
-    let mut spans = vec![Span::styled("Inbox", accent)];
+    let mut spans = vec![Span::styled(
+        "Inbox",
+        if labels.is_empty() { accent } else { muted },
+    )];
     let count = labels.len();
     for (index, label) in labels.into_iter().enumerate() {
         spans.push(Span::styled(" / ", muted));
