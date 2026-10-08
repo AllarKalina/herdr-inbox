@@ -1,4 +1,4 @@
-use crate::settings::SpecSource;
+use crate::settings::{Settings, SpecSource};
 use crate::store::{Result, ScanReport, Store, absolute};
 use crate::{flag, positional, print_record};
 use std::path::PathBuf;
@@ -49,11 +49,11 @@ fn settings(store: &Store, mut args: Vec<String>) -> Result<()> {
     } else {
         args.remove(0)
     };
-    let mut settings = store.settings()?;
     match action.as_str() {
         "show" => {
             let json = switch(&mut args, "--json");
             positional(&args, 0)?;
+            let settings = store.settings()?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&settings)?);
             } else {
@@ -65,6 +65,27 @@ fn settings(store: &Store, mut args: Vec<String>) -> Result<()> {
             }
             return Ok(());
         }
+        "relocate-source" => {
+            if !switch(&mut args, "--confirm") {
+                return Err(
+                    "Relocation requires --confirm; use add-source for unrelated content".into(),
+                );
+            }
+            positional(&args, 2)?;
+            print_scan(&store.relocate_source(&args[0], PathBuf::from(&args[1]))?);
+            return Ok(());
+        }
+        _ => {}
+    }
+    // The change is read, applied and written under one lock, so a concurrent Inbox
+    // or CLI update is never overwritten with stale settings.
+    store.update_settings(|settings| change(settings, &action, args))?;
+    print_scan(&store.scan()?);
+    Ok(())
+}
+
+fn change(settings: &mut Settings, action: &str, mut args: Vec<String>) -> Result<()> {
+    match action {
         "add-source" => {
             let flat = switch(&mut args, "--flat");
             let mut includes = Vec::new();
@@ -92,16 +113,6 @@ fn settings(store: &Store, mut args: Vec<String>) -> Result<()> {
             if count == settings.sources.len() {
                 return Err("Source ID not found".into());
             }
-        }
-        "relocate-source" => {
-            if !switch(&mut args, "--confirm") {
-                return Err(
-                    "Relocation requires --confirm; use add-source for unrelated content".into(),
-                );
-            }
-            positional(&args, 2)?;
-            print_scan(&store.relocate_source(&args[0], PathBuf::from(&args[1]))?);
-            return Ok(());
         }
         "add-context" | "remove-context" => {
             positional(&args, 1)?;
@@ -136,8 +147,6 @@ fn settings(store: &Store, mut args: Vec<String>) -> Result<()> {
         }
         _ => return Err(format!("Unknown settings action: {action}").into()),
     }
-    store.save_settings(&settings)?;
-    print_scan(&store.scan()?);
     Ok(())
 }
 

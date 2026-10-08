@@ -17,6 +17,9 @@ impl Store {
         }
     }
 
+    /// Replaces the settings wholesale. Production code changes them through
+    /// `update_settings`; tests use this to set up a known configuration.
+    #[cfg(test)]
     pub fn save_settings(&self, settings: &Settings) -> Result<()> {
         self.locked(|| {
             // A newer installed version's configuration must never be replaced blindly.
