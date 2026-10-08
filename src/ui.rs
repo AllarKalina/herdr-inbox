@@ -2,6 +2,7 @@ mod detail;
 mod draw;
 mod input;
 mod milestone;
+mod picker;
 mod progress;
 mod scan;
 mod settings;

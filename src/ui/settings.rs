@@ -7,6 +7,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use std::path::PathBuf;
 
+mod picking;
+
 #[derive(Clone)]
 enum Field {
     AddSource,
@@ -154,15 +156,13 @@ fn handle(app: &mut App, key: KeyEvent) -> Result<()> {
             app.settings.selected = app.settings.selected.saturating_sub(1);
             app.settings.horizontal_scroll = 0;
         }
-        KeyCode::Char('a') => app.settings.begin(Field::AddSource, String::new()),
-        KeyCode::Char('c') => app.settings.begin(Field::AddContext, String::new()),
+        KeyCode::Char('a') => picking::choose(app, Field::AddSource)?,
+        KeyCode::Char('c') => picking::choose(app, Field::AddContext)?,
+        KeyCode::Char('p') => picking::type_path(app),
         KeyCode::Char('d') => remove_selected(app),
         KeyCode::Char('m') if app.settings.selected < app.settings.draft.sources.len() * 4 => {
             let index = app.settings.selected / 4;
-            app.settings.begin(Field::Relocate(index), String::new());
-            app.message =
-                "Only relocate the same folder. For unrelated content, use Add specs folder."
-                    .into();
+            picking::choose(app, Field::Relocate(index))?;
         }
         KeyCode::Char('s') => save(app)?,
         KeyCode::Enter => edit_selected(app)?,
@@ -197,11 +197,7 @@ fn edit_selected(app: &mut App) -> Result<()> {
         let index = selected / 4;
         let source = &mut app.settings.draft.sources[index];
         match selected % 4 {
-            0 => {
-                app.message =
-                    "a adds another folder · m relocates this same source · d removes reference"
-                        .into()
-            }
+            0 => picking::choose(app, Field::Relocate(index))?,
             1 => source.recursive = !source.recursive,
             2 => {
                 let input = source.include.join(", ");
@@ -214,14 +210,11 @@ fn edit_selected(app: &mut App) -> Result<()> {
         }
     } else if selected < sources + contexts {
         let index = selected - sources;
-        let input = app.settings.draft.context_paths[index]
-            .display()
-            .to_string();
-        app.settings.begin(Field::Context(index), input);
+        picking::choose(app, Field::Context(index))?;
     } else {
         match selected - sources - contexts {
-            0 => app.settings.begin(Field::AddSource, String::new()),
-            1 => app.settings.begin(Field::AddContext, String::new()),
+            0 => picking::choose(app, Field::AddSource)?,
+            1 => picking::choose(app, Field::AddContext)?,
             2 => {
                 let input = app
                     .settings
@@ -438,7 +431,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
     let help = if app.settings.edit.is_some() {
         "Enter accept · Esc cancel"
     } else {
-        "j/k move · Enter edit · s save\na specs · c context · d rm · m move"
+        "j/k move · Enter choose · s save\np path · a specs · c ctx · d rm"
     };
     let message = if app.message.is_empty()
         && rows[app.settings.selected].chars().count() > blocks[2].width as usize

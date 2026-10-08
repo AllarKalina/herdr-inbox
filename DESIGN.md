@@ -174,3 +174,5 @@ Text entry and archive confirmation replace the selected milestone's controls in
 - **Don't** introduce opaque full-screen fills, nested cards, or decorative shadows.
 - **Don't** imply progress with fake XP, points, or badges.
 - **Don't** hard-code Ghostty's hex values into the Rust UI; use terminal color roles so the TUI remains usable in another terminal.
+
+Settings path rows use the native macOS selector on Enter; spec sources select folders, context selects files or folders. Selection updates the draft, cancellation preserves it, and source relocation retains a separate confirmation. `p` provides manual path entry.

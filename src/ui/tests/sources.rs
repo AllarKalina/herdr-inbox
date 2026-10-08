@@ -85,13 +85,12 @@ fn keyboard_setup_imports_user_folders_and_persists_settings() -> Result<()> {
         assert!(text.contains("Connect your specs"));
         assert!(text.contains("Add specs folder"));
         assert!(text.contains("s save"));
+        assert!(text.contains("p path · a specs · c ctx · d rm"));
     }
-    press(&mut fixture.app, KeyCode::Char('a'))?;
-    type_text(&mut fixture.app, &fixture.specs.display().to_string())?;
+    super::super::picker::set_test_result(Ok(Some(fixture.specs.clone())));
     press(&mut fixture.app, KeyCode::Enter)?;
+    super::super::picker::set_test_result(Ok(Some(fixture.context.clone())));
     press(&mut fixture.app, KeyCode::Char('c'))?;
-    type_text(&mut fixture.app, &fixture.context.display().to_string())?;
-    press(&mut fixture.app, KeyCode::Enter)?;
     for (width, height) in [(40, 18), (100, 35)] {
         let text = render(&mut fixture.app, width, height)?;
         assert!(text.contains("Specs:"));
@@ -134,7 +133,7 @@ fn keyboard_setup_imports_user_folders_and_persists_settings() -> Result<()> {
 #[test]
 fn invalid_folder_remains_editable_and_cancel_preserves_saved_settings() -> Result<()> {
     let mut fixture = Fixture::new()?;
-    press(&mut fixture.app, KeyCode::Char('a'))?;
+    press(&mut fixture.app, KeyCode::Char('p'))?;
     type_text(&mut fixture.app, "/missing/never-existing-inbox-path")?;
     press(&mut fixture.app, KeyCode::Enter)?;
     let text = render(&mut fixture.app, 60, 24)?;
@@ -329,15 +328,13 @@ fn source_relocation_requires_confirmation_and_preserves_identity() -> Result<()
     let destination = fixture.root.join("my moved specs");
     fs::rename(&fixture.specs, &destination)?;
     press(&mut fixture.app, KeyCode::Char('s'))?;
+    super::super::picker::set_test_result(Ok(Some(destination.clone())));
     press(&mut fixture.app, KeyCode::Char('m'))?;
-    type_text(&mut fixture.app, &destination.display().to_string())?;
-    press(&mut fixture.app, KeyCode::Enter)?;
     assert_eq!(fixture.app.store.settings()?.sources[0].path, fixture.specs);
     press(&mut fixture.app, KeyCode::Esc)?;
     assert_eq!(fixture.app.store.settings()?.sources[0].path, fixture.specs);
+    super::super::picker::set_test_result(Ok(Some(destination.clone())));
     press(&mut fixture.app, KeyCode::Char('m'))?;
-    type_text(&mut fixture.app, &destination.display().to_string())?;
-    press(&mut fixture.app, KeyCode::Enter)?;
     press(&mut fixture.app, KeyCode::Enter)?;
     let relocated = fixture.app.store.get(&record.id)?;
     assert_eq!(relocated.source_id.as_deref(), Some(source_id.as_str()));
@@ -351,13 +348,54 @@ fn source_relocation_requires_confirmation_and_preserves_identity() -> Result<()
 #[test]
 fn trash_back_returns_to_unsaved_settings_draft() -> Result<()> {
     let mut fixture = Fixture::new()?;
-    press(&mut fixture.app, KeyCode::Char('a'))?;
-    type_text(&mut fixture.app, &fixture.specs.display().to_string())?;
+    super::super::picker::set_test_result(Ok(Some(fixture.specs.clone())));
     press(&mut fixture.app, KeyCode::Enter)?;
     super::super::trash::open(&mut fixture.app)?;
     press(&mut fixture.app, KeyCode::Esc)?;
     assert_eq!(fixture.app.screen, Screen::Settings);
     assert_eq!(fixture.app.settings.draft.sources.len(), 1);
     assert!(fixture.app.store.settings()?.sources.is_empty());
+    Ok(())
+}
+
+#[test]
+fn native_picker_cancel_error_and_context_replacement_preserve_the_settings_draft() -> Result<()> {
+    let mut fixture = Fixture::new()?;
+    super::super::picker::set_test_result(Ok(None));
+    press(&mut fixture.app, KeyCode::Enter)?;
+    assert!(fixture.app.settings.draft.sources.is_empty());
+    assert!(fixture.app.store.settings()?.sources.is_empty());
+    super::super::picker::set_test_result(Err(
+        "Could not open selector; press p to enter a path".into()
+    ));
+    press(&mut fixture.app, KeyCode::Enter)?;
+    assert!(fixture.app.settings.draft.sources.is_empty());
+    assert!(fixture.app.message.contains("press p"));
+    let folder = fixture.root.join("specs with trailing space ");
+    fs::create_dir(&folder)?;
+    super::super::picker::set_test_result(Ok(Some(folder.clone())));
+    press(&mut fixture.app, KeyCode::Enter)?;
+    assert_eq!(fixture.app.settings.draft.sources[0].path, folder);
+    assert!(fixture.app.store.settings()?.sources.is_empty());
+    super::super::picker::set_test_result(Ok(Some(fixture.context.clone())));
+    press(&mut fixture.app, KeyCode::Char('c'))?;
+    for _ in 0..4 {
+        press(&mut fixture.app, KeyCode::Down)?;
+    }
+    super::super::picker::set_test_result(Ok(None));
+    press(&mut fixture.app, KeyCode::Enter)?;
+    assert_eq!(
+        fixture.app.settings.draft.context_paths,
+        vec![fixture.context.clone()]
+    );
+    super::super::picker::set_test_result(Ok(Some(folder.clone())));
+    press(&mut fixture.app, KeyCode::Enter)?;
+    assert_eq!(
+        fixture.app.settings.draft.context_paths,
+        vec![folder.clone()]
+    );
+    press(&mut fixture.app, KeyCode::Char('s'))?;
+    assert_eq!(fixture.app.store.settings()?.sources[0].path, folder);
+    assert_eq!(fixture.app.store.settings()?.context_paths, vec![folder]);
     Ok(())
 }
