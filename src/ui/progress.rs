@@ -220,19 +220,24 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
         return Vec::new();
     };
     let width = usize::from(width);
+    let archive_keys = if width < 25 {
+        "Enter archive · Esc"
+    } else {
+        "Enter archive · Esc cancel"
+    };
     let lines = if matches!(prompt, Prompt::Delete { .. }) {
         vec![
             format!(
-                "Delete {}?",
-                fit_label(record.display_title(), width.saturating_sub(8))
+                "Archive {}?",
+                fit_label(record.display_title(), width.saturating_sub(9))
             ),
             if app.store.manages_spec(record) {
-                "Files move to local Trash.".into()
+                "Files move to local archive.".into()
             } else {
-                "Record moves to Trash.".into()
+                "Record moves to archive.".into()
             },
             if app.store.manages_spec(record) {
-                "Enter delete · Esc cancel".into()
+                archive_keys.into()
             } else {
                 "Linked spec stays intact.".into()
             },
@@ -262,7 +267,7 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
     };
     let mut lines: Vec<Line<'static>> = lines.into_iter().map(Line::from).collect();
     if matches!(prompt, Prompt::Delete { .. }) && !app.store.manages_spec(record) {
-        lines.push(Line::from("Enter delete · Esc cancel"));
+        lines.push(Line::from(archive_keys));
     }
     lines
 }

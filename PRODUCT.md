@@ -29,10 +29,11 @@ A terminal-native workflow inbox that launches a spec agent in Herdr and stores 
 - Refinement preserves Jira, implementation, and PR links and progress. SPEC becomes active only after the harness accepts the prompt; this is a launch status, not evidence that agent validation is complete. The agent reads the existing spec and item context, treats current code as truth, reports gaps, then interviews the user before updating the same file and finishing the same item.
 - Previous launches remain in the item's local JSON history. Cancellation leaves the item unchanged; failed refinement preserves its prior spec status and does not overwrite its file. The raw editor remains available through `e`.
 - Jira and PR actions currently store links to existing external work; they do not create tickets or PRs remotely. The implementation action records an agent and branch; it does not yet launch an implementer.
-- Deleting an item requires a second Enter confirmation and moves inbox-owned files to the local `trash/` directory under inbox data. User-owned specs remain in place, regardless of location. Trash is restorable and excluded from automatic rediscovery.
+- Archiving an item with `a` requires a second Enter confirmation and moves inbox-owned files to the local `trash/` directory under inbox data. User-owned specs remain in place, regardless of location. Archived items are restorable through Settings and excluded from automatic rediscovery; the CLI retains its compatible `delete` and `restore` commands.
 - This plugin is for personal use. Public GitHub installation builds the same source on each Mac; the plugin and config can be shared while inbox records and specs remain separate on local disks. Local linking remains available for development.
 
 - Arbitrary user-selected sources discover existing Markdown recursively as Spec done. No content hierarchy or cross-computer sharing is imposed. Settings configure sources, filters, context references and launch defaults; each computer has independent metadata.
+- The main list has one shortcut line: `Enter open · n new · a archive · s settings`. Setup, **Save and scan**, and **Restore archived item** belong in Settings; there is no separate connect-folder hint or main-list scan/restore shortcut.
 - New/refinement sessions inspect explicit context paths after availability preflight. Confirmed source relocation and explicit item relinking preserve identities; unresolved sessions must be settled before rebinding.
 
 ## Brand Commitments

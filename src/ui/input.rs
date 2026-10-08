@@ -184,7 +184,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             KeyCode::Enter if !actions.is_empty() => {
                 start_detail_action(app, actions[app.action_selected])?;
             }
-            KeyCode::Char('d') => {
+            KeyCode::Char('a') => {
                 if let Some(record) = app.current() {
                     app.begin(Prompt::Delete {
                         id: record.id.clone(),
@@ -198,11 +198,6 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     }
     match key.code {
         KeyCode::Char('s') => super::settings::open(app)?,
-        KeyCode::Char('S') => {
-            let report = app.store.scan()?;
-            super::scan::apply(app, report);
-        }
-        KeyCode::Char('u') => super::trash::open(app)?,
         KeyCode::Esc => return Ok(true),
         KeyCode::Enter if app.current().is_some() => {
             app.screen = Screen::Detail;
@@ -218,7 +213,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         KeyCode::Char('n') => {
             app.choose_client(ChoicePurpose::NewSpec, launch::available_profiles());
         }
-        KeyCode::Char('d') => {
+        KeyCode::Char('a') => {
             if let Some(record) = app.current() {
                 app.begin(Prompt::Delete {
                     id: record.id.clone(),

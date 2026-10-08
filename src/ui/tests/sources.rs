@@ -118,7 +118,8 @@ fn keyboard_setup_imports_user_folders_and_persists_settings() -> Result<()> {
         },
     )?;
     fs::write(fixture.specs.join("another.markdown"), "# Another plan\n")?;
-    press(&mut fixture.app, KeyCode::Char('S'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
     assert_eq!(fixture.app.records.len(), 2);
     assert_eq!(
         fixture.app.store.get(&record.id)?.jira.key.as_deref(),
@@ -162,21 +163,26 @@ fn trash_picker_restores_import_uuid_without_modifying_user_spec() -> Result<()>
     fixture.app.refresh()?;
     let record = fixture.app.current().unwrap().clone();
     let content = fs::read(&record.spec_path)?;
-    press(&mut fixture.app, KeyCode::Char('d'))?;
+    press(&mut fixture.app, KeyCode::Char('a'))?;
     press(&mut fixture.app, KeyCode::Enter)?;
-    press(&mut fixture.app, KeyCode::Char('S'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
     assert!(fixture.app.records.is_empty());
     assert_eq!(fs::read(&record.spec_path)?, content);
-    press(&mut fixture.app, KeyCode::Char('u'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
+    for _ in 0..20 {
+        press(&mut fixture.app, KeyCode::Down)?;
+    }
+    press(&mut fixture.app, KeyCode::Enter)?;
     assert_eq!(fixture.app.screen, Screen::Trash);
     for (width, height) in [(40, 18), (100, 35)] {
         let text = render(&mut fixture.app, width, height)?;
-        assert!(text.contains("Local Trash"));
+        assert!(text.contains("Archived items"));
         assert!(text.contains("Existing plan"));
         assert!(text.contains("Enter restore"));
     }
     press(&mut fixture.app, KeyCode::Enter)?;
-    assert_eq!(fixture.app.screen, Screen::List);
+    assert_eq!(fixture.app.screen, Screen::Settings);
     assert_eq!(fixture.app.current().unwrap().id, record.id);
     assert_eq!(fs::read(&record.spec_path)?, content);
     Ok(())
@@ -293,7 +299,8 @@ fn scan_diagnostics_and_settle_confirmation_render_and_keep_state_safe() -> Resu
     assert_eq!(fixture.app.store.get(&record.id)?.spec, record.spec);
     press(&mut fixture.app, KeyCode::Esc)?;
     fs::rename(&fixture.specs, fixture.root.join("elsewhere"))?;
-    press(&mut fixture.app, KeyCode::Char('S'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
+    press(&mut fixture.app, KeyCode::Char('s'))?;
     assert_eq!(fixture.app.screen, Screen::ScanResult);
     for (width, height) in [(40, 18), (100, 35)] {
         let text = render(&mut fixture.app, width, height)?;

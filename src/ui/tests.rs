@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 mod delight;
 mod feedback;
+mod footer;
 mod proximity;
 mod quest;
 mod refinement;
@@ -23,20 +24,20 @@ fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
     let mut app = App::new(store)?;
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
 
-    press(&mut app, KeyCode::Char('d'))?;
+    press(&mut app, KeyCode::Char('a'))?;
     assert!(matches!(app.prompt, Some(Prompt::Delete { .. })));
     press(&mut app, KeyCode::Esc)?;
     assert!(app.store.get(&record.id).is_ok());
 
-    press(&mut app, KeyCode::Char('d'))?;
+    press(&mut app, KeyCode::Char('a'))?;
     press(&mut app, KeyCode::Char('x'))?;
     assert!(app.store.get(&record.id).is_ok());
     assert!(app.input.is_empty());
     press(&mut app, KeyCode::Enter)?;
     assert!(app.store.list()?.is_empty());
     let footer = draw::footer_text(&app);
-    assert!(footer.starts_with("Item moved to local Trash\n"));
-    assert!(footer.contains("Enter open · n new · d delete"));
+    assert!(footer.starts_with("Item archived\n"));
+    assert!(footer.contains("Enter open · n new · a archive · s settings"));
     assert!(
         root.join("trash/items")
             .join(format!("{}.json", record.id))
@@ -53,7 +54,7 @@ fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
     let record = store.start("Keep in progress", None, None)?;
     let mut app = App::new(store)?;
 
-    for key in ['a', 'f', 't', 'J', 'i', 'p', 'q'] {
+    for key in ['d', 'S', 'u', 'f', 't', 'J', 'i', 'p', 'q'] {
         assert!(!handle_key(
             &mut app,
             KeyEvent::new(KeyCode::Char(key), KeyModifiers::NONE)
@@ -61,7 +62,7 @@ fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
         assert!(app.prompt.is_none());
     }
     assert_eq!(app.store.get(&record.id)?.spec, "in_progress");
-    assert!(draw::footer_text(&app).contains("Enter open · n new · d delete"));
+    assert!(draw::footer_text(&app).contains("Enter open · n new · a archive · s settings"));
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -480,12 +481,12 @@ fn detail_delete_still_requires_confirmation_and_returns_to_list() -> Result<()>
     let press = |app: &mut App, code| handle_key(app, KeyEvent::new(code, KeyModifiers::NONE));
 
     press(&mut app, KeyCode::Enter)?;
-    press(&mut app, KeyCode::Char('d'))?;
+    press(&mut app, KeyCode::Char('a'))?;
     assert!(matches!(app.prompt, Some(Prompt::Delete { .. })));
     press(&mut app, KeyCode::Esc)?;
     assert_eq!(app.screen, Screen::Detail);
     assert_eq!(app.store.list()?.len(), 1);
-    press(&mut app, KeyCode::Char('d'))?;
+    press(&mut app, KeyCode::Char('a'))?;
     press(&mut app, KeyCode::Enter)?;
     assert_eq!(app.screen, Screen::List);
     assert!(app.store.list()?.is_empty());

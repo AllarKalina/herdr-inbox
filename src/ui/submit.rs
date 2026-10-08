@@ -113,7 +113,7 @@ impl App {
             }
             Prompt::Delete { id } => {
                 self.store.delete(&id)?;
-                self.message = "Item moved to local Trash".into();
+                self.message = "Item archived".into();
                 self.screen = Screen::List;
             }
             _ => self.message = "Cancelled".into(),

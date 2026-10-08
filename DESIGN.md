@@ -110,7 +110,7 @@ All content shares one terminal cell grid. Uppercase labels such as `SPEC` and `
 
 ## Layout
 
-The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
+The list uses a flexible name column followed by four fixed eight-cell status columns, with two cells between columns. Its content and shortcut line sit one cell inside the popup edge. The footer is one line: `Enter open · n new · a archive · s settings`, with no connect-folder hint. Setup, rescan, and archive restoration belong in Settings, through **Save and scan** and **Restore archived item**; the latter opens **Archived items**. Long names truncate within their own column rather than moving statuses. Below 64 columns, the statuses become a compact, colored `S J D P` icon trail so the title remains readable; the detail view retains the full words.
 
 The detail view has a two-cell horizontal and one-cell vertical outer inset. A breadcrumb sits above the main content. At a body width of 78 columns, the spec takes the left side and the interactive `PROGRESS` rail occupies 36 columns on the right, separated by a two-column gap. Below that breakpoint, the rail moves under the spec. The spec preview is capped at 86 columns. Long titles shorten to preserve the final breadcrumb.
 
@@ -156,7 +156,7 @@ Completion feedback belongs to its milestone. A transient green acknowledgement 
 
 ### Prompts
 
-Text entry and deletion confirmation replace the selected milestone's controls in the same reserved area. Input scrolls horizontally to keep its trailing cursor visible. Narrow action labels and confirmation hints wrap within the control area. A confirmation names the target, explains what moves to local Trash, and gives explicit Enter and Esc outcomes. All milestone nodes retain their positions throughout entry, confirmation, and cancellation.
+Text entry and archive confirmation replace the selected milestone's controls in the same reserved area. Pressing `a` requests archiving in the list or detail view. Input scrolls horizontally to keep its trailing cursor visible. Narrow action labels and confirmation hints wrap within the control area. A confirmation names the target, explains what moves to the recoverable local archive, and gives explicit Enter and Esc outcomes. All milestone nodes retain their positions throughout entry, confirmation, and cancellation.
 
 ## Do's and Don'ts
 

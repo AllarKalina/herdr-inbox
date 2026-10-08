@@ -80,7 +80,7 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
     let hint = if record.active_spec_session() {
         "L relink · x settle · e edit"
     } else {
-        "L relink · e edit · d delete"
+        "L relink · e edit · a archive"
     };
     footer.push(
         Line::from(if app.message.is_empty() {

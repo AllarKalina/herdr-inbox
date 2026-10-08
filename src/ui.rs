@@ -92,7 +92,7 @@ impl Prompt {
             Self::Agent { .. } => "Agent name (optional)",
             Self::Branch { .. } => "Branch (optional)",
             Self::Pr { .. } => "Draft PR URL",
-            Self::Delete { .. } => "Confirm deletion",
+            Self::Delete { .. } => "Confirm archive",
         }
     }
 }
@@ -229,13 +229,7 @@ impl App {
             choice_selected: None,
             choice_purpose: ChoicePurpose::NewSpec,
             feedback: None,
-            message: if first_use {
-                String::new()
-            } else if settings.sources.is_empty() {
-                "Press s to connect your specs folder".into()
-            } else {
-                report.summary()
-            },
+            message: String::new(),
             should_exit: false,
             settings: settings::SettingsView::new(settings, first_use),
             trash: Vec::new(),

@@ -83,7 +83,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .constraints([
             Constraint::Min(5),
             Constraint::Length(if has_panel { 8 } else { 0 }),
-            Constraint::Length(if app.message.is_empty() { 2 } else { 3 }),
+            Constraint::Length(if app.message.is_empty() { 1 } else { 2 }),
         ])
         .split(frame.area());
     let compact = frame.area().width < 64;
@@ -192,10 +192,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             list_area.height.saturating_sub(2),
         );
         frame.render_widget(
-            Paragraph::new(
-                "No specs yet. Press s to connect your specs folder, or n for a new spec.",
-            )
-            .style(Style::default().fg(Color::Gray)),
+            Paragraph::new("No specs yet.").style(Style::default().fg(Color::Gray)),
             hint,
         );
     }
@@ -203,12 +200,12 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     if let Some(Prompt::Delete { id }) = &app.prompt {
         let detail = if let Some(record) = app.records.iter().find(|record| &record.id == id) {
             format!(
-                "DELETE ITEM\n{}\nID: {}\nSpec: {}\n{}\nOpen agent tabs are not closed.",
+                "ARCHIVE ITEM\n{}\nID: {}\nSpec: {}\n{}\nOpen agent tabs are not closed.",
                 record.display_title(),
                 record.id,
                 record.spec_path.display(),
                 if app.store.manages_spec(record) {
-                    "Inbox-owned spec moves to Trash."
+                    "Inbox-owned spec moves to the local archive."
                 } else {
                     "Linked spec stays in place."
                 },
@@ -219,7 +216,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         frame.render_widget(
             Paragraph::new(detail).block(
                 Block::default()
-                    .title(" Confirm deletion ")
+                    .title(" Confirm archive ")
                     .borders(Borders::ALL),
             ),
             areas[1],
@@ -234,7 +231,13 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         );
     }
     frame.render_widget(
-        Paragraph::new(footer_text(app)),
+        Paragraph::new(
+            if areas[2].width.saturating_sub(2) < COMMANDS.chars().count() as u16 {
+                footer_text(app).replace("Enter open", "Enter")
+            } else {
+                footer_text(app)
+            },
+        ),
         areas[2].inner(Margin {
             horizontal: 1,
             vertical: 0,
@@ -265,14 +268,13 @@ fn draw_client_choices(frame: &mut ratatui::Frame, app: &App, selected: usize, a
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-const COMMANDS: &str = "Enter open · n new · d delete
-s settings · S scan · u restore";
+const COMMANDS: &str = "Enter open · n new · a archive · s settings";
 
 pub(super) fn footer_text(app: &App) -> String {
     if app.choice_selected.is_some() {
         "j/k choose · Enter continue · Esc cancel".into()
     } else if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
-        "Enter delete this item · Esc cancel".into()
+        "Enter archive this item · Esc cancel".into()
     } else if app.prompt.is_some() {
         "Enter save · Esc cancel".into()
     } else if !app.message.is_empty() {

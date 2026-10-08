@@ -55,7 +55,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
     ])
     .split(area);
     frame.render_widget(
-        Paragraph::new("Inbox / Local Trash").style(
+        Paragraph::new("Inbox / Archived items").style(
             Style::default()
                 .fg(Color::LightCyan)
                 .add_modifier(Modifier::BOLD),
@@ -68,8 +68,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
         .saturating_sub(blocks[1].height as usize);
     let lines = if app.trash.is_empty() {
         vec![
-            Line::from("Trash is empty. Esc returns to Inbox.")
-                .style(Style::default().fg(Color::Gray)),
+            Line::from("No archived items. Esc goes back.").style(Style::default().fg(Color::Gray)),
         ]
     } else {
         app.trash

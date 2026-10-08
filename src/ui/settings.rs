@@ -68,7 +68,7 @@ impl SettingsView {
         ));
         rows.push(format!("Workspace: {}", self.draft.workspace));
         rows.push("Save and scan".into());
-        rows.push("Restore item from Trash".into());
+        rows.push("Restore archived item".into());
         rows
     }
 
