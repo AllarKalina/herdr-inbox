@@ -209,14 +209,6 @@ impl DetailAction {
     }
 }
 
-fn display_implementation_stage(record: &Record, jira: bool) -> &str {
-    if record.implementation.status == "draft_pr" {
-        "done"
-    } else {
-        record.implementation_stage(jira)
-    }
-}
-
 impl App {
     fn new(store: Store) -> Result<Self> {
         let settings = store.settings()?;

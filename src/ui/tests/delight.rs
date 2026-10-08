@@ -106,7 +106,7 @@ fn launched_specs_do_not_repeat_their_workspace_or_client_in_progress() -> Resul
         &id,
         Change::Launch(
             Box::new(crate::store::Launch {
-                status: "prompt_sent".into(),
+                status: crate::store::LaunchStatus::PromptSent,
                 harness: "codex".into(),
                 workspace: "ai-boiler-room".into(),
                 workspace_id: None,

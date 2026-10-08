@@ -11,6 +11,8 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 mod model;
 pub use model::*;
+mod workflow;
+pub use workflow::*;
 mod discovery;
 pub use discovery::ScanReport;
 use discovery::{fingerprint, same_file};
@@ -24,7 +26,7 @@ pub struct Store {
 impl Store {
     pub fn default_path() -> Result<PathBuf> {
         if let Some(path) = std::env::var_os("HERDR_INBOX_HOME") {
-            return expand_home(PathBuf::from(path));
+            return absolute(PathBuf::from(path));
         }
         let home = std::env::var_os("HOME").ok_or("HOME is not set")?;
         Ok(PathBuf::from(home).join("Library/Application Support/herdr-inbox"))
@@ -109,125 +111,7 @@ impl Store {
     pub fn update(&self, id: &str, change: Change) -> Result<Record> {
         self.locked(|| {
             let mut record = self.get(id)?;
-            let jira = self.settings()?.jira;
-            match change {
-                Change::Finish { title } => {
-                    if record.spec != "in_progress" {
-                        return Err("Spec is already finished".into());
-                    }
-                    if let Some(title) = title {
-                        if title.trim().is_empty() {
-                            return Err("Title cannot be empty".into());
-                        }
-                        record.title = title.trim().to_owned();
-                    }
-                    if record.title.is_empty() {
-                        return Err("Give the spec a title before finishing".into());
-                    }
-                    if !record.spec_path.is_file() {
-                        return Err("Spec file is missing".into());
-                    }
-                    record.spec = "done".into();
-                    record.content_fingerprint = fingerprint(&record.spec_path).ok();
-                    if let Some(launch) = &mut record.launch {
-                        launch.status = "completed".into();
-                    }
-                    if record.jira.status == "waiting" {
-                        record.jira.status = "ready".into();
-                    }
-                }
-                Change::Jira { key, url } => {
-                    if !jira {
-                        return Err("Jira is turned off in Settings".into());
-                    }
-                    if record.spec != "done" {
-                        return Err("Finish the spec before linking Jira".into());
-                    }
-                    if key.trim().is_empty() {
-                        return Err("Jira key cannot be empty".into());
-                    }
-                    record.jira.status = "created".into();
-                    record.jira.key = Some(key.trim().to_owned());
-                    record.jira.url = url;
-                    if record.implementation.status == "waiting" {
-                        record.implementation.status = "ready".into();
-                    }
-                    if record.implementation.status == "in_progress"
-                        && record.pr.status == "waiting"
-                    {
-                        record.pr.status = "ready".into();
-                    }
-                }
-                Change::Implement { agent, branch } => {
-                    if record.spec != "done" || jira && record.jira.status != "created" {
-                        return Err(if jira {
-                            "Finish the spec and link Jira before implementation"
-                        } else {
-                            "Finish the spec before implementation"
-                        }
-                        .into());
-                    }
-                    if record.implementation.status != "draft_pr" {
-                        record.implementation.status = "in_progress".into();
-                    }
-                    record.implementation.agent = agent;
-                    record.implementation.branch = branch;
-                    if record.pr.status == "waiting" {
-                        record.pr.status = "ready".into();
-                    }
-                }
-                Change::Pr { url } => {
-                    if record.spec != "done"
-                        || jira && record.jira.status != "created"
-                        || !matches!(
-                            record.implementation.status.as_str(),
-                            "in_progress" | "draft_pr"
-                        )
-                    {
-                        return Err(if jira {
-                            "Link Jira and start implementation before a PR"
-                        } else {
-                            "Start implementation before a PR"
-                        }
-                        .into());
-                    }
-                    record.implementation.status = "draft_pr".into();
-                    record.pr.status = "draft".into();
-                    record.pr.url = Some(url);
-                }
-                Change::Title { title } => {
-                    if title.trim().is_empty() {
-                        return Err("Title cannot be empty".into());
-                    }
-                    record.title = title.trim().to_owned();
-                }
-                Change::Launch(launch, expected_spec_path) => {
-                    if record.spec_path != expected_spec_path {
-                        return Err(
-                            "Spec location changed during launch preflight; retry launch".into(),
-                        );
-                    }
-                    record.launch = Some(*launch);
-                }
-                Change::BeginRefinement(launch, expected_spec_path) => {
-                    if record.spec_path != expected_spec_path {
-                        return Err(
-                            "Spec location changed during launch preflight; retry refinement"
-                                .into(),
-                        );
-                    }
-                    if record.active_spec_session() {
-                        return Err(
-                            "Settle the active spec session before starting refinement".into()
-                        );
-                    }
-                    if let Some(previous) = record.launch.take() {
-                        record.previous_launches.push(previous);
-                    }
-                    record.launch = Some(*launch);
-                }
-                Change::RefineSpec => record.spec = "in_progress".into(),
-            }
+            record.apply(change, self.settings()?.jira)?;
             record.updated_at = timestamp();
             self.write(&record)?;
             Ok(record)
@@ -258,29 +142,6 @@ impl Store {
     }
 }
 
-pub enum Change {
-    Finish {
-        title: Option<String>,
-    },
-    Title {
-        title: String,
-    },
-    Launch(Box<Launch>, PathBuf),
-    BeginRefinement(Box<Launch>, PathBuf),
-    RefineSpec,
-    Jira {
-        key: String,
-        url: Option<String>,
-    },
-    Implement {
-        agent: Option<String>,
-        branch: Option<String>,
-    },
-    Pr {
-        url: String,
-    },
-}
-
 fn timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -293,14 +154,6 @@ fn ensure_dir(path: &Path) -> io::Result<()> {
         .recursive(true)
         .mode(0o700)
         .create(path)
-}
-
-fn expand_home(path: PathBuf) -> Result<PathBuf> {
-    if let Ok(rest) = path.strip_prefix("~") {
-        let home = std::env::var_os("HOME").ok_or("HOME is not set")?;
-        return Ok(PathBuf::from(home).join(rest));
-    }
-    absolute(path)
 }
 
 pub fn absolute(path: PathBuf) -> Result<PathBuf> {

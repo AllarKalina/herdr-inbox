@@ -219,7 +219,7 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
         },
     )?;
     let launch = Launch {
-        status: "completed".into(),
+        status: LaunchStatus::Completed,
         harness: "codex".into(),
         workspace: "ai-boiler-room".into(),
         workspace_id: Some("w1".into()),
@@ -236,7 +236,7 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
         Change::Launch(Box::new(launch.clone()), record.spec_path.clone()),
     )?;
     let mut refinement = launch;
-    refinement.status = "starting".into();
+    refinement.status = LaunchStatus::Starting;
     refinement.agent = Some("refine_new".into());
     let starting = store.update(
         &record.id,
@@ -248,7 +248,7 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
         starting.previous_launches[0].agent.as_deref(),
         Some("spec_original")
     );
-    refinement.status = "prompt_sent".into();
+    refinement.status = LaunchStatus::PromptSent;
     store.update(
         &record.id,
         Change::Launch(Box::new(refinement), record.spec_path.clone()),

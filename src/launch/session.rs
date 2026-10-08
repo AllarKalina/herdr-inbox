@@ -37,7 +37,7 @@ pub(super) fn run(
     let tab = herdr.call(&args)?;
     launch.tab_id = Some(required_string(&tab, &["result", "tab", "tab_id"])?.into());
     launch.pane_id = Some(required_string(&tab, &["result", "root_pane", "pane_id"])?.into());
-    launch.status = "tab_opened".into();
+    launch.status = LaunchStatus::TabOpened;
     mark(store, record, launch)?;
 
     let pane = launch.pane_id.as_deref().ok_or("Missing pane ID")?;
@@ -82,13 +82,13 @@ pub(super) fn run(
     }
     herdr.start_agent(&args)?;
     launch.agent = Some(agent.to_string());
-    launch.status = "agent_started".into();
+    launch.status = LaunchStatus::AgentStarted;
     mark(store, record, launch)?;
     herdr.call(&["agent", "prompt", agent, &launch.prompt])?;
     if target.refinement {
         store.update(&record.id, Change::RefineSpec)?;
     }
-    launch.status = "prompt_sent".into();
+    launch.status = LaunchStatus::PromptSent;
     mark(store, record, launch)?;
     if let Err(error) = herdr.call(&["workspace", "focus", workspace_id]) {
         launch.error = Some(format!(

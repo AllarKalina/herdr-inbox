@@ -152,7 +152,7 @@ fn scans_stay_quiet_about_unwritten_new_specs_and_unselected_folders() -> Result
     let pending = store.start_untitled(None)?;
     assert!(!pending.spec_path.exists());
     let launch = Launch {
-        status: "prompt_sent".into(),
+        status: LaunchStatus::PromptSent,
         harness: "codex".into(),
         workspace: "ai-boiler-room".into(),
         workspace_id: None,

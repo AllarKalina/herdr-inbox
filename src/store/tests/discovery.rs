@@ -196,7 +196,7 @@ fn active_session_requires_settle_before_relink_and_relocation() -> Result<()> {
     let record = store.list()?.remove(0);
     let mut active = record.clone();
     active.launch = Some(Launch {
-        status: "prompt_sent".into(),
+        status: LaunchStatus::PromptSent,
         harness: "codex".into(),
         workspace: "w".into(),
         workspace_id: None,
@@ -254,7 +254,7 @@ fn active_session_requires_settle_before_relink_and_relocation() -> Result<()> {
     );
     assert_eq!(
         (relinked.id, relinked.spec, relinked.jira.status),
-        (record.id, "done".into(), "ready".into())
+        (record.id, SpecStatus::Done, JiraStatus::Ready)
     );
     fs::remove_dir_all(root)?;
     Ok(())

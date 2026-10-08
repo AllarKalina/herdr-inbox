@@ -36,7 +36,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
         if y >= area.bottom() {
             break;
         }
-        let (node, word, color) = appearance(stage.status(record, jira));
+        let state = stage.state(record, jira);
+        let (node, word, color) = (state.node(), state.word(), state.color());
         let is_selected = *stage == selected;
         let label = Line::from(vec![
             Span::styled(format!("{:<4}", stage.label()), Style::default().fg(color)),
@@ -161,9 +162,9 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, record: &Record, a
                 ring,
             );
         }
-        let (node, _, color) = appearance(selected.status(record, jira));
+        let state = selected.state(record, jira);
         frame.render_widget(
-            Paragraph::new(node).style(Style::default().fg(color)),
+            Paragraph::new(state.node()).style(Style::default().fg(state.color())),
             Rect::new(area.x + NODE_COLUMN, selected_area.y, 1, 1),
         );
     }
@@ -286,16 +287,4 @@ fn selection_style() -> Style {
     Style::default()
         .fg(Color::Cyan)
         .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
-}
-
-fn appearance(status: &str) -> (&'static str, &'static str, Color) {
-    match status {
-        "done" | "created" => ("●", "done", Color::LightGreen),
-        "in_progress" => ("◉", "active", Color::Cyan),
-        "ready" => ("○", "ready", Color::LightBlue),
-        "locked" => ("○", "locked", Color::DarkGray),
-        "draft_pr" | "draft" => ("◐", "draft", Color::Yellow),
-        "failed" => ("✕", "failed", Color::Red),
-        _ => ("○", "wait", Color::Gray),
-    }
 }

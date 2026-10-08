@@ -1,4 +1,4 @@
-use crate::store::{Change, Launch, Record, Result, Store, absolute};
+use crate::store::{Change, Launch, LaunchStatus, Record, Result, Store, absolute};
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -242,7 +242,7 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
         None => store.start_untitled(options.repo.clone())?,
     };
     let mut launch = Launch {
-        status: "starting".into(),
+        status: LaunchStatus::Starting,
         harness: options.profile.id().into(),
         workspace: options.workspace.clone(),
         workspace_id: Some(workspace_id.clone()),
@@ -319,7 +319,7 @@ pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
     let herdr = Herdr::new()?;
     let workspace_id = herdr.workspace(&options.workspace)?;
     let mut launch = Launch {
-        status: "starting".into(),
+        status: LaunchStatus::Starting,
         harness: options.profile.id().into(),
         workspace: options.workspace.clone(),
         workspace_id: Some(workspace_id),
@@ -382,7 +382,7 @@ fn complete(
     target: session::Target,
 ) -> Result<Record> {
     if let Err(error) = session::run(store, herdr, record, launch, options, &target) {
-        launch.status = "failed".into();
+        launch.status = LaunchStatus::Failed;
         launch.error = Some(error.to_string());
         mark(store, record, launch)?;
         return Err(error);

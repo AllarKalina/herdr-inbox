@@ -1,5 +1,5 @@
 use super::*;
-use crate::store::{Implementation, Link};
+use crate::store::SpecStatus;
 use std::fs;
 
 struct Fixture(PathBuf);
@@ -25,34 +25,8 @@ impl Fixture {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, "# Mock spec\n").unwrap();
         Record {
-            schema_version: 1,
-            source_id: None,
-            source_relative_path: None,
-            content_fingerprint: None,
-            id: id.into(),
             title: path.file_name().unwrap().to_string_lossy().into_owned(),
-            repo: None,
-            spec_path: path,
-            created_at: 1,
-            updated_at: 1,
-            spec: "done".into(),
-            jira: Link {
-                status: "ready".into(),
-                key: None,
-                url: None,
-            },
-            implementation: Implementation {
-                status: "waiting".into(),
-                agent: None,
-                branch: None,
-            },
-            pr: Link {
-                status: "waiting".into(),
-                key: None,
-                url: None,
-            },
-            launch: None,
-            previous_launches: Vec::new(),
+            ..Record::blank(id.into(), path, SpecStatus::Done, 1)
         }
     }
 }

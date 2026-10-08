@@ -129,36 +129,17 @@ impl Store {
                             .to_string_lossy()
                             .into_owned()
                     });
-                let now = timestamp();
                 let record = Record {
-                    schema_version: 1,
                     source_id: Some(source.id.clone()),
                     source_relative_path: Some(relative),
                     content_fingerprint: Some(fingerprint_bytes(text.as_bytes())),
-                    id: Uuid::new_v4().to_string(),
                     title,
-                    repo: None,
-                    spec_path: resolved,
-                    created_at: now,
-                    updated_at: now,
-                    spec: "done".into(),
-                    jira: Link {
-                        status: "ready".into(),
-                        key: None,
-                        url: None,
-                    },
-                    implementation: Implementation {
-                        status: "waiting".into(),
-                        agent: None,
-                        branch: None,
-                    },
-                    pr: Link {
-                        status: "waiting".into(),
-                        key: None,
-                        url: None,
-                    },
-                    launch: None,
-                    previous_launches: Vec::new(),
+                    ..Record::blank(
+                        Uuid::new_v4().to_string(),
+                        resolved,
+                        SpecStatus::Done,
+                        timestamp(),
+                    )
                 };
                 self.write(&record)?;
                 known.push(record);

@@ -1,4 +1,4 @@
-use super::{App, detail, display_implementation_stage, tree};
+use super::{App, detail, milestone::Milestone, tree};
 use ratatui::layout::{Constraint, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -7,11 +7,10 @@ use ratatui::widgets::{Cell, Row, Table, TableState};
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
     let compact = frame.area().width < 64;
     let jira = app.jira();
-    let headers: &[&str] = if jira {
-        &["Spec", "Jira", "Dev", "PR"]
-    } else {
-        &["Spec", "Dev", "PR"]
-    };
+    let headers: Vec<&str> = Milestone::visible(jira)
+        .iter()
+        .map(|stage| stage.column())
+        .collect();
     let stages = headers.len() as u16;
     // Compact rows show one icon per stage; full rows give each stage eight cells plus a gap.
     let compact_width = stages * 2 - 1;
@@ -31,40 +30,35 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
             let Some(record) = node.record_index.and_then(|index| app.records.get(index)) else {
                 return Row::new(vec![name]);
             };
-            let mut statuses = vec![record.spec.as_str()];
-            if jira {
-                statuses.push(record.jira.status.as_str());
-            }
-            statuses.extend([
-                display_implementation_stage(record, jira),
-                record.pr_stage(jira),
-            ]);
+            let states = Milestone::visible(jira)
+                .iter()
+                .map(|stage| stage.state(record, jira));
             if compact {
                 let mut spans = Vec::new();
-                for (index, status) in statuses.iter().enumerate() {
+                for (index, state) in states.enumerate() {
                     if index > 0 {
                         spans.push(Span::raw(" "));
                     }
-                    let (label, color) = status_display(status);
                     spans.push(Span::styled(
-                        label.chars().next().unwrap_or('?').to_string(),
+                        state.list_icon(),
                         if selected {
                             Style::default()
                         } else {
-                            Style::default().fg(color)
+                            Style::default().fg(state.color())
                         },
                     ));
                 }
                 Row::new(vec![name, Cell::from(Line::from(spans))])
             } else {
                 let mut cells = vec![name];
-                cells.extend(statuses.into_iter().map(|status| {
-                    let (label, color) = status_display(status);
-                    Cell::from(label).style(if selected {
-                        Style::default()
-                    } else {
-                        Style::default().fg(color)
-                    })
+                cells.extend(states.map(|state| {
+                    Cell::from(format!("{} {}", state.list_icon(), state.word())).style(
+                        if selected {
+                            Style::default()
+                        } else {
+                            Style::default().fg(state.color())
+                        },
+                    )
                 }));
                 Row::new(cells)
             }
@@ -184,17 +178,4 @@ fn fit_prefix(prefix: &str, available: usize) -> String {
         .rev()
         .collect::<String>();
     format!("…{suffix}")
-}
-
-fn status_display(status: &str) -> (&'static str, Color) {
-    match status {
-        "waiting" => ("○ wait", Color::Gray),
-        "locked" => ("○ locked", Color::DarkGray),
-        "ready" => ("→ ready", Color::LightBlue),
-        "in_progress" => ("● active", Color::Cyan),
-        "done" | "created" => ("✓ done", Color::LightGreen),
-        "draft_pr" | "draft" => ("◐ draft", Color::Yellow),
-        "failed" => ("✕ failed", Color::Red),
-        _ => ("? check", Color::Yellow),
-    }
 }

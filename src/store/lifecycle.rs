@@ -166,36 +166,13 @@ impl Store {
                 writeln!(file, "# {title}\n")?;
                 file.sync_all()?;
             }
-            let now = timestamp();
             let record = Record {
-                schema_version: 1,
                 source_id: Some(source_id),
                 source_relative_path: Some(relative),
                 content_fingerprint: fingerprint(&path).ok(),
-                id,
                 title: title.to_owned(),
                 repo: repo.map(absolute).transpose()?,
-                spec_path: path,
-                created_at: now,
-                updated_at: now,
-                spec: "in_progress".into(),
-                jira: Link {
-                    status: "waiting".into(),
-                    key: None,
-                    url: None,
-                },
-                implementation: Implementation {
-                    status: "waiting".into(),
-                    agent: None,
-                    branch: None,
-                },
-                pr: Link {
-                    status: "waiting".into(),
-                    key: None,
-                    url: None,
-                },
-                launch: None,
-                previous_launches: Vec::new(),
+                ..Record::blank(id, path, SpecStatus::InProgress, timestamp())
             };
             self.write(&record)?;
             Ok(record)
@@ -257,7 +234,7 @@ impl Store {
         self.locked(|| {
             let mut record = self.get(id)?;
             if let Some(launch) = &mut record.launch {
-                launch.status = "completed".into();
+                launch.status = LaunchStatus::Completed;
             }
             record.updated_at = timestamp();
             self.write(&record)?;

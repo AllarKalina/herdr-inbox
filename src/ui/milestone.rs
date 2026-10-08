@@ -1,5 +1,6 @@
-use super::{DetailAction, display_implementation_stage};
-use crate::store::Record;
+use super::DetailAction;
+use crate::store::{ImplementationStage, JiraStatus, PrStage, Record, SpecStatus};
+use ratatui::style::Color;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Milestone {
@@ -7,6 +8,62 @@ pub(super) enum Milestone {
     Jira,
     Dev,
     Pr,
+}
+
+/// How a milestone reads at a glance, whichever stage it belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum StageState {
+    Locked,
+    Waiting,
+    Ready,
+    Active,
+    Done,
+    Draft,
+}
+
+impl StageState {
+    pub(super) fn color(self) -> Color {
+        match self {
+            Self::Locked => Color::DarkGray,
+            Self::Waiting => Color::Gray,
+            Self::Ready => Color::LightBlue,
+            Self::Active => Color::Cyan,
+            Self::Done => Color::LightGreen,
+            Self::Draft => Color::Yellow,
+        }
+    }
+
+    pub(super) fn word(self) -> &'static str {
+        match self {
+            Self::Locked => "locked",
+            Self::Waiting => "wait",
+            Self::Ready => "ready",
+            Self::Active => "active",
+            Self::Done => "done",
+            Self::Draft => "draft",
+        }
+    }
+
+    /// The icon beside the word in an Inbox list column.
+    pub(super) fn list_icon(self) -> &'static str {
+        match self {
+            Self::Locked | Self::Waiting => "○",
+            Self::Ready => "→",
+            Self::Active => "●",
+            Self::Done => "✓",
+            Self::Draft => "◐",
+        }
+    }
+
+    /// The node drawn on the progress rail's spine.
+    pub(super) fn node(self) -> &'static str {
+        match self {
+            Self::Locked | Self::Waiting | Self::Ready => "○",
+            Self::Active => "◉",
+            Self::Done => "●",
+            Self::Draft => "◐",
+        }
+    }
 }
 
 impl Milestone {
@@ -31,23 +88,51 @@ impl Milestone {
         }
     }
 
-    pub(super) fn status(self, record: &Record, jira: bool) -> &str {
+    /// The stage's column heading in the Inbox list.
+    pub(super) fn column(self) -> &'static str {
         match self {
-            Self::Spec => &record.spec,
-            Self::Jira => &record.jira.status,
-            Self::Dev => display_implementation_stage(record, jira),
-            Self::Pr => record.pr_stage(jira),
+            Self::Spec => "Spec",
+            Self::Jira => "Jira",
+            Self::Dev => "Dev",
+            Self::Pr => "PR",
+        }
+    }
+
+    pub(super) fn state(self, record: &Record, jira: bool) -> StageState {
+        match self {
+            Self::Spec => match record.spec {
+                SpecStatus::InProgress => StageState::Active,
+                SpecStatus::Done => StageState::Done,
+            },
+            Self::Jira => match record.jira.status {
+                JiraStatus::Waiting => StageState::Waiting,
+                JiraStatus::Ready => StageState::Ready,
+                JiraStatus::Created => StageState::Done,
+            },
+            Self::Dev => match record.implementation_stage(jira) {
+                ImplementationStage::Locked => StageState::Locked,
+                ImplementationStage::Ready => StageState::Ready,
+                ImplementationStage::InProgress => StageState::Active,
+                // Development is finished once its draft PR exists.
+                ImplementationStage::DraftPr => StageState::Done,
+            },
+            Self::Pr => match record.pr_stage(jira) {
+                PrStage::Locked => StageState::Locked,
+                PrStage::Ready => StageState::Ready,
+                PrStage::Draft => StageState::Draft,
+            },
         }
     }
 
     pub(super) fn next(record: &Record, jira: bool) -> Self {
-        if record.spec != "done" {
+        if record.spec != SpecStatus::Done {
             Self::Spec
-        } else if jira && record.jira.status != "created" {
+        } else if jira && record.jira.status != JiraStatus::Created {
             Self::Jira
-        } else if record.implementation_stage(jira) == "ready"
-            || record.implementation_stage(jira) == "locked"
-        {
+        } else if matches!(
+            record.implementation_stage(jira),
+            ImplementationStage::Ready | ImplementationStage::Locked
+        ) {
             Self::Dev
         } else {
             Self::Pr
@@ -58,42 +143,43 @@ impl Milestone {
         match self {
             Self::Spec => {
                 let mut actions = Vec::new();
-                if record.spec == "in_progress" {
+                if record.spec == SpecStatus::InProgress {
                     actions.push(DetailAction::Finish);
                 }
                 actions.extend([DetailAction::ReadSpec, DetailAction::RefineSpec]);
                 actions
             }
-            Self::Jira if record.jira.status == "created" => {
-                let mut actions = Vec::new();
-                if record.jira.url.is_some() {
-                    actions.push(DetailAction::OpenJira);
+            Self::Jira => match record.jira.status {
+                JiraStatus::Created => {
+                    let mut actions = Vec::new();
+                    if record.jira.url.is_some() {
+                        actions.push(DetailAction::OpenJira);
+                    }
+                    actions.push(DetailAction::UpdateJira);
+                    actions
                 }
-                actions.push(DetailAction::UpdateJira);
-                actions
-            }
-            Self::Jira if record.jira.status == "ready" => vec![DetailAction::Jira],
-            Self::Dev if record.implementation_stage(jira) == "ready" => {
-                vec![DetailAction::Implement]
-            }
-            Self::Dev
-                if matches!(
-                    record.implementation.status.as_str(),
-                    "in_progress" | "draft_pr"
-                ) =>
-            {
-                vec![DetailAction::UpdateImplementation]
-            }
-            Self::Pr if record.pr.status == "draft" => {
-                let mut actions = Vec::new();
-                if record.pr.url.is_some() {
-                    actions.push(DetailAction::ReviewPr);
+                JiraStatus::Ready => vec![DetailAction::Jira],
+                JiraStatus::Waiting => Vec::new(),
+            },
+            Self::Dev => match record.implementation_stage(jira) {
+                ImplementationStage::Ready => vec![DetailAction::Implement],
+                ImplementationStage::InProgress | ImplementationStage::DraftPr => {
+                    vec![DetailAction::UpdateImplementation]
                 }
-                actions.push(DetailAction::UpdatePr);
-                actions
-            }
-            Self::Pr if record.pr_stage(jira) == "ready" => vec![DetailAction::Pr],
-            _ => Vec::new(),
+                ImplementationStage::Locked => Vec::new(),
+            },
+            Self::Pr => match record.pr_stage(jira) {
+                PrStage::Draft => {
+                    let mut actions = Vec::new();
+                    if record.pr.url.is_some() {
+                        actions.push(DetailAction::ReviewPr);
+                    }
+                    actions.push(DetailAction::UpdatePr);
+                    actions
+                }
+                PrStage::Ready => vec![DetailAction::Pr],
+                PrStage::Locked => Vec::new(),
+            },
         }
     }
 
@@ -101,7 +187,7 @@ impl Milestone {
         match self {
             Self::Spec => String::new(),
             Self::Jira => record.jira.key.clone().unwrap_or_else(|| {
-                if record.jira.status == "ready" {
+                if record.jira.status == JiraStatus::Ready {
                     "Ticket needed"
                 } else {
                     "After spec"
@@ -115,17 +201,17 @@ impl Milestone {
                 .or_else(|| record.implementation.agent.clone())
                 .unwrap_or_else(|| {
                     match record.implementation_stage(jira) {
-                        "ready" => "Record agent and branch",
-                        "in_progress" => "Implementation in progress",
-                        "draft_pr" => "Implementation recorded",
-                        _ if jira => "Needs Jira",
-                        _ => "After spec",
+                        ImplementationStage::Ready => "Record agent and branch",
+                        ImplementationStage::InProgress => "Implementation in progress",
+                        ImplementationStage::DraftPr => "Implementation recorded",
+                        ImplementationStage::Locked if jira => "Needs Jira",
+                        ImplementationStage::Locked => "After spec",
                     }
                     .into()
                 }),
             Self::Pr => record.pr.url.as_ref().map_or_else(
                 || {
-                    if record.pr_stage(jira) == "ready" {
+                    if record.pr_stage(jira) == PrStage::Ready {
                         "Ready to link"
                     } else {
                         "Needs implementation"
@@ -144,27 +230,31 @@ impl Milestone {
 
     pub(super) fn guidance(self, record: &Record, jira: bool) -> &'static str {
         match self {
-            Self::Spec if record.spec == "done" => "Your spec is ready. Read or refine it.",
+            Self::Spec if record.spec == SpecStatus::Done => {
+                "Your spec is ready. Read or refine it."
+            }
             Self::Spec if jira => "Finish the spec to unlock Jira.",
             Self::Spec => "Finish the spec to unlock development.",
-            Self::Jira if record.jira.status == "created" => {
+            Self::Jira if record.jira.status == JiraStatus::Created => {
                 "Ticket linked. Open it or update the link."
             }
-            Self::Jira if record.spec == "done" => "Link a Jira ticket to unlock development.",
+            Self::Jira if record.spec == SpecStatus::Done => {
+                "Link a Jira ticket to unlock development."
+            }
             Self::Jira => "Finish the spec before linking a ticket.",
-            Self::Dev if record.implementation_stage(jira) == "ready" => {
-                "Record the implementer and branch."
-            }
-            Self::Dev if record.implementation_stage(jira) == "locked" && jira => {
-                "Link Jira before starting development."
-            }
-            Self::Dev if record.implementation_stage(jira) == "locked" => {
-                "Finish the spec before starting development."
-            }
-            Self::Dev => "Keep the implementer and branch up to date.",
-            Self::Pr if record.pr.status == "draft" => "Draft ready. Open it for review.",
-            Self::Pr if record.pr_stage(jira) == "ready" => "Link the draft PR when it is ready.",
-            Self::Pr => "Start implementation before linking a PR.",
+            Self::Dev => match record.implementation_stage(jira) {
+                ImplementationStage::Ready => "Record the implementer and branch.",
+                ImplementationStage::Locked if jira => "Link Jira before starting development.",
+                ImplementationStage::Locked => "Finish the spec before starting development.",
+                ImplementationStage::InProgress | ImplementationStage::DraftPr => {
+                    "Keep the implementer and branch up to date."
+                }
+            },
+            Self::Pr => match record.pr_stage(jira) {
+                PrStage::Draft => "Draft ready. Open it for review.",
+                PrStage::Ready => "Link the draft PR when it is ready.",
+                PrStage::Locked => "Start implementation before linking a PR.",
+            },
         }
     }
 }
