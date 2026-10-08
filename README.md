@@ -96,7 +96,7 @@ CLI equivalent:
 ~/git/herdr-inbox/target/release/herdr-inbox finish <id> --title "Payment retry handling"
 ```
 
-In the personal setup, the real skill lives at `~/git/codex/skills/grill-me/SKILL.md`, linked into `~/.codex/skills/grill-me`. Restore the skill through the main AI configuration on each Mac. The plugin supplies the skill invocation and inbox context; it does not bundle or install a skill.
+In the personal setup, the real skill lives at `~/git/ai-boiler-room/skills/grill-me/SKILL.md`, linked into `~/.codex/skills/grill-me`. Restore the skill through the main AI configuration on each Mac. The plugin supplies the skill invocation and inbox context; it does not bundle or install a skill.
 
 ## Refine an existing spec
 

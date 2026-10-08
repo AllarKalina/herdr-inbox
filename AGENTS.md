@@ -7,4 +7,4 @@
 - Source files remain user-owned. Never commit or upload specs/context; keep `/specs/` ignored.
 - No routine version bumps. Reserve 1.0 for Allar's complete intended feature set, fully usable and stable.
 - Implement only explicitly requested changes. Ask Allar before adding features, options, or scope.
-- Commits: use `/Users/allarkalina/git/codex/scripts/committer`.
+- Commits: use `/Users/allarkalina/git/ai-boiler-room/scripts/committer`.
