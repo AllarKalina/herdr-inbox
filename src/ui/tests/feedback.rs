@@ -263,6 +263,7 @@ fn feedback_clears_when_starting_another_action_or_leaving_the_detail_view() -> 
         .iter()
         .position(|record| record.id == another.id)
         .unwrap();
+    fixture.app.tree.focus_record(fixture.app.selected);
     press(&mut fixture.app, KeyCode::Enter)?;
     assert_eq!(fixture.app.current().unwrap().id, another.id);
     assert!(fixture.app.feedback.is_none());

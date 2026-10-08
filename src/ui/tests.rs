@@ -10,11 +10,13 @@ use uuid::Uuid;
 mod delight;
 mod feedback;
 mod footer;
+mod list;
 mod proximity;
 mod quest;
 mod refinement;
 mod sources;
 mod timeline;
+mod tree;
 
 #[test]
 fn delete_requires_second_enter_and_esc_cancels() -> Result<()> {
@@ -63,111 +65,6 @@ fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
     }
     assert_eq!(app.store.get(&record.id)?.spec, "in_progress");
     assert!(draw::footer_text(&app).contains("Enter open · n new · a archive · s settings"));
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
-fn list_keeps_status_columns_fixed_after_long_names() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-inbox-list-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    store.start("Short", None, None)?;
-    store.start(
-        "Long title that stretches well beyond the available name column width",
-        None,
-        None,
-    )?;
-    let mut app = App::new(store)?;
-
-    for width in [54, 100] {
-        let mut terminal = Terminal::new(TestBackend::new(width, 24))?;
-        terminal.draw(|frame| draw::draw(frame, &mut app))?;
-        let lines: Vec<String> = terminal
-            .backend()
-            .buffer()
-            .content()
-            .chunks(width as usize)
-            .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
-            .collect();
-        assert!(lines[0].trim().is_empty());
-        assert!(!lines[1].contains("Name"));
-        let rows: Vec<&String> = lines
-            .iter()
-            .filter(|line| line.contains("Short") || line.contains("Long title"))
-            .collect();
-        assert_eq!(rows.len(), 2);
-        if width < 64 {
-            assert!(lines[1].contains("S J D P"));
-            assert!(rows.iter().all(|row| row.contains("● ○ ○ ○")));
-        } else {
-            assert!(lines[1].contains("Spec") && lines[1].contains("Jira"));
-            assert_eq!(rows[0].find("● active"), rows[1].find("● active"));
-            assert!(
-                rows.iter()
-                    .all(|row| row.rfind("○ locked").unwrap() > width as usize - 15)
-            );
-        }
-        assert!(rows.iter().any(|row| row.contains("Short")));
-        assert!(rows.iter().any(|row| row.contains("Long title")));
-        let active_colors: Vec<Color> = terminal
-            .backend()
-            .buffer()
-            .content()
-            .iter()
-            .filter(|cell| cell.symbol() == "●")
-            .map(|cell| cell.fg)
-            .collect();
-        if width >= 64 {
-            assert!(active_colors.contains(&Color::Black));
-            assert!(active_colors.contains(&Color::Cyan));
-        }
-    }
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
-fn list_icons_show_completed_and_draft_stages() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-inbox-icons-{}", Uuid::new_v4()));
-    let store = Store::new(root.clone());
-    let record = store.start("Completed item", None, None)?;
-    store.update(&record.id, Change::Finish { title: None })?;
-    store.update(
-        &record.id,
-        Change::Jira {
-            key: "TEST-1".into(),
-            url: None,
-        },
-    )?;
-    store.update(
-        &record.id,
-        Change::Implement {
-            agent: None,
-            branch: None,
-        },
-    )?;
-    store.update(
-        &record.id,
-        Change::Pr {
-            url: "https://example.test/pr/1".into(),
-        },
-    )?;
-    let mut app = App::new(store)?;
-    let mut terminal = Terminal::new(TestBackend::new(100, 24))?;
-    terminal.draw(|frame| draw::draw(frame, &mut app))?;
-    let lines: Vec<String> = terminal
-        .backend()
-        .buffer()
-        .content()
-        .chunks(100)
-        .map(|cells| cells.iter().map(|cell| cell.symbol()).collect())
-        .collect();
-    let row = lines
-        .iter()
-        .find(|line| line.contains("Completed item"))
-        .unwrap();
-    assert_eq!(row.matches("✓ done").count(), 3);
-    assert_eq!(row.matches("◐ draft").count(), 1);
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -455,12 +352,21 @@ fn mouse_hover_selects_a_list_item_before_enter() -> Result<()> {
     store.start("Second", None, None)?;
     let mut app = App::new(store)?;
     let second_id = app.records[1].id.clone();
+    let mut terminal = Terminal::new(TestBackend::new(100, 30))?;
+    terminal.draw(|frame| draw::draw(frame, &mut app))?;
+    let tree_index = app
+        .tree
+        .rows
+        .iter()
+        .position(|row| row.record_index == Some(1))
+        .unwrap();
+    let hover_row = app.list_area.y + 1 + (tree_index - app.list_offset) as u16;
     handle_mouse(
         &mut app,
         MouseEvent {
             kind: MouseEventKind::Moved,
             column: 5,
-            row: 3,
+            row: hover_row,
             modifiers: KeyModifiers::NONE,
         },
         30,

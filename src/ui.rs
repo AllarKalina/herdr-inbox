@@ -1,6 +1,7 @@
 mod detail;
 mod draw;
 mod input;
+mod list;
 mod milestone;
 mod picker;
 mod progress;
@@ -10,6 +11,7 @@ mod submit;
 #[cfg(test)]
 mod tests;
 mod trash;
+mod tree;
 use input::{handle_key, handle_mouse};
 use milestone::Milestone;
 
@@ -102,6 +104,8 @@ struct App {
     store: Store,
     records: Vec<Record>,
     selected: usize,
+    tree: tree::Tree,
+    list_area: Rect,
     screen: Screen,
     action_selected: usize,
     action_hitboxes: Vec<Rect>,
@@ -206,10 +210,14 @@ impl App {
         let report = store.scan()?;
         let records = store.list()?;
         let first_use = settings.sources.is_empty() && records.is_empty();
+        let mut tree = tree::Tree::default();
+        tree.rebuild(&records, &settings.sources, &store.path().join("specs"));
         Ok(Self {
             store,
             records,
             selected: 0,
+            tree,
+            list_area: Rect::default(),
             screen: if first_use {
                 Screen::Settings
             } else if !report.issues.is_empty() {
@@ -257,6 +265,16 @@ impl App {
         }
         self.selected =
             still_present.unwrap_or(self.selected.min(self.records.len().saturating_sub(1)));
+        self.tree.rebuild(
+            &self.records,
+            &self.store.settings()?.sources,
+            &self.store.path().join("specs"),
+        );
+        if matches!(self.screen, Screen::Detail | Screen::Reader) {
+            self.tree.focus_record(self.selected);
+        } else {
+            self.sync_tree_selection();
+        }
         let new_next = self.current().map(Milestone::next);
         if old_next != new_next
             && old_next == Some(self.milestone_selected)
@@ -271,7 +289,19 @@ impl App {
     }
 
     fn current(&self) -> Option<&Record> {
-        self.records.get(self.selected)
+        if self.screen == Screen::List {
+            self.tree
+                .selected_record()
+                .and_then(|index| self.records.get(index))
+        } else {
+            self.records.get(self.selected)
+        }
+    }
+
+    fn sync_tree_selection(&mut self) {
+        if let Some(index) = self.tree.selected_record() {
+            self.selected = index;
+        }
     }
 
     fn actions(&self) -> Vec<DetailAction> {

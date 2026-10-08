@@ -130,9 +130,11 @@ The TUI uses rectangular cell geometry, with no corner-radius tokens. Circular m
 
 ## Components
 
-### Inbox table
+### Inbox folder tree
 
-The row title leads; Spec, Jira, Dev, and PR statuses stay aligned at the right. A selected row uses a teal fill, Surface One text, and bold weight. Unselected status cells use semantic foreground colors. Hover or keyboard movement changes selection without changing the column grid.
+Source folders lead a waterfall tree reflecting the user's content hierarchy. Each depth adds three cells; quiet branch guides connect parents and children. Folder, Markdown, and HTML Nerd Font icons establish file type beside readable names. Folder rows leave the workflow columns blank; file rows keep Spec, Jira, Dev, and PR aligned at the right. Deep or long names truncate inside the flexible name column and never displace workflow columns.
+
+A selected row uses a teal fill, Surface One text, and bold weight. Unselected status cells use semantic foreground colors. Hover or keyboard movement changes selection without changing the column grid. Enter and folder clicks toggle expansion; Left/Right collapse, expand, or move between parent and child. Expansion and focus survive refreshes. The main footer stays minimal; setup, filters, rescanning, and restoration remain in Settings. Keep the flat transparent canvas and terminal Catppuccin roles rather than introducing nested cards.
 
 ### Breadcrumb and spec
 

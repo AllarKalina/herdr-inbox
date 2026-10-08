@@ -35,6 +35,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                     .iter()
                     .position(|record| record.id == restored.id)
                     .unwrap_or(0);
+                app.tree.focus_record(app.selected);
             }
         }
         _ => {}

@@ -199,17 +199,22 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     match key.code {
         KeyCode::Char('s') => super::settings::open(app)?,
         KeyCode::Esc => return Ok(true),
-        KeyCode::Enter if app.current().is_some() => {
-            app.screen = Screen::Detail;
-            app.message.clear();
-            if let Some(record) = app.current() {
-                app.select_milestone(Milestone::next(record));
+        KeyCode::Enter => {
+            if app.tree.selected_record().is_some() {
+                app.sync_tree_selection();
+                app.screen = Screen::Detail;
+                app.message.clear();
+                if let Some(record) = app.current() {
+                    app.select_milestone(Milestone::next(record));
+                }
+            } else {
+                app.tree.toggle_focused();
             }
         }
-        KeyCode::Char('j') | KeyCode::Down => {
-            app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1))
-        }
-        KeyCode::Char('k') | KeyCode::Up => app.selected = app.selected.saturating_sub(1),
+        KeyCode::Char('j') | KeyCode::Down => app.tree.move_focus(true),
+        KeyCode::Char('k') | KeyCode::Up => app.tree.move_focus(false),
+        KeyCode::Left => app.tree.collapse_or_parent(),
+        KeyCode::Right => app.tree.expand_or_child(),
         KeyCode::Char('n') => {
             app.choose_client(ChoicePurpose::NewSpec, launch::available_profiles());
         }
@@ -222,6 +227,7 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         }
         _ => {}
     }
+    app.sync_tree_selection();
     app.refresh()?;
     Ok(false)
 }
@@ -281,7 +287,7 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Result<()> {
+pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, _height: u16) -> Result<()> {
     if matches!(
         app.screen,
         Screen::Settings | Screen::Trash | Screen::ScanResult
@@ -341,18 +347,32 @@ pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Res
     }
     match mouse.kind {
         MouseEventKind::Moved | MouseEventKind::Down(MouseButton::Left) => {
-            let row = mouse.row as usize;
-            if row >= 2 && row < height.saturating_sub(3) as usize {
-                let index = app.list_offset + row - 2;
-                if index < app.records.len() {
-                    app.selected = index;
+            let area = app.list_area;
+            if mouse.row > area.y
+                && mouse.row < area.bottom()
+                && mouse.column >= area.x
+                && mouse.column < area.right()
+            {
+                let index = app.list_offset + usize::from(mouse.row - area.y - 1);
+                if index < app.tree.rows.len() {
+                    app.tree.focused = index;
+                    if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                        && app.tree.rows[index].is_folder
+                    {
+                        app.tree.toggle_focused();
+                    }
+                    app.sync_tree_selection();
                 }
             }
         }
         MouseEventKind::ScrollDown => {
-            app.selected = (app.selected + 1).min(app.records.len().saturating_sub(1));
+            app.tree.move_focus(true);
+            app.sync_tree_selection();
         }
-        MouseEventKind::ScrollUp => app.selected = app.selected.saturating_sub(1),
+        MouseEventKind::ScrollUp => {
+            app.tree.move_focus(false);
+            app.sync_tree_selection();
+        }
         _ => {}
     }
     Ok(())
