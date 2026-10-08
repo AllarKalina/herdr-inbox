@@ -104,19 +104,22 @@ fn launched_specs_do_not_repeat_their_workspace_or_client_in_progress() -> Resul
     let id = fixture.app.current().unwrap().id.clone();
     fixture.app.store.update(
         &id,
-        Change::Launch(Box::new(crate::store::Launch {
-            status: "prompt_sent".into(),
-            harness: "codex".into(),
-            workspace: "ai-boiler-room".into(),
-            workspace_id: None,
-            tab_id: None,
-            pane_id: None,
-            agent: None,
-            model: "gpt-6-sol".into(),
-            effort: "high".into(),
-            prompt: "Test spec prompt".into(),
-            error: None,
-        })),
+        Change::Launch(
+            Box::new(crate::store::Launch {
+                status: "prompt_sent".into(),
+                harness: "codex".into(),
+                workspace: "ai-boiler-room".into(),
+                workspace_id: None,
+                tab_id: None,
+                pane_id: None,
+                agent: None,
+                model: "gpt-6-sol".into(),
+                effort: "high".into(),
+                prompt: "Test spec prompt".into(),
+                error: None,
+            }),
+            fixture.app.current().unwrap().spec_path.clone(),
+        ),
     )?;
     fixture.app.refresh()?;
     assert_eq!(Milestone::Spec.context(fixture.app.current().unwrap()), "");

@@ -4,7 +4,7 @@
 
 ## Users
 
-Allar uses this personal Herdr inbox during software work: a grilling session produces a spec, then the work moves through a Jira ticket, agent implementation, and a draft PR. A public source repository distributes the plugin to his Macs; it is not a team service.
+A Mac user connects this Herdr inbox to their own specs and context during software work: a grilling session produces a spec, then the work moves through a Jira ticket, agent implementation, and a draft PR. A public source repository distributes the plugin to any supported Mac; it is not a team service.
 
 ## Product Purpose
 
@@ -17,20 +17,23 @@ A terminal-native workflow inbox that launches a spec agent in Herdr and stores 
 ## Operating Context
 
 - Runs as a macOS terminal popup inside Herdr, with a CLI for direct updates and agent-readable JSON output.
-- Opens spec sessions in the `ai-boiler-room` workspace. The user chooses an available Claude or Codex client; each session gets its own tab, and each new item gets its own Markdown spec path.
+- Opens spec sessions in the configured workspace (default `ai-boiler-room`). The user chooses an available Claude or Codex client; each session gets its own tab, and each new item gets its own Markdown spec path.
 - Refining a spec opens another client chooser and a new session tab for the existing item, title, repo, and Markdown path. The agent validates the spec against current code before continuing the grilling interview.
 - A spec is named when the session is finished. The current path is spec → linked Jira ticket → implementation → linked draft PR.
 - The user reads the spec and selects next actions from the inbox detail view. Keyboard operation is central to this workflow.
 
 ## Capabilities and Constraints
 
-- Item records and inbox-owned Markdown specs live on local disk under `~/Library/Application Support/herdr-inbox/` by default. `HERDR_INBOX_HOME` can change that directory. There is no hosted database, sync service, or background daemon.
+- Settings and item records live on local disk under `~/Library/Application Support/herdr-inbox/` by default. `HERDR_INBOX_HOME` can change that directory. There is no hosted database, sync service, or background daemon.
 - The inbox can launch or refine a grilling session, track its spec, mark it finished, link a Jira ticket, mark implementation started, and link or open a draft PR. Jira must be linked before implementation starts.
 - Refinement preserves Jira, implementation, and PR links and progress. SPEC becomes active only after the harness accepts the prompt; this is a launch status, not evidence that agent validation is complete. The agent reads the existing spec and item context, treats current code as truth, reports gaps, then interviews the user before updating the same file and finishing the same item.
 - Previous launches remain in the item's local JSON history. Cancellation leaves the item unchanged; failed refinement preserves its prior spec status and does not overwrite its file. The raw editor remains available through `e`.
 - Jira and PR actions currently store links to existing external work; they do not create tickets or PRs remotely. The implementation action records an agent and branch; it does not yet launch an implementer.
-- Deleting an item requires a second Enter confirmation and moves inbox-owned files to the local `trash/` directory under inbox data. Linked specs outside the inbox remain in place.
+- Deleting an item requires a second Enter confirmation and moves inbox-owned files to the local `trash/` directory under inbox data. User-owned specs remain in place, regardless of location. Trash is restorable and excluded from automatic rediscovery.
 - This plugin is for personal use. Public GitHub installation builds the same source on each Mac; the plugin and config can be shared while inbox records and specs remain separate on local disks. Local linking remains available for development.
+
+- Arbitrary user-selected sources discover existing Markdown recursively as Spec done. No content hierarchy or cross-computer sharing is imposed. Settings configure sources, filters, context references and launch defaults; each computer has independent metadata.
+- New/refinement sessions inspect explicit context paths after availability preflight. Confirmed source relocation and explicit item relinking preserve identities; unresolved sessions must be settled before rebinding.
 
 ## Brand Commitments
 

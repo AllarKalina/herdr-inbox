@@ -70,14 +70,27 @@ fn draw_detail(frame: &mut ratatui::Frame, app: &mut App, record: &Record) {
         draw_spec(frame, record, rows[0]);
         progress::draw(frame, app, record, rows[1]);
     }
-    frame.render_widget(
-        Paragraph::new(vec![
-            Line::default(),
-            Line::from("j/k stage · Tab action · r read").style(Style::default().fg(Color::Gray)),
-            Line::from(app.message.as_str()).style(Style::default().fg(Color::LightGreen)),
-        ]),
-        areas[2],
+    let mut footer = Vec::new();
+    if areas[2].height >= 3 {
+        footer.push(Line::default());
+    }
+    footer.push(
+        Line::from("j/k stage · Tab action · r read").style(Style::default().fg(Color::Gray)),
     );
+    let hint = if record.active_spec_session() {
+        "L relink · x settle · e edit"
+    } else {
+        "L relink · e edit · d delete"
+    };
+    footer.push(
+        Line::from(if app.message.is_empty() {
+            hint
+        } else {
+            app.message.as_str()
+        })
+        .style(Style::default().fg(Color::LightGreen)),
+    );
+    frame.render_widget(Paragraph::new(footer), areas[2]);
 }
 
 fn draw_spec(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
@@ -167,7 +180,7 @@ fn spec_text(record: &Record) -> String {
         Ok(text) if text.trim().is_empty() => "Spec file is empty. Press e to edit it.".into(),
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            "Spec file has not been written yet. It will appear here when the agent saves it."
+            "Spec unavailable. Press L to relink to its current file, or restore the file at its original path."
                 .into()
         }
         Err(error) => format!("Cannot read spec: {error}"),

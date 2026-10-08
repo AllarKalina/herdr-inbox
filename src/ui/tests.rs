@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::Change;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
@@ -11,6 +12,7 @@ mod feedback;
 mod proximity;
 mod quest;
 mod refinement;
+mod sources;
 mod timeline;
 
 #[test]
@@ -59,7 +61,7 @@ fn list_stage_shortcuts_no_longer_start_actions() -> Result<()> {
         assert!(app.prompt.is_none());
     }
     assert_eq!(app.store.get(&record.id)?.spec, "in_progress");
-    assert_eq!(draw::footer_text(&app), "Enter open · n new · d delete");
+    assert!(draw::footer_text(&app).contains("Enter open · n new · d delete"));
     fs::remove_dir_all(root)?;
     Ok(())
 }

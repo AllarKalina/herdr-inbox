@@ -248,7 +248,7 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
         },
     )?;
     let launch = Launch {
-        status: "prompt_sent".into(),
+        status: "completed".into(),
         harness: "codex".into(),
         workspace: "ai-boiler-room".into(),
         workspace_id: Some("w1".into()),
@@ -260,13 +260,16 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
         prompt: "original prompt".into(),
         error: None,
     };
-    store.update(&record.id, Change::Launch(Box::new(launch.clone())))?;
+    store.update(
+        &record.id,
+        Change::Launch(Box::new(launch.clone()), record.spec_path.clone()),
+    )?;
     let mut refinement = launch;
     refinement.status = "starting".into();
     refinement.agent = Some("refine_new".into());
     let starting = store.update(
         &record.id,
-        Change::BeginRefinement(Box::new(refinement.clone())),
+        Change::BeginRefinement(Box::new(refinement.clone()), record.spec_path.clone()),
     )?;
     assert_eq!(starting.spec, "done");
     assert_eq!(starting.previous_launches.len(), 1);
@@ -275,7 +278,10 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
         Some("spec_original")
     );
     refinement.status = "prompt_sent".into();
-    store.update(&record.id, Change::Launch(Box::new(refinement)))?;
+    store.update(
+        &record.id,
+        Change::Launch(Box::new(refinement), record.spec_path.clone()),
+    )?;
     let refining = store.update(&record.id, Change::RefineSpec)?;
     assert_eq!(refining.spec, "in_progress");
     let finished = store.update(&record.id, Change::Finish { title: None })?;
@@ -354,3 +360,7 @@ fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()>
     fs::remove_dir_all(root)?;
     Ok(())
 }
+
+mod discovery;
+
+mod settings;

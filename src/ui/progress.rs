@@ -237,6 +237,13 @@ fn prompt_lines(app: &App, record: &Record, width: u16) -> Vec<Line<'static>> {
                 "Linked spec stays intact.".into()
             },
         ]
+    } else if matches!(prompt, Prompt::Settle { .. }) {
+        vec![
+            "Session ended?".into(),
+            "No tabs closed.".into(),
+            "Enter settle".into(),
+            "Esc cancel".into(),
+        ]
     } else {
         let tail: String = app
             .input

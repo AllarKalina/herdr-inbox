@@ -273,7 +273,7 @@ fn repeated_refinements_use_unique_agents_and_preserve_previous_sessions() {
     assert_eq!(history.len(), 1);
     assert_eq!(history[0]["agent"], first["launch"]["agent"]);
     assert_eq!(history[0]["prompt"], first["launch"]["prompt"]);
-    assert_eq!(history[0]["status"], "prompt_sent");
+    assert_eq!(history[0]["status"], "completed");
     assert_eq!(
         fixture
             .calls()
@@ -483,3 +483,6 @@ fn codex_refinement_grants_access_to_the_existing_external_spec_directory() {
     assert_eq!(fs::read_to_string(&spec).unwrap(), contents);
     assert_eq!(list.as_array().unwrap().len(), 1);
 }
+
+#[path = "refine_flow/content.rs"]
+mod content;

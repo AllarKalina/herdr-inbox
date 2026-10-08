@@ -78,6 +78,7 @@ pub struct Options {
     pub profile: Profile,
     pub workspace: String,
     pub repo: Option<PathBuf>,
+    pub spec: Option<PathBuf>,
     pub model: String,
     pub effort: String,
     pub topic: String,
@@ -90,6 +91,7 @@ impl Default for Options {
             profile: Profile::Opus,
             workspace: DEFAULT_WORKSPACE.into(),
             repo: None,
+            spec: None,
             model: DEFAULT_MODEL.into(),
             effort: DEFAULT_EFFORT.into(),
             topic: String::new(),
@@ -207,10 +209,15 @@ fn required_string<'a>(value: &'a Value, path: &[&str]) -> Result<&'a str> {
 }
 
 fn mark(store: &Store, record: &Record, launch: &Launch) -> Result<Record> {
-    store.update(&record.id, Change::Launch(Box::new(launch.clone())))
+    store.update(
+        &record.id,
+        Change::Launch(Box::new(launch.clone()), record.spec_path.clone()),
+    )
 }
 
 pub fn start(store: &Store, mut options: Options) -> Result<Record> {
+    let settings = store.settings()?;
+    settings.validate_context()?;
     let herdr = Herdr::new()?;
     let workspace_id = herdr.workspace(&options.workspace)?;
     if !options.profile.available() {
@@ -230,7 +237,10 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
         return Err("Model and effort cannot be empty".into());
     }
 
-    let record = store.start_untitled(options.repo.clone())?;
+    let record = match options.spec.clone() {
+        Some(path) => store.start_untitled_with_spec(options.repo.clone(), Some(path))?,
+        None => store.start_untitled(options.repo.clone())?,
+    };
     let mut launch = Launch {
         status: "starting".into(),
         harness: options.profile.id().into(),
@@ -244,7 +254,13 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
         prompt: String::new(),
         error: None,
     };
-    launch.prompt = prompts::initial(&record, &options.topic, options.profile, store.path())?;
+    launch.prompt = prompts::initial(
+        &record,
+        &options.topic,
+        options.profile,
+        store.path(),
+        &settings.context_paths,
+    )?;
     mark(store, &record, &launch)?;
     complete(
         store,
@@ -261,7 +277,19 @@ pub fn start(store: &Store, mut options: Options) -> Result<Record> {
 }
 
 pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
+    let settings = store.settings()?;
+    settings.validate_context()?;
     let record = store.get(id)?;
+    if record.active_spec_session() {
+        return Err(
+            "Finish or settle the current spec session before starting another refinement".into(),
+        );
+    }
+    if options.spec.is_some() {
+        return Err(
+            "Refinement uses the existing spec path; use relink before starting a session".into(),
+        );
+    }
     preflight_spec(&record)?;
     options.repo = options
         .repo
@@ -301,11 +329,15 @@ pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
             options.profile,
             store.path(),
             options.repo.as_deref(),
+            &settings.context_paths,
         )?,
         error: None,
     };
     let session_id = Uuid::new_v4().simple().to_string();
-    store.update(id, Change::BeginRefinement(Box::new(launch.clone())))?;
+    store.update(
+        id,
+        Change::BeginRefinement(Box::new(launch.clone()), record.spec_path.clone()),
+    )?;
     complete(
         store,
         &herdr,

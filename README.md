@@ -1,19 +1,43 @@
 # Personal inbox
 
-A local Herdr inbox for moving an idea through spec, Jira, implementation, and draft PR. Built for a personal workflow, with a public source repository for installing the same plugin on multiple Macs. Each Mac keeps its own inbox on disk.
+A local Herdr inbox for moving an idea through spec, Jira, implementation, and draft PR. Connect the same plugin to entirely different specs and context on each Mac. Content stays in user-selected folders; settings and workflow metadata stay local to that computer.
 
 ## Storage
 
-Each item is a JSON file in `~/Library/Application Support/herdr-inbox/items/`. New specs are Markdown files in `~/Library/Application Support/herdr-inbox/specs/` unless `--spec` points elsewhere. Refinement keeps the same item and spec path; earlier launch records remain in the item's local `previous_launches` history. `HERDR_INBOX_HOME` overrides the data directory for backup or testing. The plugin has no hosted database, sync service, or background daemon. Jira and PR URLs are references to external services; linking them does not create anything remotely.
+Settings live in `~/Library/Application Support/herdr-inbox/settings.toml`; each item is a JSON file in `items/` under that directory. `HERDR_INBOX_HOME` overrides the entire local data root, including settings and Trash. No hosted database, sync service, or background daemon is involved. Plugin builds and upgrades leave this data untouched.
 
-To remove an item, select it and press `d`. The confirmation shows its title, ID, spec path, and which files will move. Press Enter to delete or Esc to cancel. Deleted records move to `trash/items/` under the inbox data directory; inbox-owned specs move to `trash/specs/`. Specs linked from elsewhere stay in place. Open agent tabs and external Jira/PRs are unaffected. The files remain on disk for manual recovery.
+Press `s` for **Settings**. Add any spec folder; nested `.md` and `.markdown` files are discovered automatically when settings are saved and when the Inbox opens. `S` rescans while open. There is no required directory tree or sidecar file. Include/exclude rules use glob patterns relative to each source root; turn recursion off to scan only its immediate files. Symlink aliases and overlapping roots are deduplicated; directory cycles are skipped. Source content is never edited by discovery.
+
+Imported specs start **Spec done**, Jira ready, Dev/PR locked. Titles come from the first Markdown H1, falling back to the filename. Repeated scans preserve UUIDs, titles, progress, timestamps, links, and launch history. Missing sources or specs retain their records and produce feedback. Context references can be files or folders; their paths are supplied to new/refinement sessions and checked before launch.
+
+Settings also provide the preferred client and workspace. New sessions use an editable exact spec destination; leaving it blank generates a filename directly in the first configured source. Without sources, legacy creation still uses the local `specs/` directory. Refinement keeps its exact existing file and UUID.
+
+Deletion (`d`, then Enter) moves metadata to local `trash/items/`. Explicitly Inbox-owned legacy specs move to `trash/specs/`; user-owned specs stay in place. Deleted references remain suppressed across scans. Press `u` in the list or choose Restore in settings to restore from Trash, or run `restore ID`; restoration keeps the original UUID and enriched progress.
+
+Source IDs are local identities. Add an unrelated folder as a new source. Use the confirmed relocation flow only when moving the same source; matching unchanged files retain item identities. Changed or ambiguous files require explicit `relink ID PATH` (also `L` in detail). Unresolved spec sessions block relocation/relinking: finish the spec normally, or after stopping an abandoned session run `settle ID` (or `x`, then Enter, in detail). Settling records completion of the local session without advancing the spec workflow or controlling the agent. Settings edits apply to future launches; existing prompts retain their item, file and data-root targets.
+
+CLI setup example:
+
+```sh
+herdr-inbox settings add-source "$HOME/my-specs"
+herdr-inbox settings add-context "$HOME/my-project-context"
+herdr-inbox settings defaults --profile codex --workspace ai-boiler-room
+herdr-inbox settings show --json
+herdr-inbox scan --json
+```
+
+Other settings commands: `add-source PATH --flat --include '**/*.md' --exclude 'archive/**'`, `remove-source ID`, `remove-context PATH`, and `relocate-source ID PATH --confirm`. Removing a source only changes discovery configuration; existing records and content remain.
+
+Metadata JSON schema 1 includes `id`, `spec_path`, `source_id`, `source_relative_path`, `ownership` (`user` or `managed`), title/timestamps, `spec`, `jira`, `implementation`, `pr`, `launch`, and `previous_launches`. `content_fingerprint` supports confirmed relocation; it never identifies items by content alone. Legacy records keep their IDs and paths and receive explicit ownership on migration, without moving their content. Migration is additive; the original JSON remains unchanged until a validated write. Unsupported future settings/metadata schemas are rejected without rewriting them. Older plugin binaries must not write records after this upgrade.
+
+For a separate Jira/Git enrichment script, enumerate with `list --json`, correlate `spec_path`, and update the UUID using `jira`, then `implement`, then `pr`. Inspect with `show ID --json`. Those commands share the UI's validation, locking, and atomic writes; rescanning preserves their updates. Import never infers links or creates remote work.
 
 ## Install on another Mac
 
 Requires macOS, Herdr **0.9.1 or newer**, Git, Rust **1.89 or newer** (`cargo` on `PATH`), and Xcode Command Line Tools for the native linker. Installation builds for the Mac's own architecture, so the same command works on Apple Silicon and Intel:
 
 ```sh
-herdr plugin install AllarKalina/herdr-inbox --ref v0.8.1
+herdr plugin install AllarKalina/herdr-inbox --ref main
 herdr plugin list --plugin personal.inbox
 ```
 
@@ -39,6 +63,8 @@ Reload the configs after restoring them. Install the configured **JetBrainsMono 
 
 Inbox items, specs, Trash, client credentials, and live tabs are not distributed with this repository. New installs use `~/Library/Application Support/herdr-inbox/` on that computer; leave `HERDR_INBOX_HOME` unset for separate local inboxes.
 
+The local content-source feature is available on `main`; use a version tag once this version is released.
+
 To update a managed install, close the inbox and repeat `herdr plugin install AllarKalina/herdr-inbox --ref <new-tag>`. Herdr replaces its managed plugin checkout; inbox data stays in the separate local data directory. A locally linked development copy must be unlinked before switching that Mac to a managed install; development can keep using the link below.
 
 ## Develop locally
@@ -53,9 +79,9 @@ The action opens an 85%-size Herdr popup. `Cmd+I` opens it with the personal Gho
 
 ## New spec session
 
-Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6.1-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
+Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6.1-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, exact spec destination, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
 
-The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort with bypass permissions. Codex defaults to GPT-6.1-Sol (`gpt-6.1-sol`) at High effort with `workspace-write` sandboxing and an added writable inbox data directory. A missing workspace or client leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
+The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort with bypass permissions. Codex defaults to GPT-6.1-Sol (`gpt-6.1-sol`) at High effort with `workspace-write` sandboxing and added writable Inbox and spec-parent directories. A missing context reference, workspace or client leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
 
 CLI equivalent:
 
@@ -87,7 +113,7 @@ CLI equivalent, run inside Herdr after setting `INBOX_ITEM_ID` to an existing it
 "$HOME/git/herdr-inbox/target/release/herdr-inbox" refine "$INBOX_ITEM_ID" --profile opus --repo "$HOME/git/my-service"
 ```
 
-`--repo` overrides the stored repo for that launch; omit it to reuse the item's repo. `refine` accepts the same profile, workspace, model, effort, topic, and permission overrides as `launch`. Ensure the real `grill-me` skill from your main AI configuration is discoverable by the chosen client; the inbox passes the skill invocation rather than installing it.
+`--repo` overrides the stored repo for that launch; omit it to reuse the item's repo. `refine` accepts the same profile, workspace, model, effort, topic, and permission overrides as `launch`; `--spec` is only for a new launch. Ensure the real `grill-me` skill from your main AI configuration is discoverable by the chosen client; the inbox passes the skill invocation rather than installing it.
 
 ## Workflow
 
@@ -115,4 +141,4 @@ Use Tab, `h/l`, or Left/Right to cycle actions; Enter or a mouse click runs the 
 
 Press `r` for the full scrollable Markdown spec; use `j/k` to scroll one line or `Shift+J/K` to scroll ten. Scrolling stops two rows after its last rendered line and adjusts to wrapping, file edits, and resizing. Press `e` to edit it, Esc to return to the previous view, or `q` to close the inbox. The detail view keeps the same two-step deletion confirmation with `d`, then Enter.
 
-List actions: Enter opens the selected spec; `n` starts a new spec session; `d` opens the deletion confirmation. Hover, arrow keys, or `j/k` select a row; Esc closes the inbox. Editing and stage actions live in the detail view. The CLI still supports creating local records without launching an agent. Status messages appear above the three action hints.
+List actions: `s` settings; `S` rescan; `u` Trash; Enter opens the selected spec; `n` starts a new spec session; `d` opens the deletion confirmation. Hover, arrow keys, or `j/k` select a row; Esc closes the inbox. Editing and stage actions live in the detail view. The CLI still supports creating local records without launching an agent. Status messages appear above the three action hints.

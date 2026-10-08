@@ -3,13 +3,17 @@ mod draw;
 mod input;
 mod milestone;
 mod progress;
+mod scan;
+mod settings;
+mod submit;
 #[cfg(test)]
 mod tests;
+mod trash;
 use input::{handle_key, handle_mouse};
 use milestone::Milestone;
 
-use crate::launch::{self, DEFAULT_WORKSPACE, Options, Profile};
-use crate::store::{Change, Record, Result, Store};
+use crate::launch::Profile;
+use crate::store::{Record, Result, Store};
 use crossterm::event::{self, Event};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::terminal::{
@@ -22,6 +26,7 @@ use std::io::{self, stdout};
 use std::path::PathBuf;
 use std::time::Duration;
 
+#[derive(Clone)]
 enum Prompt {
     LaunchWorkspace {
         profile: Profile,
@@ -30,10 +35,22 @@ enum Prompt {
         profile: Profile,
         workspace: String,
     },
+    LaunchSpec {
+        profile: Profile,
+        workspace: String,
+        repo: Option<PathBuf>,
+    },
     LaunchTopic {
         profile: Profile,
         workspace: String,
         repo: Option<PathBuf>,
+        spec: Option<PathBuf>,
+    },
+    Relink {
+        id: String,
+    },
+    Settle {
+        id: String,
     },
     FinishTitle {
         id: String,
@@ -63,7 +80,10 @@ enum Prompt {
 impl Prompt {
     fn label(&self) -> &'static str {
         match self {
-            Self::LaunchWorkspace { .. } => "Workspace [ai-boiler-room]",
+            Self::LaunchWorkspace { .. } => "Herdr workspace",
+            Self::LaunchSpec { .. } => "Spec path (blank = first source folder)",
+            Self::Relink { .. } => "Existing spec file to relink",
+            Self::Settle { .. } => "Confirm session has ended",
             Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
             Self::LaunchTopic { .. } => "Grilling topic (optional)",
             Self::FinishTitle { .. } => "Finished spec title",
@@ -97,6 +117,11 @@ struct App {
     feedback: Option<MilestoneFeedback>,
     message: String,
     should_exit: bool,
+    settings: settings::SettingsView,
+    trash: Vec<Record>,
+    trash_selected: usize,
+    trash_return: Screen,
+    scan_issues: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -104,6 +129,9 @@ enum Screen {
     List,
     Detail,
     Reader,
+    Settings,
+    Trash,
+    ScanResult,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -173,12 +201,21 @@ fn display_implementation_stage(record: &Record) -> &str {
 
 impl App {
     fn new(store: Store) -> Result<Self> {
+        let settings = store.settings()?;
+        let report = store.scan()?;
         let records = store.list()?;
+        let first_use = settings.sources.is_empty() && records.is_empty();
         Ok(Self {
             store,
             records,
             selected: 0,
-            screen: Screen::List,
+            screen: if first_use {
+                Screen::Settings
+            } else if !report.issues.is_empty() {
+                Screen::ScanResult
+            } else {
+                Screen::List
+            },
             action_selected: 0,
             action_hitboxes: Vec::new(),
             milestone_selected: Milestone::Spec,
@@ -192,8 +229,19 @@ impl App {
             choice_selected: None,
             choice_purpose: ChoicePurpose::NewSpec,
             feedback: None,
-            message: String::new(),
+            message: if first_use {
+                String::new()
+            } else if settings.sources.is_empty() {
+                "Press s to connect your specs folder".into()
+            } else {
+                report.summary()
+            },
             should_exit: false,
+            settings: settings::SettingsView::new(settings, first_use),
+            trash: Vec::new(),
+            trash_selected: 0,
+            trash_return: Screen::List,
+            scan_issues: report.issues.clone(),
         })
     }
 
@@ -207,7 +255,7 @@ impl App {
         let still_present = id
             .as_ref()
             .and_then(|id| self.records.iter().position(|record| &record.id == id));
-        if still_present.is_none() && self.screen != Screen::List {
+        if still_present.is_none() && matches!(self.screen, Screen::Detail | Screen::Reader) {
             self.screen = Screen::List;
             self.feedback = None;
             self.message = "Item no longer in inbox".into();
@@ -273,107 +321,20 @@ impl App {
         self.choice_selected = if self.choices.is_empty() {
             None
         } else {
-            Some(0)
+            Some(
+                self.store
+                    .settings()
+                    .ok()
+                    .and_then(|settings| settings.preferred_client)
+                    .and_then(|id| self.choices.iter().position(|profile| profile.id() == id))
+                    .unwrap_or(0),
+            )
         };
         self.message = if self.choices.is_empty() {
             "No supported client found (install codex or claude)".into()
         } else {
             String::new()
         };
-    }
-
-    fn submit(&mut self) -> Result<()> {
-        let Some(prompt) = self.prompt.take() else {
-            return Ok(());
-        };
-        let value = std::mem::take(&mut self.input).trim().to_string();
-        match prompt {
-            Prompt::LaunchWorkspace { profile } => self.begin(Prompt::LaunchRepo {
-                profile,
-                workspace: if value.is_empty() {
-                    DEFAULT_WORKSPACE.into()
-                } else {
-                    value
-                },
-            }),
-            Prompt::LaunchRepo { profile, workspace } => self.begin(Prompt::LaunchTopic {
-                profile,
-                workspace,
-                repo: nonempty(value).map(PathBuf::from),
-            }),
-            Prompt::LaunchTopic {
-                profile,
-                workspace,
-                repo,
-            } => {
-                let options = Options {
-                    workspace,
-                    repo,
-                    topic: value,
-                    ..Options::for_profile(profile)
-                };
-                let record = launch::start(&self.store, options)?;
-                self.message = format!("Launched spec session {}", record.id);
-                self.should_exit = true;
-            }
-            Prompt::FinishTitle { id } if !value.is_empty() => {
-                let record = self
-                    .store
-                    .update(&id, Change::Finish { title: Some(value) })?;
-                let _ = launch::rename_tab(&record);
-                self.acknowledge(Milestone::Spec);
-            }
-            Prompt::Jira { id } if !value.is_empty() => {
-                let url = self.store.get(&id)?.jira.url.unwrap_or_default();
-                self.begin(Prompt::JiraUrl { id, key: value });
-                self.input = url;
-            }
-            Prompt::JiraUrl { id, key } => {
-                self.store.update(
-                    &id,
-                    Change::Jira {
-                        key,
-                        url: nonempty(value),
-                    },
-                )?;
-                self.acknowledge(Milestone::Jira);
-            }
-            Prompt::Agent { id } => {
-                let branch = self
-                    .store
-                    .get(&id)?
-                    .implementation
-                    .branch
-                    .unwrap_or_default();
-                self.begin(Prompt::Branch {
-                    id,
-                    agent: nonempty(value),
-                });
-                self.input = branch;
-            }
-            Prompt::Branch { id, agent } => {
-                self.store.update(
-                    &id,
-                    Change::Implement {
-                        agent,
-                        branch: nonempty(value),
-                    },
-                )?;
-                self.acknowledge(Milestone::Dev);
-            }
-            Prompt::Pr { id } if !value.is_empty() => {
-                self.store.update(&id, Change::Pr { url: value })?;
-                self.acknowledge(Milestone::Pr);
-            }
-            Prompt::Delete { id } => {
-                self.store.delete(&id)?;
-                self.message = "Item moved to local Trash".into();
-                self.screen = Screen::List;
-            }
-            _ => self.message = "Cancelled".into(),
-        }
-        self.refresh()?;
-        Ok(())
     }
 
     fn acknowledge(&mut self, milestone: Milestone) {

@@ -6,7 +6,7 @@ read_when:
 
 # User-owned content sources and local Inbox metadata
 
-Status: design spec. No implementation changes yet.
+Status: implemented. Settings, discovery, local lifecycle, session context and migration behavior verified with isolated Rust/CLI/TUI tests.
 
 ## Goal
 

@@ -75,9 +75,7 @@ pub(super) fn run(
                 "--add-dir",
                 &data_dir,
             ]);
-            if target.refinement
-                && let Some(directory) = &spec_dir
-            {
+            if let Some(directory) = &spec_dir {
                 args.extend(["--add-dir", directory]);
             }
         }

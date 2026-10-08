@@ -1,4 +1,6 @@
+mod content;
 mod launch;
+mod settings;
 mod store;
 mod ui;
 
@@ -51,9 +53,16 @@ fn help() {
     println!("herdr-inbox — local spec-to-PR inbox");
     println!("  start TITLE [--repo PATH] [--spec PATH]");
     println!(
-        "  launch [--profile opus|codex] [--workspace LABEL] [--repo PATH] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]"
+        "  launch [--profile opus|codex] [--workspace LABEL] [--repo PATH] [--spec PATH] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]"
     );
     println!("  profiles");
+    println!(
+        "  settings show [--json] | settings add-source PATH [--flat --include GLOB --exclude GLOB]"
+    );
+    println!("  settings remove-source ID | settings relocate-source ID PATH --confirm");
+    println!("  settings add-context PATH | settings remove-context PATH");
+    println!("  settings defaults [--profile opus|codex] [--workspace LABEL]");
+    println!("  scan [--json] | restore ID | relink ID PATH | settle ID");
     println!("  refine ID [same options as launch]");
     println!("  finish ID [--title TITLE] | title ID TITLE");
     println!("  delete ID --confirm ID");
@@ -63,12 +72,16 @@ fn help() {
     println!("  list [--json] | show ID [--json] | path | tui | open");
 }
 
-fn launch_options(args: &mut Vec<String>) -> Result<launch::Options> {
+fn launch_options(store: &Store, args: &mut Vec<String>) -> Result<launch::Options> {
+    let settings = store.settings()?;
     let profile = flag(args, "--profile")?
+        .or(settings.preferred_client)
         .map(|value| launch::Profile::parse(&value))
         .transpose()?
         .unwrap_or(launch::Profile::Opus);
     let mut options = launch::Options::for_profile(profile);
+    options.workspace = settings.workspace;
+    options.spec = flag(args, "--spec")?.map(PathBuf::from);
     if let Some(value) = flag(args, "--workspace")? {
         options.workspace = value;
     }
@@ -97,6 +110,9 @@ fn run() -> Result<()> {
     }
     let command = args.remove(0);
     let store = Store::new(Store::default_path()?);
+    if content::run(&store, &command, args.clone())? {
+        return Ok(());
+    }
     match command.as_str() {
         "profiles" => {
             positional(&args, 0)?;
@@ -121,12 +137,12 @@ fn run() -> Result<()> {
             print_record(&store.start(&args[0], repo, spec)?);
         }
         "launch" => {
-            let options = launch_options(&mut args)?;
+            let options = launch_options(&store, &mut args)?;
             positional(&args, 0)?;
             print_record(&launch::start(&store, options)?);
         }
         "refine" => {
-            let options = launch_options(&mut args)?;
+            let options = launch_options(&store, &mut args)?;
             positional(&args, 1)?;
             print_record(&launch::refine(&store, &args[0], options)?);
         }

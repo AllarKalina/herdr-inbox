@@ -13,6 +13,15 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
     if key.kind != KeyEventKind::Press {
         return Ok(false);
     }
+    if app.screen == Screen::ScanResult {
+        return super::scan::handle_key(app, key);
+    }
+    if app.screen == Screen::Trash {
+        return super::trash::handle_key(app, key);
+    }
+    if app.screen == Screen::Settings {
+        return super::settings::handle_key(app, key);
+    }
     if let Some(selected) = app.choice_selected {
         match key.code {
             KeyCode::Esc => app.choice_selected = None,
@@ -28,9 +37,12 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                     ChoicePurpose::NewSpec => {
                         app.choice_selected = None;
                         app.begin(Prompt::LaunchWorkspace { profile });
+                        app.input = app.store.settings()?.workspace;
                     }
                     ChoicePurpose::Refine { id } => {
-                        launch::refine(&app.store, &id, launch::Options::for_profile(profile))?;
+                        let mut options = launch::Options::for_profile(profile);
+                        options.workspace = app.store.settings()?.workspace;
+                        launch::refine(&app.store, &id, options)?;
                         app.choice_selected = None;
                         app.should_exit = true;
                     }
@@ -40,11 +52,14 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         }
         return Ok(app.should_exit);
     }
-    if matches!(app.prompt.as_ref(), Some(Prompt::Delete { .. })) {
+    if matches!(
+        app.prompt.as_ref(),
+        Some(Prompt::Delete { .. } | Prompt::Settle { .. })
+    ) {
         match key.code {
             KeyCode::Esc => {
                 app.prompt = None;
-                app.message = "Deletion cancelled".into();
+                app.message = "Cancelled".into();
             }
             KeyCode::Enter => app.submit()?,
             _ => {}
@@ -58,7 +73,13 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.input.clear();
             }
             KeyCode::Enter => {
-                app.submit()?;
+                let prompt = app.prompt.clone();
+                let input = app.input.clone();
+                if let Err(error) = app.submit() {
+                    app.prompt = prompt;
+                    app.input = input;
+                    return Err(error);
+                }
                 return Ok(app.should_exit);
             }
             KeyCode::Backspace => {
@@ -97,6 +118,13 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
             KeyCode::PageUp => app.reader_scroll = app.reader_scroll.saturating_sub(15),
             KeyCode::Char('g') => app.reader_scroll = 0,
+            KeyCode::Char('L') => {
+                if let Some(record) = app.current() {
+                    app.begin(Prompt::Relink {
+                        id: record.id.clone(),
+                    });
+                }
+            }
             KeyCode::Char('e') => {
                 if let Some(record) = app.current() {
                     open_editor(&record.spec_path)?;
@@ -121,6 +149,20 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.reader_scroll = 0;
                 app.reader_max_scroll = 0;
                 app.screen = Screen::Reader;
+            }
+            KeyCode::Char('x') => {
+                if let Some(record) = app.current().filter(|record| record.active_spec_session()) {
+                    app.begin(Prompt::Settle {
+                        id: record.id.clone(),
+                    });
+                }
+            }
+            KeyCode::Char('L') => {
+                if let Some(record) = app.current() {
+                    app.begin(Prompt::Relink {
+                        id: record.id.clone(),
+                    });
+                }
             }
             KeyCode::Char('e') => {
                 if let Some(record) = app.current() {
@@ -155,9 +197,16 @@ pub(super) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         return Ok(false);
     }
     match key.code {
+        KeyCode::Char('s') => super::settings::open(app)?,
+        KeyCode::Char('S') => {
+            let report = app.store.scan()?;
+            super::scan::apply(app, report);
+        }
+        KeyCode::Char('u') => super::trash::open(app)?,
         KeyCode::Esc => return Ok(true),
         KeyCode::Enter if app.current().is_some() => {
             app.screen = Screen::Detail;
+            app.message.clear();
             if let Some(record) = app.current() {
                 app.select_milestone(Milestone::next(record));
             }
@@ -238,6 +287,12 @@ fn start_detail_action(app: &mut App, action: DetailAction) -> Result<()> {
 }
 
 pub(super) fn handle_mouse(app: &mut App, mouse: MouseEvent, height: u16) -> Result<()> {
+    if matches!(
+        app.screen,
+        Screen::Settings | Screen::Trash | Screen::ScanResult
+    ) {
+        return Ok(());
+    }
     if app.screen == Screen::Reader {
         match mouse.kind {
             MouseEventKind::ScrollDown => {

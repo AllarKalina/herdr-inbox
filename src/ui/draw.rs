@@ -7,6 +7,18 @@ use ratatui::widgets::{
 };
 
 pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
+    if app.screen == Screen::ScanResult {
+        super::scan::draw(frame, app);
+        return;
+    }
+    if app.screen == Screen::Trash {
+        super::trash::draw(frame, app);
+        return;
+    }
+    if app.screen == Screen::Settings {
+        super::settings::draw(frame, app);
+        return;
+    }
     if app.screen != Screen::List {
         if let Some(selected) = app.choice_selected {
             let title = app
@@ -71,7 +83,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .constraints([
             Constraint::Min(5),
             Constraint::Length(if has_panel { 8 } else { 0 }),
-            Constraint::Length(2),
+            Constraint::Length(if app.message.is_empty() { 2 } else { 3 }),
         ])
         .split(frame.area());
     let compact = frame.area().width < 64;
@@ -104,12 +116,20 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
                     ));
                 }
                 Row::new([
-                    Cell::from(record.display_title().to_owned()),
+                    Cell::from(if record.spec_path.is_file() {
+                        record.display_title().to_owned()
+                    } else {
+                        format!("{} [unavailable]", record.display_title())
+                    }),
                     Cell::from(Line::from(spans)),
                 ])
             } else {
                 Row::new([
-                    Cell::from(record.display_title().to_owned()),
+                    Cell::from(if record.spec_path.is_file() {
+                        record.display_title().to_owned()
+                    } else {
+                        format!("{} [unavailable]", record.display_title())
+                    }),
                     status_cell(statuses[0], selected),
                     status_cell(statuses[1], selected),
                     status_cell(statuses[2], selected),
@@ -172,8 +192,10 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             list_area.height.saturating_sub(2),
         );
         frame.render_widget(
-            Paragraph::new("No specs yet. Press n to start a spec session.")
-                .style(Style::default().fg(Color::Gray)),
+            Paragraph::new(
+                "No specs yet. Press s to connect your specs folder, or n for a new spec.",
+            )
+            .style(Style::default().fg(Color::Gray)),
             hint,
         );
     }
@@ -243,7 +265,8 @@ fn draw_client_choices(frame: &mut ratatui::Frame, app: &App, selected: usize, a
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-const COMMANDS: &str = "Enter open · n new · d delete";
+const COMMANDS: &str = "Enter open · n new · d delete
+s settings · S scan · u restore";
 
 pub(super) fn footer_text(app: &App) -> String {
     if app.choice_selected.is_some() {
