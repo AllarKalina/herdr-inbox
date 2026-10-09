@@ -75,8 +75,8 @@ fn fit_client(label: &str, room: usize) -> String {
     text::fit_label(label, room)
 }
 
-/// A row's label. Only the step being answered keeps its label at reading strength; the
-/// other recedes with its row, so two labels never compete for attention.
+/// A row's label. A step that has not been reached yet recedes with its row, so it does not
+/// compete with the one being answered; a step already answered keeps its label.
 fn row_label(text: &'static str, live: bool) -> Span<'static> {
     let style = if live { theme::muted() } else { theme::faint() };
     Span::styled(format!("{text:<LABEL_WIDTH$}"), style)
@@ -100,7 +100,8 @@ fn client_lines(choice: &Choice, width: u16, settled: bool) -> Vec<Line<'static>
                 (true, true) => Span::raw(format!("✦ {name}")),
                 (false, true) => Span::styled(format!("  {name}"), theme::faint()),
             };
-            Line::from(vec![row_label(label, !settled), option])
+            // The label keeps its strength once the choice is made: it reads as done, not gone.
+            Line::from(vec![row_label(label, true), option])
         })
         .collect()
 }

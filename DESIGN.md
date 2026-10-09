@@ -174,8 +174,8 @@ A panel is the one bordered element: it interrupts the list or detail view for a
 
 **New spec** (`n`) takes two steps, one decision each, so no key ever means two things. Both steps draw the same panel with the same rows on the same cells: the clients, a blank row, the topic. Only which part is live changes, so nothing shifts between steps. A muted eight-cell label column runs through both.
 
-1. `New spec · Client`: clients one per row, marked like milestone actions: `✦` with bold, underlined teal for the chosen one, blue for the rest. The topic row waits below in Surface Two. `j/k`, arrows or Tab choose. Footer: `j/k choose · Enter next · Esc cancel`.
-2. `New spec · Topic`: the client rows stay put and go quiet, the chosen one in neutral text with its `✦`, the others in Surface Two. The topic gains a cursor, a muted `optional` while empty, and scrolls to keep the cursor visible. Every key types. Footer: `Enter start session · Esc back`; Esc returns to the client step and keeps the text.
+1. `New spec · Client`: clients one per row, marked like milestone actions: `✦` with bold, underlined teal for the chosen one, blue for the rest. The topic row, label included, waits below in Surface Two so it does not compete with the choice being made. `j/k`, arrows or Tab choose. Footer: `j/k choose · Enter next · Esc cancel`.
+2. `New spec · Topic`: the client rows stay put: the `Client` label and the chosen client keep their strength, in neutral text with the `✦`, which reads as done; the clients not chosen drop to Surface Two. The topic gains a cursor, a muted `optional` while empty, and scrolls to keep the cursor visible. Every key types. Footer: `Enter start session · Esc back`; Esc returns to the client step and keeps the text.
 
 In a narrow popup a client's label drops trailing details (effort first) before it is cut. A failed start appears in Red on the row above the footer while the panel stays open with the topic intact.
 

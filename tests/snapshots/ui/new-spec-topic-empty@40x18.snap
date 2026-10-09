@@ -40,7 +40,8 @@
  7  35-35  fg=DarkGray
  7  37-37  fg=DarkGray
  8   2-13  fg=Yellow BOLD
-10   4-30  fg=DarkGray
-11   4-11  fg=DarkGray
+10   4-11  fg=Gray
+10  12-30  fg=DarkGray
+11   4-11  fg=Gray
 13   4-11  fg=Gray
 13  13-21  fg=Gray
