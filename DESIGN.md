@@ -118,7 +118,7 @@ The detail view has a two-cell horizontal and one-cell vertical outer inset. A b
 
 Milestone centers share column seven and begin two rows below `PROGRESS`. Every node reserves five columns by three rows, including an idle node, so selecting it cannot move its neighbors. A rail at least 26 rows tall gives each stage a fixed six-row slot, with context, status words, and controls beginning at column 11. Empty control space remains reserved when another stage is selected. Shorter rails keep all four nodes in a fixed 18-column overview, a two-column gap, and a stationary control area starting at column 20. That area identifies the selected stage, reserves four context rows beginning three rows below `PROGRESS`, and begins actions seven rows below `PROGRESS`; narrow labels and hints wrap. SPEC leaves its context blank: harness, space, session, and redundant completion metadata do not belong in this rail. At 40 × 18 and larger, all four milestones remain visible. Selecting a stage, inspecting a prerequisite, or opening a prompt never moves the milestone nodes, spec preview, or footer.
 
-The full reader replaces the detail content with the document. Its breadcrumb keeps `Inbox / item / FULL SPEC`; the text scrolls only to the last rendered line plus two blank rows. A blank row separates the document from the footer hints: one-line `j/k` scrolling and ten-line `Shift+J/K` jumps.
+The full reader replaces the detail content with the document. Its breadcrumb keeps `Inbox / item / Full spec`; the text scrolls only to the last rendered line plus two blank rows. A blank row separates the document from the footer hints: one-line `j/k` scrolling and ten-line `Shift+J/K` jumps.
 
 ## Elevation & Depth
 
@@ -150,7 +150,7 @@ Use the existing flat canvas and shared `Inbox / Settings` breadcrumb. Settings 
 
 ### Breadcrumb and spec
 
-The shared breadcrumb shows domain folders and the spec title, with the current location teal. The full reader appends `FULL SPEC`; long ancestry shortens before the final crumb. The spec's text starts directly under the breadcrumb, with no heading of its own: the breadcrumb already names it. Opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
+The shared breadcrumb shows domain folders and the spec title, with the current location teal. The full reader appends `Full spec`; long ancestry shortens before the final crumb. The spec's text starts directly under the breadcrumb, with no heading of its own: the breadcrumb already names it. Opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
 
 ### Milestone navigation
 

@@ -22,7 +22,7 @@ pub(crate) fn open(app: &mut App) {
 
 pub(crate) fn crumbs(app: &App) -> Vec<String> {
     let mut crumbs = super::detail::crumbs(app);
-    crumbs.push("FULL SPEC".into());
+    crumbs.push("Full spec".into());
     crumbs
 }
 
