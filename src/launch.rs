@@ -52,6 +52,9 @@ struct Ready {
 fn preflight(store: &Store, options: &Options) -> Result<Ready> {
     let settings = store.settings()?;
     settings.validate_context()?;
+    // Being inside Herdr comes first: without it nothing else about the session matters,
+    // and the answer must not depend on what happens to be installed.
+    let herdr = Herdr::new()?;
     if options.model.trim().is_empty() || options.effort.trim().is_empty() {
         return Err("Model and effort cannot be empty".into());
     }
@@ -62,7 +65,6 @@ fn preflight(store: &Store, options: &Options) -> Result<Ready> {
         )
         .into());
     }
-    let herdr = Herdr::new()?;
     let workspace_id = herdr.workspace(WORKSPACE)?;
     Ok(Ready {
         settings,
