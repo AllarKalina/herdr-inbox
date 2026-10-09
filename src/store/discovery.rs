@@ -6,13 +6,20 @@ pub struct ScanReport {
     pub imported: usize,
     pub known: usize,
     pub suppressed: usize,
+    /// Records removed because their spec file is gone, or archived from another folder.
+    pub dropped: usize,
     pub issues: Vec<String>,
 }
 
 impl ScanReport {
     pub fn summary(&self) -> String {
+        let dropped = if self.dropped > 0 {
+            format!(", {} dropped", self.dropped)
+        } else {
+            String::new()
+        };
         format!(
-            "{} imported, {} known, {} in Trash; {} issue(s)",
+            "{} imported, {} known, {} in Trash{dropped}; {} issue(s)",
             self.imported,
             self.known,
             self.suppressed,
@@ -46,15 +53,70 @@ impl Store {
         self.locked(|| self.scan_unlocked())
     }
 
+    /// Removes records the selected folders no longer back: an Inbox item whose spec file was
+    /// deleted from its folder, and an archived spec whose file is gone or lies outside the
+    /// selected folders.
+    /// Only metadata is removed. A folder that cannot be read proves nothing about its files,
+    /// so its records are left alone, as is a new spec whose session has not written it yet.
+    fn prune(&self, settings: &Settings) -> Result<usize> {
+        let source_of = |record: &Record| {
+            settings
+                .sources
+                .iter()
+                .find(|source| record.source_id.as_deref() == Some(source.id.as_str()))
+        };
+        let readable =
+            |record: &Record| source_of(record).map(|source| fs::read_dir(&source.path).is_ok());
+        // A record left behind by a relocated folder still points at the old location;
+        // it waits for an explicit relink instead of being treated as deleted.
+        let expected_in_folder = |record: &Record| {
+            source_of(record)
+                .and_then(|source| fs::canonicalize(&source.path).ok())
+                .is_some_and(|root| record.spec_path.starts_with(root))
+        };
+        let gone = |record: &Record| matches!(record.spec_path.symlink_metadata(), Err(error) if error.kind() == io::ErrorKind::NotFound);
+        let mut dropped = 0;
+        for record in self.list()? {
+            if readable(&record) == Some(true)
+                && expected_in_folder(&record)
+                && gone(&record)
+                && !record.active_spec_session()
+            {
+                fs::remove_file(self.path_for(&record.id)?)?;
+                dropped += 1;
+            }
+        }
+        for record in self.trash_list()? {
+            if readable(&record) == Some(false) {
+                continue;
+            }
+            let inside = fs::canonicalize(&record.spec_path)
+                .ok()
+                .filter(|path| path.is_file())
+                .is_some_and(|path| {
+                    crate::settings::source_location(&settings.sources, &path).is_some()
+                });
+            if !inside {
+                fs::remove_file(self.archived_path(&record.id)?)?;
+                dropped += 1;
+            }
+        }
+        Ok(dropped)
+    }
+
     fn scan_unlocked(&self) -> Result<ScanReport> {
         let settings = self.settings()?;
+        let dropped = self.prune(&settings)?;
         let mut known = self.list()?;
         let all = self.all_records()?;
         let trash: Vec<_> = all
             .iter()
             .filter(|r| !known.iter().any(|k| k.id == r.id))
             .collect();
-        let mut report = ScanReport::default();
+        let mut report = ScanReport {
+            dropped,
+            ..ScanReport::default()
+        };
         let mut seen_files = HashSet::new();
         for source in &settings.sources {
             let (include, exclude) = source.filters()?;

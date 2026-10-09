@@ -146,7 +146,7 @@ Use the existing flat canvas and shared `Inbox / Settings` breadcrumb. Settings 
 
 ### Archive
 
-`Inbox / Settings / Archive` lists archived specs by title, with each spec's location in Subtext Zero at the right edge (relative to the specs folder when inside it); narrow popups show titles only. Selection matches the Inbox list. The footer is `j/k select · r restore · d delete · Esc back`, dropping `j/k select` on narrow terminals. Delete interrupts with the same bordered confirmation the Inbox uses for archiving, naming the spec and its file and stating that the file moves to the macOS Trash; its footer is `Enter delete this spec · Esc cancel`. Outcomes appear on the row above the footer. An empty archive reads `No archived specs.` with `Esc back`. Esc returns to Settings with the Archive row still selected.
+`Inbox / Settings / Archive` lists archived specs by title, with each spec's location in Subtext Zero at the right edge (relative to the specs folder); narrow popups show titles only. Selection matches the Inbox list. The footer is `j/k select · r restore · d delete · Esc back`, dropping `j/k select` on narrow terminals. Delete interrupts with the same bordered confirmation the Inbox uses for archiving, naming the spec and its file and stating that the file moves to the macOS Trash; its footer is `Enter delete this spec · Esc cancel`. Outcomes appear on the row above the footer. An empty archive reads `No archived specs.` with `Esc back`. Esc returns to Settings with the Archive row still selected.
 
 ### Breadcrumb and spec
 

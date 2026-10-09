@@ -404,6 +404,7 @@ fn first_use_and_scan_issues() -> Result<()> {
         imported: 2,
         known: 3,
         suppressed: 1,
+        dropped: 1,
         issues: vec![
             "Cannot read spec /tmp/herdr-inbox-golden-scan-issues/specs/locked.md: Permission denied"
                 .into(),

@@ -104,16 +104,20 @@ fn overlaps_aliases_and_cycles_are_deduplicated() -> Result<()> {
 }
 
 #[test]
-fn missing_and_invalid_specs_keep_metadata_with_errors() -> Result<()> {
+fn deleted_specs_are_dropped_and_unreadable_ones_keep_metadata_with_errors() -> Result<()> {
     let (root, store, source) = fixture()?;
     fs::write(source.join("one.md"), "# One")?;
+    fs::write(source.join("two.md"), "# Two")?;
     store.scan()?;
-    let record = store.list()?.remove(0);
+    let records = store.list()?;
+    let deleted = records.iter().find(|r| r.title == "One").unwrap();
+    let record = records.iter().find(|r| r.title == "Two").unwrap().clone();
     fs::remove_file(source.join("one.md"))?;
     fs::write(source.join("invalid.md"), [0xff, 0xfe])?;
     let report = store.scan()?;
     assert!(report.issues.iter().any(|s| s.contains("Cannot read spec")));
-    assert!(report.issues.iter().any(|s| s.contains("Spec unavailable")));
+    assert_eq!(report.dropped, 1);
+    assert!(store.get(&deleted.id).is_err());
     fs::rename(&source, root.join("gone"))?;
     assert!(
         store
