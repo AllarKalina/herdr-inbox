@@ -2,15 +2,113 @@
 //! answered or dismissed. The list shows them in a panel above its shortcuts; the detail
 //! view shows prompts beside the selected milestone and the client choice on its own.
 
-use super::state::Tone;
-use super::{App, ChoicePurpose, Milestone, Prompt, Screen, chrome, detail, text, theme};
+use super::{App, Milestone, Screen, detail, text};
 use crate::launch::{self, Options, Profile};
 use crate::store::{Change, Record, Result};
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::Rect;
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
 use std::path::PathBuf;
+
+mod view;
+pub(super) use view::{draw_choice, draw_panel, hints, rail_lines};
+
+/// A question the user is answering. Launch prompts form a chain that ends by starting a
+/// session; the others act on one item.
+#[derive(Clone)]
+pub(super) enum Prompt {
+    LaunchWorkspace {
+        profile: Profile,
+    },
+    LaunchRepo {
+        profile: Profile,
+        workspace: String,
+    },
+    LaunchSpec {
+        profile: Profile,
+        workspace: String,
+        repo: Option<PathBuf>,
+    },
+    LaunchTopic {
+        profile: Profile,
+        workspace: String,
+        repo: Option<PathBuf>,
+        spec: Option<PathBuf>,
+    },
+    Settle {
+        id: String,
+    },
+    FinishTitle {
+        id: String,
+    },
+    Jira {
+        id: String,
+    },
+    JiraUrl {
+        id: String,
+        key: String,
+    },
+    Agent {
+        id: String,
+    },
+    Branch {
+        id: String,
+        agent: Option<String>,
+    },
+    Pr {
+        id: String,
+    },
+    Archive {
+        id: String,
+    },
+}
+
+impl Prompt {
+    /// The item this prompt acts on; launch prompts create a new one.
+    pub(super) fn item(&self) -> Option<&str> {
+        match self {
+            Self::Settle { id }
+            | Self::FinishTitle { id }
+            | Self::Jira { id }
+            | Self::JiraUrl { id, .. }
+            | Self::Agent { id }
+            | Self::Branch { id, .. }
+            | Self::Pr { id }
+            | Self::Archive { id } => Some(id),
+            Self::LaunchWorkspace { .. }
+            | Self::LaunchRepo { .. }
+            | Self::LaunchSpec { .. }
+            | Self::LaunchTopic { .. } => None,
+        }
+    }
+
+    /// A yes-or-no question: Enter confirms and typing does nothing.
+    pub(super) fn is_confirmation(&self) -> bool {
+        matches!(self, Self::Archive { .. } | Self::Settle { .. })
+    }
+
+    pub(super) fn label(&self) -> &'static str {
+        match self {
+            Self::LaunchWorkspace { .. } => "Herdr workspace",
+            Self::LaunchSpec { .. } => "Spec path (blank = first source folder)",
+            Self::Settle { .. } => "Confirm session has ended",
+            Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
+            Self::LaunchTopic { .. } => "Grilling topic (optional)",
+            Self::FinishTitle { .. } => "Finished spec title",
+            Self::Jira { .. } => "Jira key",
+            Self::JiraUrl { .. } => "Jira URL (optional)",
+            Self::Agent { .. } => "Agent name (optional)",
+            Self::Branch { .. } => "Branch (optional)",
+            Self::Pr { .. } => "Draft PR URL",
+            Self::Archive { .. } => "Confirm archive",
+        }
+    }
+}
+
+/// Why a client is being chosen.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum ChoicePurpose {
+    NewSpec,
+    Refine { id: String },
+}
 
 /// Rows the list reserves for a prompt or client choice.
 pub(super) const PANEL_HEIGHT: u16 = 8;
@@ -277,135 +375,4 @@ fn submit(app: &mut App) -> Result<()> {
         }
     }
     Ok(())
-}
-
-const CHOICE_HINTS: &str = "j/k choose · Enter continue · Esc cancel";
-
-fn choice_hints(width: u16) -> &'static str {
-    if usize::from(width) >= CHOICE_HINTS.chars().count() {
-        CHOICE_HINTS
-    } else {
-        "j/k · Enter continue · Esc cancel"
-    }
-}
-
-/// The shortcut line while a modal is open in the list.
-pub(super) fn hints(app: &App, width: u16) -> Option<&'static str> {
-    if app.modal.choice.is_some() {
-        return Some(choice_hints(width));
-    }
-    Some(match app.modal.prompt.as_ref()? {
-        Prompt::Archive { .. } => "Enter archive this item · Esc cancel",
-        _ => "Enter save · Esc cancel",
-    })
-}
-
-/// Draws the open modal in the panel the list reserves for it.
-pub(super) fn draw_panel(frame: &mut ratatui::Frame, app: &App, area: Rect) {
-    if let Some(choice) = &app.modal.choice {
-        draw_choices(frame, choice, area);
-    } else if let Some(Prompt::Archive { id }) = &app.modal.prompt {
-        let detail = match app.record(id) {
-            Some(record) => format!(
-                "ARCHIVE ITEM\n{}\nID: {}\nSpec: {}\nLinked spec stays in place.\n\
-                 Open agent tabs are not closed.",
-                record.display_title(),
-                record.id,
-                record.spec_path.display(),
-            ),
-            None => "Item disappeared; press Esc to cancel.".into(),
-        };
-        let block = Block::default()
-            .title(" Confirm archive ")
-            .borders(Borders::ALL);
-        frame.render_widget(Paragraph::new(detail).block(block), area);
-    } else if let Some(prompt) = &app.modal.prompt {
-        let block = Block::default().title(" Action ").borders(Borders::ALL);
-        let line = format!("{}: {}█", prompt.label(), app.modal.input);
-        frame.render_widget(Paragraph::new(line).block(block), area);
-    }
-}
-
-fn draw_choices(frame: &mut ratatui::Frame, choice: &Choice, area: Rect) {
-    let title = match choice.purpose {
-        ChoicePurpose::Refine { .. } => " Refine spec · Choose client ",
-        ChoicePurpose::NewSpec => " Choose client ",
-    };
-    let items = choice
-        .profiles
-        .iter()
-        .map(|profile| ListItem::new(profile.label()));
-    let list = List::new(items)
-        .block(Block::default().title(title).borders(Borders::ALL))
-        .highlight_style(theme::selection());
-    let mut state = ListState::default().with_selected(Some(choice.selected));
-    frame.render_stateful_widget(list, area, &mut state);
-}
-
-/// Draws the client choice as a view of its own, in place of the detail view.
-pub(super) fn draw_choice(frame: &mut ratatui::Frame, app: &App) {
-    let Some(choice) = &app.modal.choice else {
-        return;
-    };
-    let area = frame.area();
-    let width = area.width.saturating_sub(4).min(52);
-    let height = area.height.saturating_sub(2).min(9);
-    let popup = Rect::new(
-        area.x + (area.width - width) / 2,
-        area.y + (area.height - height) / 2,
-        width,
-        height,
-    );
-    draw_choices(
-        frame,
-        choice,
-        Rect::new(popup.x, popup.y, popup.width, 5.min(popup.height)),
-    );
-    // A failed launch explains itself directly under the choice it came from.
-    if app.notice.tone() == Tone::Error {
-        frame.render_widget(
-            Paragraph::new(app.notice.text())
-                .style(theme::error())
-                .wrap(Wrap { trim: false }),
-            Rect::new(
-                popup.x + 1,
-                popup.y + 5,
-                popup.width.saturating_sub(2),
-                popup.height.saturating_sub(6),
-            ),
-        );
-    }
-    let footer = chrome::footer_area(area);
-    chrome::draw_footer(frame, choice_hints(footer.width));
-}
-
-/// The open prompt as lines for the detail view's milestone controls.
-pub(super) fn rail_lines(app: &App, width: u16) -> Vec<Line<'static>> {
-    let Some(prompt) = &app.modal.prompt else {
-        return Vec::new();
-    };
-    let width = usize::from(width);
-    let lines = if matches!(prompt, Prompt::Settle { .. }) {
-        vec![
-            "Session ended?".into(),
-            "No tabs closed.".into(),
-            "Enter settle".into(),
-            "Esc cancel".into(),
-        ]
-    } else {
-        // Long input scrolls so the cursor stays visible.
-        let count = app.modal.input.chars().count();
-        let tail: String = app
-            .modal
-            .input
-            .chars()
-            .skip(count.saturating_sub(width.saturating_sub(1)))
-            .collect();
-        vec![
-            text::fit_label(prompt.label(), width),
-            format!("{tail}█"),
-            "Enter save · Esc cancel".into(),
-        ]
-    };
-    lines.into_iter().map(Line::from).collect()
 }

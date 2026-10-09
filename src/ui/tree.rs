@@ -187,10 +187,22 @@ impl Tree {
             }
             self.rows.push(row);
         }
-        self.focused = key
-            .and_then(|key| self.rows.iter().position(|row| row.key == key))
-            .or_else(|| self.rows.iter().position(|row| row.record_index == Some(0)))
-            .unwrap_or(0);
+        let last = self.rows.len().saturating_sub(1);
+        self.focused = match key {
+            // The focused row is still there: follow it. If it is gone (archived, deleted),
+            // stay where it was so the selection lands on its neighbour.
+            Some(key) => self
+                .rows
+                .iter()
+                .position(|row| row.key == key)
+                .unwrap_or(self.focused.min(last)),
+            // A fresh tree opens on the most recently updated spec.
+            None => self
+                .rows
+                .iter()
+                .position(|row| row.record_index == Some(0))
+                .unwrap_or(0),
+        };
     }
 }
 

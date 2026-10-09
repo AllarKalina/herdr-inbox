@@ -21,7 +21,7 @@ impl Fixture {
     }
 
     fn choose(&mut self, path: PathBuf) -> Result<()> {
-        super::super::picker::set_test_result(Ok(Some(path)));
+        crate::ui::settings::picker::set_test_result(Ok(Some(path)));
         press(&mut self.app, KeyCode::Enter)?;
         Ok(())
     }
@@ -123,7 +123,7 @@ fn picking_same_folder_scans_new_files_without_resetting_identity_or_progress() 
 #[test]
 fn native_picker_cancel_and_failure_preserve_existing_folder_and_records() -> Result<()> {
     let mut fixture = Fixture::new()?;
-    super::super::picker::set_test_result(Ok(None));
+    crate::ui::settings::picker::set_test_result(Ok(None));
     press(&mut fixture.app, KeyCode::Enter)?;
     assert!(fixture.app.store.settings()?.sources.is_empty());
     assert!(fixture.app.records.is_empty());
@@ -136,7 +136,7 @@ fn native_picker_cancel_and_failure_preserve_existing_folder_and_records() -> Re
         Err("Could not open selector".into()),
         Ok(Some(fixture.root.join("unavailable folder"))),
     ] {
-        super::super::picker::set_test_result(result);
+        crate::ui::settings::picker::set_test_result(result);
         press(&mut fixture.app, KeyCode::Enter)?;
         assert_eq!(fixture.app.screen, Screen::Settings);
         assert_eq!(
@@ -157,7 +157,7 @@ fn clicking_change_opens_the_selector_and_background_clicks_do_not() -> Result<(
     render(&mut fixture.app, 40, 18)?;
     let change = fixture.app.settings.rows_area;
     assert_eq!(change.height, 3);
-    super::super::picker::set_test_result(Ok(Some(fixture.specs.clone())));
+    crate::ui::settings::picker::set_test_result(Ok(Some(fixture.specs.clone())));
     handle_mouse(
         &mut fixture.app,
         MouseEvent {

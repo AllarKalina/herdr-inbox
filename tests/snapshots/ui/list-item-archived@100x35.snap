@@ -2,12 +2,12 @@
   Inbox
 
                                                             Spec      Jira      Dev       PR
-  ├─    preview                                            ✓ done    → ready   ○ locked  ○ locked
   └─    Settings navigation                                ● active  ○ wait    ○ locked  ○ locked
   ▾  missions
   └─ ▾  zeller
      └─    Transaction search                              ✓ done    ✓ done    → ready   ○ locked
      Quarterly plan                                        ✓ done    ✓ done    ✓ done    ◐ draft
+
 
 
 
@@ -36,24 +36,18 @@
 --- styles: row, columns, style ---
  1   2-6   fg=LightCyan BOLD
  3   2-97  fg=Gray BOLD
- 4   2-97  fg=Black bg=Cyan BOLD
- 5   2-4   fg=DarkGray
- 5   5-8   fg=LightBlue
- 5  60-67  fg=Cyan
- 5  70-77  fg=Gray
- 5  80-87  fg=DarkGray
- 5  90-97  fg=DarkGray
- 6   2-13  fg=Yellow BOLD
- 7   2-4   fg=DarkGray
- 7   5-14  fg=Yellow BOLD
- 8   2-7   fg=DarkGray
- 8   8-11  fg=LightBlue
+ 4   2-4   fg=DarkGray
+ 4   5-8   fg=LightBlue
+ 4  60-67  fg=Cyan
+ 4  70-77  fg=Gray
+ 4  80-87  fg=DarkGray
+ 4  90-97  fg=DarkGray
+ 5   2-13  fg=Yellow BOLD
+ 6   2-4   fg=DarkGray
+ 6   5-14  fg=Yellow BOLD
+ 7   2-97  fg=Black bg=Cyan BOLD
+ 8   2-5   fg=LightBlue
  8  60-67  fg=LightGreen
  8  70-77  fg=LightGreen
- 8  80-87  fg=LightBlue
- 8  90-97  fg=DarkGray
- 9   2-5   fg=LightBlue
- 9  60-67  fg=LightGreen
- 9  70-77  fg=LightGreen
- 9  80-87  fg=LightGreen
- 9  90-97  fg=Yellow
+ 8  80-87  fg=LightGreen
+ 8  90-97  fg=Yellow

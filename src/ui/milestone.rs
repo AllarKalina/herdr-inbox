@@ -1,4 +1,3 @@
-use super::DetailAction;
 use crate::store::{ImplementationStage, JiraStatus, PrStage, Record, SpecStatus};
 use ratatui::style::Color;
 
@@ -255,6 +254,59 @@ impl Milestone {
                 PrStage::Ready => "Link the draft PR when it is ready.",
                 PrStage::Locked => "Start implementation before linking a PR.",
             },
+        }
+    }
+}
+
+/// What a milestone offers. Each belongs to exactly one stage.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum DetailAction {
+    Finish,
+    Jira,
+    Implement,
+    Pr,
+    ReviewPr,
+    ReadSpec,
+    RefineSpec,
+    OpenJira,
+    UpdateJira,
+    UpdateImplementation,
+    UpdatePr,
+}
+
+impl DetailAction {
+    pub(super) fn label(self) -> &'static str {
+        match self {
+            Self::Finish => "Seal the spec",
+            Self::Jira => "Bind Jira ticket",
+            Self::Implement => "Log dev quest",
+            Self::Pr => "Bind draft PR",
+            Self::ReviewPr => "Review draft PR",
+            Self::ReadSpec => "Read the scroll",
+            Self::RefineSpec => "Refine the spec",
+            Self::OpenJira => "Visit Jira ticket",
+            Self::UpdateJira => "Update Jira link",
+            Self::UpdateImplementation => "Update dev quest",
+            Self::UpdatePr => "Update PR link",
+        }
+    }
+}
+
+/// The acknowledgement shown beside a milestone after one of its steps completes.
+pub(super) struct MilestoneFeedback {
+    pub(super) milestone: Milestone,
+}
+
+impl MilestoneFeedback {
+    pub(super) fn text(&self, compact: bool) -> &'static str {
+        match (self.milestone, compact) {
+            (Milestone::Spec, false) => "Spec sealed",
+            (Milestone::Jira, false) => "Jira bound",
+            (Milestone::Dev, false) => "Dev quest logged",
+            (Milestone::Pr, false) => "Draft PR bound",
+            (Milestone::Spec, true) => "Sealed",
+            (Milestone::Jira | Milestone::Pr, true) => "Bound",
+            (Milestone::Dev, true) => "Logged",
         }
     }
 }

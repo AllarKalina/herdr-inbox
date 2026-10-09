@@ -87,18 +87,6 @@ impl Fixture {
         let launched = Change::Launch(Box::new(launch), started.spec_path.clone());
         store.update(&started.id, launched)?;
         store.scan()?;
-        // Random record IDs would change wrapped confirmation text between runs.
-        let mut records = store.list()?;
-        records.sort_by(|a, b| a.title.cmp(&b.title));
-        for (index, record) in records.iter().enumerate() {
-            let items = fixture.root.join("data/items");
-            let old = items.join(format!("{}.json", record.id));
-            let id = format!("00000000-0000-4000-8000-{:012}", index + 1);
-            let mut json: serde_json::Value = serde_json::from_slice(&fs::read(&old)?)?;
-            json["id"] = id.clone().into();
-            fs::write(items.join(format!("{id}.json")), serde_json::to_vec(&json)?)?;
-            fs::remove_file(old)?;
-        }
         let id = |title: &str| -> Result<String> {
             Ok(store
                 .list()?
@@ -133,6 +121,21 @@ impl Fixture {
                 let url = "https://github.example/org/repo/pull/42".into();
                 store.update(&id, Change::Pr { url })?;
             }
+        }
+        // Random IDs and wall-clock timestamps would make text and ordering differ between runs.
+        let mut records = store.list()?;
+        records.sort_by(|a, b| a.title.cmp(&b.title));
+        for (index, record) in records.iter().enumerate() {
+            let items = fixture.root.join("data/items");
+            let old = items.join(format!("{}.json", record.id));
+            let id = format!("00000000-0000-4000-8000-{:012}", index + 1);
+            let mut json: serde_json::Value = serde_json::from_slice(&fs::read(&old)?)?;
+            json["id"] = id.clone().into();
+            // Equal timestamps would leave the record order to chance.
+            json["created_at"] = (1_700_000_000 + index).into();
+            json["updated_at"] = (1_700_000_000 + index).into();
+            fs::write(items.join(format!("{id}.json")), serde_json::to_vec(&json)?)?;
+            fs::remove_file(old)?;
         }
         fixture.app = App::new(store)?;
         // The Inbox opens on its most recently updated spec; fixture specs tie, so pin the row.

@@ -64,7 +64,7 @@ fn new_spec_flow() -> Result<()> {
 fn first_use_and_scan_issues() -> Result<()> {
     let mut fixture = Fixture::empty("first-use")?;
     fixture.check("settings-first-use")?;
-    crate::ui::picker::set_test_result(Err("Could not open the macOS selector".into()));
+    crate::ui::settings::picker::set_test_result(Err("Could not open the macOS selector".into()));
     fixture.press(KeyCode::Enter)?;
     fixture.check("settings-picker-error")?;
     fixture.finish()?;

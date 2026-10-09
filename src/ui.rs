@@ -6,18 +6,19 @@
 mod chrome;
 mod milestone;
 mod modal;
-mod picker;
+mod notice;
 mod screens;
-mod state;
+mod scroll;
 #[cfg(test)]
 mod tests;
 mod text;
 mod theme;
 mod tree;
 
-use milestone::Milestone;
+use milestone::{DetailAction, Milestone, MilestoneFeedback};
+use modal::{ChoicePurpose, Prompt};
+use notice::Notice;
 use screens::{archive, detail, list, reader, scan, settings};
-use state::{ChoicePurpose, DetailAction, MilestoneFeedback, Notice, Prompt};
 
 use crate::settings::Settings;
 use crate::store::{Record, Result, Store};

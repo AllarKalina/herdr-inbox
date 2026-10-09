@@ -1,7 +1,7 @@
 //! What every screen shares: the anchored breadcrumb header, the content area, the notice
 //! row and the shortcut line.
 
-use super::state::{Notice, Tone};
+use super::notice::{Notice, Tone};
 use super::{text, theme};
 use ratatui::layout::Rect;
 use ratatui::style::Style;

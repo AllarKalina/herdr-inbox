@@ -2,12 +2,12 @@
   Inbox
 
                                S J D P
-  ├─    preview               ✓ → ○ ○
   └─    Settings navigation   ● ○ ○ ○
   ▾  missions
   └─ ▾  zeller
      └─    Transaction search ✓ ✓ → ○
      Quarterly plan           ✓ ✓ ✓ ◐
+
 
 
 
@@ -19,24 +19,18 @@
 --- styles: row, columns, style ---
  1   2-6   fg=LightCyan BOLD
  3   2-37  fg=Gray BOLD
- 4   2-37  fg=Black bg=Cyan BOLD
- 5   2-4   fg=DarkGray
- 5   5-8   fg=LightBlue
- 5  31-31  fg=Cyan
- 5  33-33  fg=Gray
- 5  35-35  fg=DarkGray
- 5  37-37  fg=DarkGray
- 6   2-13  fg=Yellow BOLD
- 7   2-4   fg=DarkGray
- 7   5-14  fg=Yellow BOLD
- 8   2-7   fg=DarkGray
- 8   8-11  fg=LightBlue
+ 4   2-4   fg=DarkGray
+ 4   5-8   fg=LightBlue
+ 4  31-31  fg=Cyan
+ 4  33-33  fg=Gray
+ 4  35-35  fg=DarkGray
+ 4  37-37  fg=DarkGray
+ 5   2-13  fg=Yellow BOLD
+ 6   2-4   fg=DarkGray
+ 6   5-14  fg=Yellow BOLD
+ 7   2-37  fg=Black bg=Cyan BOLD
+ 8   2-5   fg=LightBlue
  8  31-31  fg=LightGreen
  8  33-33  fg=LightGreen
- 8  35-35  fg=LightBlue
- 8  37-37  fg=DarkGray
- 9   2-5   fg=LightBlue
- 9  31-31  fg=LightGreen
- 9  33-33  fg=LightGreen
- 9  35-35  fg=LightGreen
- 9  37-37  fg=Yellow
+ 8  35-35  fg=LightGreen
+ 8  37-37  fg=Yellow

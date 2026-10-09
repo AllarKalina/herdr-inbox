@@ -1,4 +1,7 @@
-use crate::store::Result;
+//! Choosing the specs folder with the native macOS selector.
+
+use crate::store::{Result, SpecSource};
+use crate::ui::App;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -70,7 +73,7 @@ fn decode(output: Output) -> Result<Option<PathBuf>> {
 }
 
 #[cfg(not(test))]
-pub(super) fn choose(initial: Option<&Path>) -> Result<Option<PathBuf>> {
+fn choose(initial: Option<&Path>) -> Result<Option<PathBuf>> {
     let output = command(initial)?
         .output()
         .map_err(|error| format!("Could not start the macOS selector: {error}. Try again"))?;
@@ -89,8 +92,29 @@ pub(crate) fn set_test_result(result: Result<Option<PathBuf>>) {
 }
 
 #[cfg(test)]
-pub(super) fn choose(_initial: Option<&Path>) -> Result<Option<PathBuf>> {
+fn choose(_initial: Option<&Path>) -> Result<Option<PathBuf>> {
     TEST_RESULTS.with(|results| results.borrow_mut().pop_front().unwrap_or(Ok(None)))
+}
+
+/// Asks for a specs folder, starting from the current one. `None` means cancelled.
+pub(super) fn choose_source(app: &App) -> Result<Option<SpecSource>> {
+    let initial = app
+        .config
+        .sources
+        .first()
+        .map(|source| source.path.as_path());
+    let Some(path) = choose(initial)? else {
+        return Ok(None);
+    };
+    let selected =
+        SpecSource::new(path).map_err(|_| "Could not open that folder. Choose another folder.")?;
+    // Reselecting the same physical folder keeps its identity and its CLI-configured filters.
+    let existing = app
+        .config
+        .sources
+        .iter()
+        .find(|source| source.path.canonicalize().ok().as_ref() == Some(&selected.path));
+    Ok(Some(existing.cloned().unwrap_or(selected)))
 }
 
 #[cfg(test)]

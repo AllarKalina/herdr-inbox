@@ -175,6 +175,33 @@ fn focus_uses_record_uuid_when_updates_reorder_metadata() {
 }
 
 #[test]
+fn focus_stays_in_place_when_its_row_disappears() {
+    let fixture = Fixture::new();
+    let sources = [fixture.source("specs", "specs")];
+    let records = [
+        fixture.record("one", "specs/a.md"),
+        fixture.record("two", "specs/b.md"),
+        fixture.record("three", "specs/c.md"),
+    ];
+    let mut tree = Tree::default();
+    tree.rebuild(&records, &sources);
+    assert_eq!(
+        tree.rows[tree.focused].key, "record:one",
+        "opens on the first record"
+    );
+    assert!(tree.focus_record(1));
+    // The focused spec is archived: its neighbour takes the selection.
+    tree.rebuild(&[records[0].clone(), records[2].clone()], &sources);
+    assert_eq!(tree.rows[tree.focused].key, "record:three");
+    // The last row goes: the selection moves up rather than off the end.
+    tree.rebuild(&records[..1], &sources);
+    assert_eq!(tree.rows[tree.focused].key, "record:one");
+    tree.rebuild(&[], &sources);
+    assert_eq!(tree.focused, 0);
+    assert_eq!(tree.selected_record(), None);
+}
+
+#[test]
 fn folding_navigation_and_focus_record_respect_boundaries() {
     let fixture = Fixture::new();
     let sources = [fixture.source("specs", "specs")];

@@ -1,7 +1,7 @@
 //! The full spec, scrollable.
 
 use crate::store::{Record, Result};
-use crate::ui::state::Scroll;
+use crate::ui::scroll::Scroll;
 use crate::ui::{App, Screen, chrome};
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::{Constraint, Direction, Layout};

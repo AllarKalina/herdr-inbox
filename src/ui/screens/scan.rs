@@ -1,7 +1,7 @@
 //! Scan results: shown when a scan found folders or files it could not read.
 
 use crate::store::{Result, ScanReport};
-use crate::ui::state::Scroll;
+use crate::ui::scroll::Scroll;
 use crate::ui::{App, Screen, chrome, theme};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout};

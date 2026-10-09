@@ -1,9 +1,9 @@
 //! Settings: one selectable row per setting, each showing its current value.
 
-mod picking;
+pub(crate) mod picker;
 
 use crate::store::Result;
-use crate::ui::state::Tone;
+use crate::ui::notice::Tone;
 use crate::ui::{App, Screen, chrome, text, theme};
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
@@ -139,7 +139,7 @@ fn activate(app: &mut App) -> Result<()> {
 /// Opens the native folder selector. Choosing a folder applies and scans it at once;
 /// cancelling changes nothing.
 fn select_folder(app: &mut App) -> Result<()> {
-    let Some(source) = picking::choose(app)? else {
+    let Some(source) = picker::choose_source(app)? else {
         return Ok(());
     };
     app.store.update_settings(|settings| {
