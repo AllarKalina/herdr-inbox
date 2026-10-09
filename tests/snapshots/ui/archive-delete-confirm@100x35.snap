@@ -22,7 +22,6 @@
 
 
 
-
   ┌ Confirm delete ──────────────────────────────────────────────────────────────────────────────┐
   │ DELETE SPEC                                                                                  │
   │ Quarterly plan                                                                               │
@@ -31,6 +30,7 @@
   │ Its archived record is deleted for good.                                                     │
   │                                                                                              │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
+
   Enter delete this spec · Esc cancel
 
 --- styles: row, columns, style ---

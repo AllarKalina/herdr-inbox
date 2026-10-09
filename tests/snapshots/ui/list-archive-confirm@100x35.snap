@@ -22,7 +22,6 @@
 
 
 
-
   ┌ Confirm archive ─────────────────────────────────────────────────────────────────────────────┐
   │ ARCHIVE ITEM                                                                                 │
   │ Settlement reconciliation across acquirers and ledgers                                       │
@@ -31,6 +30,7 @@
   │ Linked spec stays in place.                                                                  │
   │ Open agent tabs are not closed.                                                              │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
+
   Enter archive this item · Esc cancel
 
 --- styles: row, columns, style ---

@@ -76,7 +76,8 @@ pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .constraints([
             Constraint::Min(5),
             Constraint::Length(panel),
-            Constraint::Length(if app.notice.is_empty() { 1 } else { 2 }),
+            // The notice row is reserved even when empty: a message must not move anything.
+            Constraint::Length(2),
         ])
         .split(chrome::content(frame.area()));
     draw_table(frame, app, areas[0]);

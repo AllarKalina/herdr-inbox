@@ -148,7 +148,8 @@ pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         .constraints([
             Constraint::Min(1),
             Constraint::Length(if confirming { 8 } else { 0 }),
-            Constraint::Length(if app.notice.is_empty() { 1 } else { 2 }),
+            // The notice row is reserved even when empty: a message must not move anything.
+            Constraint::Length(2),
         ])
         .split(content);
     app.archive.list_area = Rect::default();

@@ -34,9 +34,8 @@ pub(crate) fn hints(app: &App, width: u16) -> Option<&'static str> {
 /// Rows the list gives the open modal: its content and its border, nothing spare.
 pub(crate) fn panel_height(app: &App) -> u16 {
     match (&app.modal.choice, &app.modal.prompt) {
-        // The chosen client, a blank row, the topic.
-        (Some(choice), _) if choice.entering_topic => 5,
-        (Some(choice), _) => choice.profiles.len() as u16 + 2,
+        // Clients, a blank row, the topic: the same rows in both steps, so nothing moves.
+        (Some(choice), _) => choice.profiles.len() as u16 + 4,
         (None, Some(_)) => 8,
         (None, None) => 0,
     }
@@ -76,8 +75,9 @@ fn fit_client(label: &str, room: usize) -> String {
     text::fit_label(label, room)
 }
 
-/// One client per row, the chosen one marked the way the detail view marks its chosen action.
-fn client_lines(choice: &Choice, width: u16) -> Vec<Line<'static>> {
+/// One client per row, the chosen one marked the way the detail view marks its chosen
+/// action. Once the choice is `settled` the rows stay exactly where they were and go quiet.
+fn client_lines(choice: &Choice, width: u16, settled: bool) -> Vec<Line<'static>> {
     let room = usize::from(width).saturating_sub(LABEL_WIDTH + 2);
     choice
         .profiles
@@ -86,10 +86,12 @@ fn client_lines(choice: &Choice, width: u16) -> Vec<Line<'static>> {
         .map(|(index, profile)| {
             let label = if index == 0 { "Client" } else { "" };
             let name = fit_client(profile.label(), room);
-            let option = if index == choice.selected {
-                Span::styled(format!("✦ {name}"), theme::chosen_action())
-            } else {
-                Span::styled(format!("  {name}"), theme::action())
+            let chosen = index == choice.selected;
+            let option = match (chosen, settled) {
+                (true, false) => Span::styled(format!("✦ {name}"), theme::chosen_action()),
+                (false, false) => Span::styled(format!("  {name}"), theme::action()),
+                (true, true) => Span::raw(format!("✦ {name}")),
+                (false, true) => Span::styled(format!("  {name}"), theme::faint()),
             };
             Line::from(vec![
                 Span::styled(format!("{label:<LABEL_WIDTH$}"), theme::muted()),
@@ -99,34 +101,37 @@ fn client_lines(choice: &Choice, width: u16) -> Vec<Line<'static>> {
         .collect()
 }
 
-/// A new spec in two steps: choose the client, then say what the interview is about.
+/// A new spec in two steps: choose the client, then say what the interview is about. Both
+/// steps draw the same rows in the same places; only which part is live changes.
 fn draw_new_spec(frame: &mut ratatui::Frame, choice: &Choice, topic: &str, area: Rect) {
-    if !choice.entering_topic {
-        let block = chrome::panel(" New spec · Client ");
-        let lines = client_lines(choice, block.inner(area).width);
-        return frame.render_widget(Paragraph::new(lines).block(block), area);
-    }
-    let block = chrome::panel(" New spec · Topic ");
+    let typing = choice.entering_topic;
+    let block = chrome::panel(if typing {
+        " New spec · Topic "
+    } else {
+        " New spec · Client "
+    });
     let inner = block.inner(area);
-    let value = usize::from(inner.width).saturating_sub(LABEL_WIDTH);
-    let label = |text: &'static str| Span::styled(format!("{text:<LABEL_WIDTH$}"), theme::muted());
-    // The client is settled; it stays in view so the choice is not taken on trust.
-    let client = fit_client(choice.profiles[choice.selected].label(), value);
+    let mut lines = client_lines(choice, inner.width, typing);
+    lines.push(Line::default());
+    let mut topic_line = vec![Span::styled(
+        format!("{:<LABEL_WIDTH$}", "Topic"),
+        theme::muted(),
+    )];
     // The topic scrolls so the cursor stays visible however much is typed.
+    let room = usize::from(inner.width).saturating_sub(LABEL_WIDTH + 1);
     let count = topic.chars().count();
-    let shown: String = topic
-        .chars()
-        .skip(count.saturating_sub(value.saturating_sub(1)))
-        .collect();
-    let mut topic_line = vec![label("Topic"), Span::raw(format!("{shown}█"))];
-    if topic.is_empty() {
-        topic_line.push(Span::styled(" optional", theme::muted()));
+    let shown: String = topic.chars().skip(count.saturating_sub(room)).collect();
+    match (typing, topic.is_empty()) {
+        (true, true) => {
+            topic_line.push(Span::raw("█"));
+            topic_line.push(Span::styled(" optional", theme::muted()));
+        }
+        (true, false) => topic_line.push(Span::raw(format!("{shown}█"))),
+        // Not this step's business yet: shown faintly so the next step is no surprise.
+        (false, true) => topic_line.push(Span::styled("optional", theme::faint())),
+        (false, false) => topic_line.push(Span::styled(shown, theme::faint())),
     }
-    let lines = vec![
-        Line::from(vec![label("Client"), Span::raw(client)]),
-        Line::default(),
-        Line::from(topic_line),
-    ];
+    lines.push(Line::from(topic_line));
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
@@ -147,7 +152,7 @@ pub(crate) fn draw_choice(frame: &mut ratatui::Frame, app: &App) {
     );
     let block = chrome::panel(" Refine spec ");
     let area = Rect::new(popup.x, popup.y, popup.width, rows.min(popup.height));
-    let lines = client_lines(choice, block.inner(area).width);
+    let lines = client_lines(choice, block.inner(area).width, false);
     frame.render_widget(Paragraph::new(lines).block(block), area);
     // A failed launch explains itself directly under the choice it came from.
     if app.notice.tone() == Tone::Error {

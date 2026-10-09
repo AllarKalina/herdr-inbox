@@ -13,7 +13,7 @@
      │     └─ ▾  regional-sc…
   … │        └─    Chargebac… ✓ → ○ ○
      ├─    Settlement reconc… ✓ ✓ ● →
-     └─    Transaction search ✓ ✓ → ○
+
   ↵ · n new · a archive · s settings
 
 --- styles: row, columns, style ---
@@ -54,9 +54,3 @@
 14  33-33  fg=LightGreen
 14  35-35  fg=Cyan
 14  37-37  fg=LightBlue
-15   2-7   fg=DarkGray
-15   8-11  fg=LightBlue
-15  31-31  fg=LightGreen
-15  33-33  fg=LightGreen
-15  35-35  fg=LightBlue
-15  37-37  fg=DarkGray

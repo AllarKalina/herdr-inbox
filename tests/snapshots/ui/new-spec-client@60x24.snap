@@ -13,13 +13,13 @@
      Quarterly plan                               ✓ ✓ ✓ ◐
 
 
-
-
-
   ┌ New spec · Client ───────────────────────────────────┐
   │ Client  ✦ Claude · Opus 5.5 · Medium                 │
   │           Codex · GPT-6.1-Sol · Medium               │
+  │                                                      │
+  │ Topic   optional                                     │
   └──────────────────────────────────────────────────────┘
+
   j/k choose · Enter next · Esc cancel
 
 --- styles: row, columns, style ---
@@ -65,7 +65,9 @@
 12  53-53  fg=LightGreen
 12  55-55  fg=LightGreen
 12  57-57  fg=Yellow
+16   4-11  fg=Gray
+16  12-39  fg=Cyan BOLD | UNDERLINED
+17   4-11  fg=Gray
+17  12-41  fg=LightBlue
 19   4-11  fg=Gray
-19  12-39  fg=Cyan BOLD | UNDERLINED
-20   4-11  fg=Gray
-20  12-41  fg=LightBlue
+19  12-19  fg=DarkGray

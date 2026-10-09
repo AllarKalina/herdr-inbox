@@ -5,7 +5,6 @@
   Quarterly plan
 
 
-
   ┌ Confirm delete ──────────────────┐
   │ DELETE SPEC                      │
   │ Quarterly plan                   │
@@ -14,6 +13,7 @@
   │ Trash.                           │
   │ Its archived record is deleted   │
   └──────────────────────────────────┘
+
   Enter delete this spec · Esc cancel
 
 --- styles: row, columns, style ---

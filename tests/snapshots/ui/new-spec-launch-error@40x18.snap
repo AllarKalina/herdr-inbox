@@ -7,9 +7,9 @@
   ├─    preview               ✓ → ○ ○
   └─    Settings navigation   ● ○ ○ ○
   ▾  missions
-  └─ ▾  zeller
   ┌ New spec · Topic ────────────────┐
-  │ Client  Codex · GPT-6.1-Sol      │
+  │ Client    Claude · Opus 5.5      │
+  │         ✦ Codex · GPT-6.1-Sol    │
   │                                  │
   │ Topic   ery acquirer and wallet█ │
   └──────────────────────────────────┘
@@ -40,8 +40,8 @@
  7  35-35  fg=DarkGray
  7  37-37  fg=DarkGray
  8   2-13  fg=Yellow BOLD
- 9   2-4   fg=DarkGray
- 9   5-14  fg=Yellow BOLD
+10   4-11  fg=Gray
+10  12-30  fg=DarkGray
 11   4-11  fg=Gray
 13   4-11  fg=Gray
 15   2-37  fg=Red

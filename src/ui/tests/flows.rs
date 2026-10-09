@@ -254,3 +254,59 @@ fn a_new_spec_takes_the_client_first_and_then_an_optional_topic() -> Result<()> 
     assert!(app.modal.input.is_empty());
     Ok(())
 }
+
+/// Where each word sits on screen, ignoring styling: (row, column) of its first cell.
+fn position(lines: &[String], word: &str) -> Option<(usize, usize)> {
+    lines.iter().enumerate().find_map(|(row, line)| {
+        let byte = line.find(word)?;
+        Some((row, line[..byte].chars().count()))
+    })
+}
+
+#[test]
+fn new_spec_steps_and_messages_never_shift_the_layout() -> Result<()> {
+    for (width, height) in [(40, 18), (60, 24), (100, 35)] {
+        let mut fixture = Fixture::new(1)?;
+        let app = &mut fixture.app;
+        press(app, KeyCode::Esc)?;
+        let list = lines(app, width, height)?;
+        app.choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus, Profile::Codex]);
+        let client_step = lines(app, width, height)?;
+        press(app, KeyCode::Enter)?;
+        let topic_step = lines(app, width, height)?;
+        type_text(app, "Retries")?;
+        press(app, KeyCode::Enter)?;
+        assert!(!app.notice.is_empty(), "the failed start reports itself");
+        let failed = lines(app, width, height)?;
+
+        // Everything the two steps share stays on the same cells.
+        for word in ["┌ New spec", "│ Client", "Claude", "Codex", "│ Topic", "└"] {
+            let at = position(&client_step, word);
+            assert!(at.is_some(), "{word} missing at {width}x{height}");
+            assert_eq!(
+                at,
+                position(&topic_step, word),
+                "{word} moved between steps"
+            );
+            assert_eq!(
+                at,
+                position(&failed, word),
+                "{word} moved when the start failed"
+            );
+        }
+        // The list above the panel is the same in both steps and when a message appears.
+        let top = position(&client_step, "┌ New spec").unwrap().0;
+        assert_eq!(client_step[..top], topic_step[..top]);
+        assert_eq!(client_step[..top], failed[..top]);
+        // Opening the panel covers the bottom of the list; the rows above do not move.
+        // Only the breadcrumb on row 1 changes, to name the flow.
+        assert_eq!(list[2..top], client_step[2..top]);
+        // The shortcut line never leaves its row.
+        let footer = usize::from(height) - 2;
+        for screen in [&list, &client_step, &topic_step, &failed] {
+            assert!(!screen[footer].trim().is_empty());
+            assert!(screen[footer + 1].trim().is_empty());
+        }
+    }
+    Ok(())
+}

@@ -7,13 +7,13 @@
   ├─    preview               ✓ → ○ ○
   └─    Settings navigation   ● ○ ○ ○
   ▾  missions
-  └─ ▾  zeller
-     ├─    Settlement reconc… ✓ ✓ ● →
-     └─    Transaction search ✓ ✓ → ○
   ┌ New spec · Client ───────────────┐
   │ Client  ✦ Claude · Opus 5.5      │
   │           Codex · GPT-6.1-Sol    │
+  │                                  │
+  │ Topic   optional                 │
   └──────────────────────────────────┘
+
   j/k choose · Enter next · Esc cancel
 
 --- styles: row, columns, style ---
@@ -40,21 +40,9 @@
  7  35-35  fg=DarkGray
  7  37-37  fg=DarkGray
  8   2-13  fg=Yellow BOLD
- 9   2-4   fg=DarkGray
- 9   5-14  fg=Yellow BOLD
-10   2-7   fg=DarkGray
-10   8-11  fg=LightBlue
-10  31-31  fg=LightGreen
-10  33-33  fg=LightGreen
-10  35-35  fg=Cyan
-10  37-37  fg=LightBlue
-11   2-7   fg=DarkGray
-11   8-11  fg=LightBlue
-11  31-31  fg=LightGreen
-11  33-33  fg=LightGreen
-11  35-35  fg=LightBlue
-11  37-37  fg=DarkGray
+10   4-11  fg=Gray
+10  12-30  fg=Cyan BOLD | UNDERLINED
+11   4-11  fg=Gray
+11  12-32  fg=LightBlue
 13   4-11  fg=Gray
-13  12-30  fg=Cyan BOLD | UNDERLINED
-14   4-11  fg=Gray
-14  12-32  fg=LightBlue
+13  12-19  fg=DarkGray

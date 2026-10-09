@@ -24,13 +24,13 @@
 
 
 
-
-
   ┌ New spec · Topic ────────────────────────────────────────────────────────────────────────────┐
-  │ Client  Codex · GPT-6.1-Sol · Medium                                                         │
+  │ Client    Claude · Opus 5.5 · Medium                                                         │
+  │         ✦ Codex · GPT-6.1-Sol · Medium                                                       │
   │                                                                                              │
   │ Topic   Card retries█                                                                        │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
+
   Enter start session · Esc back
 
 --- styles: row, columns, style ---
@@ -76,5 +76,7 @@
 12  70-77  fg=LightGreen
 12  80-87  fg=LightGreen
 12  90-97  fg=Yellow
-29   4-11  fg=Gray
-31   4-11  fg=Gray
+27   4-11  fg=Gray
+27  12-39  fg=DarkGray
+28   4-11  fg=Gray
+30   4-11  fg=Gray
