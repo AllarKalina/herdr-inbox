@@ -6,8 +6,13 @@ use super::*;
 fn reader_and_refine_choice() -> Result<()> {
     let mut fixture = Fixture::new("reader")?;
     let long = fixture
-        .root
-        .join("specs/missions/zeller/transaction-search.md");
+        .app
+        .records
+        .iter()
+        .find(|record| record.title == "Transaction search")
+        .ok_or("fixture spec missing")?
+        .spec_path
+        .clone();
     let body: String = (1..=60).map(|n| format!("- Requirement {n}\n")).collect();
     fs::write(long, format!("# Transaction search\n\n{body}\nLAST LINE\n"))?;
     fixture.open("Transaction search")?;

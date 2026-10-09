@@ -106,8 +106,11 @@ pub(crate) fn crumbs(app: &App) -> Vec<String> {
 
 impl App {
     pub(crate) fn actions(&self) -> Vec<DetailAction> {
+        let launches_dev = self.config.dev_skill.is_some();
         self.current().map_or_else(Vec::new, |record| {
-            self.detail.milestone.actions(record, self.jira())
+            self.detail
+                .milestone
+                .actions(record, self.jira(), launches_dev)
         })
     }
 
@@ -225,7 +228,16 @@ fn run(app: &mut App, action: DetailAction) -> Result<()> {
         DetailAction::RefineSpec => {
             app.choose_client(ChoicePurpose::Refine { id }, launch::available_profiles())
         }
+        DetailAction::CreateJira => {
+            let parent = app.config.jira_parent.clone().unwrap_or_default();
+            app.begin_with(Prompt::JiraParent { id }, parent);
+        }
         DetailAction::Jira => app.begin(Prompt::Jira { id }),
+        DetailAction::StartDev => {
+            launch::develop(&app.store, &id)?;
+            // The session's tab now has focus; the popup would only hide it.
+            app.should_exit = true;
+        }
         DetailAction::UpdateJira => {
             app.begin_with(Prompt::Jira { id }, record.jira.key.unwrap_or_default())
         }

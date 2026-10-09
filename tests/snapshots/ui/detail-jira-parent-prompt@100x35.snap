@@ -9,10 +9,10 @@
   Describe Inbox layout well enough to build it.                     │
                                                                      │
   ## Requirements                                                  ⢠⠖⠒⠲⡄
-                                                              JIRA ⢾ ◉ ⡷ active
-  - First requirement                                              ⠘⠦⠤⠴⠃ Ticket requested
-  - Second requirement                                               │   Jira URL (optional)
-                                                                     │   ira.example/browse/PAY-9█
+                                                              JIRA ⢾ ○ ⡷ ready
+  - First requirement                                              ⠘⠦⠤⠴⠃ Ticket needed
+  - Second requirement                                               │   Parent key (optional)
+                                                                     │   PAY-100█
                                                                      │   Enter save · Esc cancel
                                                                      │
                                                               DEV    ○   locked
@@ -45,9 +45,11 @@
  8  69-69  fg=DarkGray
  9  69-69  fg=DarkGray
 10  67-71  fg=Cyan
-11  62-65  fg=Cyan
+11  62-65  fg=LightBlue
 11  67-67  fg=Cyan
-11  69-78  fg=Cyan
+11  69-70  fg=LightBlue
+11  71-71  fg=Cyan
+11  72-77  fg=LightBlue
 12  67-71  fg=Cyan
 12  73-97  fg=Gray
 13  69-69  fg=DarkGray

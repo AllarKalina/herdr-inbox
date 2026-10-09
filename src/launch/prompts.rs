@@ -62,6 +62,52 @@ pub(super) fn refinement(
     ))
 }
 
+/// Asks for a Jira ticket created from the spec, and for the result to be reported back.
+pub(super) fn ticket(record: &Record, parent: Option<&str>, data_dir: &Path) -> Result<String> {
+    let executable = shell_quote(&env::current_exe()?.to_string_lossy());
+    let inbox = shell_quote(&data_dir.to_string_lossy());
+    let spec = shell_quote(&record.spec_path.to_string_lossy());
+    let id = shell_quote(&record.id);
+    let placement = match parent {
+        Some(parent) => format!(
+            "Create it under {parent}, in the same project: as a sub-task when {parent} is a \
+             story or task, otherwise as a child issue of that epic."
+        ),
+        None => "It has no parent issue; ask which project to create it in if that is unclear."
+            .to_owned(),
+    };
+    Ok(format!(
+        "Create a Jira issue for inbox item {} ({}) from the finished spec at {spec}. Use your \
+         Jira tools. {placement} Write a short summary line, and a description with the spec's \
+         goal, key requirements and acceptance criteria; do not paste the whole spec. Do not \
+         edit the spec.\n\nWhen the issue exists, run: HERDR_INBOX_HOME={inbox} {executable} jira \
+         {id} <ISSUE-KEY> --url <issue URL>. That command links the issue and renames the spec \
+         file to start with the issue key; it prints the new path, which replaces {spec} from \
+         then on. If you cannot create the issue, explain why and do not run the command.",
+        record.id,
+        record.display_title(),
+    ))
+}
+
+/// Invokes the development skill on the item and asks for its branch and draft PR.
+pub(super) fn develop(record: &Record, skill: &str, data_dir: &Path) -> Result<String> {
+    let executable = shell_quote(&env::current_exe()?.to_string_lossy());
+    let inbox = shell_quote(&data_dir.to_string_lossy());
+    let spec = shell_quote(&record.spec_path.to_string_lossy());
+    let id = shell_quote(&record.id);
+    // The skill is handed the ticket key, or the spec itself when there is no ticket.
+    let subject = record.jira.key.clone().unwrap_or_else(|| spec.clone());
+    Ok(format!(
+        "{skill} {subject}\n\nThis is inbox item {} ({}); its spec is {spec}. Report progress to \
+         the Inbox as you go. Once you are working on a branch, run: HERDR_INBOX_HOME={inbox} \
+         {executable} implement {id} --agent {} --branch <branch>. Once a draft PR exists, run: \
+         HERDR_INBOX_HOME={inbox} {executable} pr {id} <PR URL>.",
+        record.id,
+        record.display_title(),
+        shell_quote(skill.trim_start_matches(['/', '$'])),
+    ))
+}
+
 fn context_references(paths: &[PathBuf]) -> String {
     if paths.is_empty() {
         return String::new();

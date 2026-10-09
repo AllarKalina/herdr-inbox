@@ -253,7 +253,10 @@ fn turning_jira_off_skips_its_milestone_and_unlocks_dev() -> Result<()> {
     press(app, KeyCode::Esc)?;
     press(app, KeyCode::Enter)?;
     assert_eq!(app.detail.milestone, Milestone::Jira);
-    assert_eq!(app.actions(), [DetailAction::Jira]);
+    assert_eq!(
+        app.actions(),
+        [DetailAction::CreateJira, DetailAction::Jira]
+    );
     Ok(())
 }
 

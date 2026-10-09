@@ -17,6 +17,11 @@ pub struct Settings {
     pub workspace: String,
     /// Whether the Jira stage is part of this computer's workflow.
     pub jira: bool,
+    /// The epic or story the last ticket was created under, offered again next time.
+    pub jira_parent: Option<String>,
+    /// The skill that implements a spec, such as `/team-dev`. Without one, development is
+    /// only recorded, never launched.
+    pub dev_skill: Option<String>,
 }
 
 impl Default for Settings {
@@ -28,6 +33,8 @@ impl Default for Settings {
             preferred_client: None,
             workspace: DEFAULT_WORKSPACE.into(),
             jira: true,
+            jira_parent: None,
+            dev_skill: None,
         }
     }
 }
@@ -154,6 +161,14 @@ impl Settings {
             .is_some_and(|s| s.trim().is_empty())
         {
             return Err("Preferred client cannot be empty".into());
+        }
+        for (name, value) in [
+            ("Jira parent", &self.jira_parent),
+            ("Dev skill", &self.dev_skill),
+        ] {
+            if value.as_ref().is_some_and(|text| text.trim().is_empty()) {
+                return Err(format!("{name} cannot be empty; remove it instead").into());
+            }
         }
         Ok(())
     }

@@ -154,7 +154,12 @@ impl Store {
     pub fn update(&self, id: &str, change: Change) -> Result<Record> {
         self.locked(|| {
             let mut record = self.get(id)?;
-            record.apply(change, self.settings()?.jira)?;
+            let settings = self.settings()?;
+            let linked = matches!(change, Change::Jira { .. });
+            record.apply(change, settings.jira)?;
+            if linked {
+                self.name_after_ticket(&mut record, &settings)?;
+            }
             record.updated_at = timestamp();
             self.write(&record)?;
             Ok(record)

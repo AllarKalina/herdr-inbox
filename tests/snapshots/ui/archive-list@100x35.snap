@@ -1,8 +1,8 @@
 
   Inbox / Settings / Archive
 
-  Inbox layout                                                             designs/inbox-layout.md
-  Quarterly plan                                                           quarterly-plan.md
+  Inbox layout                                                           designs/inbox-layout.md
+  Quarterly plan                                                         PAY-123-quarterly-plan.md
 
 
 
@@ -37,4 +37,4 @@
  1   2-20  fg=Gray
  1  21-27  fg=LightCyan BOLD
  3   2-97  fg=Black bg=Cyan BOLD
- 4  75-97  fg=Gray
+ 4  73-97  fg=Gray

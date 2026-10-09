@@ -171,6 +171,6 @@ fn a_moved_folder_is_reported_by_scan_and_followed_by_relocate() {
     assert!(relocated.contains("0 imported, 1 known"), "{relocated}");
     let record = cli.json(&["show", id, "--json"]);
     assert_eq!(record["jira"]["key"], "MOVE-1");
-    let path = fs::canonicalize(moved.join("one.md")).unwrap();
+    let path = fs::canonicalize(moved.join("MOVE-1-one.md")).unwrap();
     assert_eq!(record["spec_path"], path.to_str().unwrap());
 }

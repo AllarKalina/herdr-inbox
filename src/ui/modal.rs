@@ -39,6 +39,9 @@ pub(super) enum Prompt {
     FinishTitle {
         id: String,
     },
+    JiraParent {
+        id: String,
+    },
     Jira {
         id: String,
     },
@@ -67,6 +70,7 @@ impl Prompt {
         match self {
             Self::Settle { id }
             | Self::FinishTitle { id }
+            | Self::JiraParent { id }
             | Self::Jira { id }
             | Self::JiraUrl { id, .. }
             | Self::Agent { id }
@@ -93,6 +97,7 @@ impl Prompt {
             Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
             Self::LaunchTopic { .. } => "Grilling topic (optional)",
             Self::FinishTitle { .. } => "Finished spec title",
+            Self::JiraParent { .. } => "Parent key (optional)",
             Self::Jira { .. } => "Jira key",
             Self::JiraUrl { .. } => "Jira URL (optional)",
             Self::Agent { .. } => "Agent name (optional)",
@@ -341,6 +346,11 @@ fn submit(app: &mut App) -> Result<()> {
             let record = app.store.update(&id, Change::Finish { title: filled })?;
             let _ = launch::rename_tab(&record);
             app.acknowledge(Milestone::Spec);
+        }
+        Prompt::JiraParent { id } => {
+            launch::ticket(&app.store, &id, filled)?;
+            // The agent's tab now has focus; the popup would only hide it.
+            app.should_exit = true;
         }
         Prompt::Jira { id } if filled.is_some() => {
             let url = app.store.get(&id)?.jira.url.unwrap_or_default();

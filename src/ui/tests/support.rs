@@ -145,6 +145,16 @@ pub(super) fn lines(app: &mut App, width: u16, height: u16) -> Result<Vec<String
     Ok(text(&cells(app, width, height)?))
 }
 
+/// Selects one of the current milestone's actions and runs it.
+pub(super) fn run_action(app: &mut App, action: DetailAction) -> Result<()> {
+    app.detail.action = app
+        .actions()
+        .iter()
+        .position(|candidate| *candidate == action)
+        .expect("the milestone offers this action");
+    press(app, KeyCode::Enter)
+}
+
 /// Selects an item's row in the list.
 pub(super) fn focus(app: &mut App, id: &str) {
     let index = app

@@ -213,11 +213,9 @@ fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
             assert!(calls.contains(
                 "-m gpt-6.1-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
             ));
-            assert!(!calls.contains("bypassPermissions"));
+            assert!(!calls.contains("--permission-mode"));
         } else {
-            assert!(calls.contains(
-                "--model claude-opus-5-5 --effort high --permission-mode bypassPermissions"
-            ));
+            assert!(calls.contains("--model claude-opus-5-5 --effort high --permission-mode auto"));
         }
         let listed: Value =
             serde_json::from_slice(&fixture.run(&["list", "--json"]).stdout).unwrap();
@@ -432,7 +430,7 @@ fn refinement_accepts_launch_overrides_without_changing_item_identity() {
     let calls = fixture.calls();
     assert!(calls.contains(&format!("--cwd {}", repo.display())));
     assert!(calls.contains("--model test-opus-model --effort medium"));
-    assert!(!calls.contains("bypassPermissions"));
+    assert!(!calls.contains("--permission-mode"));
 }
 
 #[test]

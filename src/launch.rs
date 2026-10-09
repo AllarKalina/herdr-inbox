@@ -1,17 +1,21 @@
 //! Spec sessions: a Herdr tab running an agent client that interviews the user and writes
 //! or refines one spec. The Inbox records how far the launch got, never what the agent did.
 
+mod follow_up;
 mod herdr;
 mod profile;
 mod prompts;
 mod session;
 
+pub use follow_up::{develop, ticket};
 pub use herdr::open_inbox;
 pub use profile::{Profile, available_profiles};
 
 use crate::settings::{DEFAULT_WORKSPACE, Settings};
 use crate::store::{Change, Launch, LaunchStatus, Record, Result, Store, absolute};
 use herdr::Herdr;
+use profile::Session;
+use session::{Plan, Step};
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -23,7 +27,7 @@ pub struct Options {
     pub model: String,
     pub effort: String,
     pub topic: String,
-    pub bypass_permissions: bool,
+    pub auto_permissions: bool,
 }
 
 impl Options {
@@ -35,7 +39,7 @@ impl Options {
             model: profile.default_model().into(),
             effort: profile::DEFAULT_EFFORT.into(),
             topic: String::new(),
-            bypass_permissions: true,
+            auto_permissions: true,
         }
     }
 }
@@ -98,6 +102,13 @@ fn mark(store: &Store, record: &Record, launch: &Launch) -> Result<Record> {
     )
 }
 
+/// What distinguishes one spec session from another.
+struct Target {
+    label: String,
+    agent: String,
+    refinement: bool,
+}
+
 /// Starts a session for a new, untitled spec. `spec` names its file; without one the file
 /// gets a generated name in the first selected folder.
 pub fn start(store: &Store, mut options: Options, spec: Option<PathBuf>) -> Result<Record> {
@@ -112,7 +123,7 @@ pub fn start(store: &Store, mut options: Options, spec: Option<PathBuf>) -> Resu
     )?;
     let mut launch = new_launch(&options, ready.workspace_id, prompt);
     mark(store, &record, &launch)?;
-    let target = session::Target {
+    let target = Target {
         label: format!("Spec · {}", &record.id[..8]),
         agent: format!("spec_{}", &record.id[..8]),
         refinement: false,
@@ -151,12 +162,79 @@ pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
     )?;
     // Repeated refinements of one item each need their own tab and agent name.
     let session_id = Uuid::new_v4().simple().to_string();
-    let target = session::Target {
+    let target = Target {
         label: format!("Refine · {} · {}", record.display_title(), &session_id[..8]),
         agent: format!("refine_{}", &session_id[..24]),
         refinement: true,
     };
     run(store, &ready.herdr, &record, &mut launch, &options, &target)
+}
+
+/// Opens a spec session, recording each completed step on the item, and a failure for
+/// later inspection.
+fn run(
+    store: &Store,
+    herdr: &Herdr,
+    record: &Record,
+    launch: &mut Launch,
+    options: &Options,
+    target: &Target,
+) -> Result<Record> {
+    let workspace_id = launch.workspace_id.clone().ok_or("Missing workspace ID")?;
+    let (model, effort, prompt) = (
+        launch.model.clone(),
+        launch.effort.clone(),
+        launch.prompt.clone(),
+    );
+    let plan = Plan {
+        workspace_id: &workspace_id,
+        label: &target.label,
+        agent: &target.agent,
+        profile: options.profile,
+        session: Session {
+            model: &model,
+            effort: &effort,
+            auto_permissions: options.auto_permissions,
+            data_dir: store.path(),
+            spec_dir: record.spec_path.parent(),
+        },
+        repo: options.repo.as_deref(),
+        prompt: &prompt,
+    };
+    let opened = session::open(herdr, &plan, |step| {
+        match step {
+            Step::TabOpened { tab, pane } => {
+                launch.tab_id = Some(tab);
+                launch.pane_id = Some(pane);
+                launch.status = LaunchStatus::TabOpened;
+            }
+            Step::AgentStarted => {
+                launch.agent = Some(target.agent.clone());
+                launch.status = LaunchStatus::AgentStarted;
+            }
+            Step::PromptSent => {
+                if target.refinement {
+                    // The spec is open again only once an agent has accepted the work.
+                    store.update(&record.id, Change::RefineSpec)?;
+                }
+                launch.status = LaunchStatus::PromptSent;
+            }
+        }
+        mark(store, record, launch).map(|_| ())
+    });
+    if let Err(error) = opened {
+        launch.status = LaunchStatus::Failed;
+        launch.error = Some(error.to_string());
+        mark(store, record, launch)?;
+        return Err(error);
+    }
+    if let Err(error) = herdr.call(&["workspace", "focus", &workspace_id]) {
+        launch.error = Some(format!(
+            "Session started, but workspace focus failed: {error}. Select the new tab manually."
+        ));
+        mark(store, record, launch)?;
+    }
+    store.get(&record.id)
 }
 
 fn readable_spec(record: &Record) -> Result<()> {
@@ -173,24 +251,6 @@ fn readable_spec(record: &Record) -> Result<()> {
         return Err(format!("Spec file is empty: {}", record.spec_path.display()).into());
     }
     Ok(())
-}
-
-/// Runs the session steps and records a failure on the item for later inspection.
-fn run(
-    store: &Store,
-    herdr: &Herdr,
-    record: &Record,
-    launch: &mut Launch,
-    options: &Options,
-    target: &session::Target,
-) -> Result<Record> {
-    if let Err(error) = session::run(store, herdr, record, launch, options, target) {
-        launch.status = LaunchStatus::Failed;
-        launch.error = Some(error.to_string());
-        mark(store, record, launch)?;
-        return Err(error);
-    }
-    store.get(&record.id)
 }
 
 /// Names the session's tab after the spec. Outside Herdr there is no tab to rename.

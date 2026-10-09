@@ -6,9 +6,9 @@
   PROGRESS
                       JIRA ACTIONS
   SPEC   ●   done
-         │            Ticket needed
+         │            Ticket requested
        ⢠⠖⠒⠲⡄
-  JIRA ⢾ ○ ⡷ ready
+  JIRA ⢾ ◉ ⡷ active
        ⠘⠦⠤⠴⠃
          │            Jira key
   DEV    ○   locked   PAY-9█
@@ -33,11 +33,9 @@
  8  22-57  fg=Gray
  9   7-11  fg=Cyan
  9  22-57  fg=Gray
-10   2-5   fg=LightBlue
+10   2-5   fg=Cyan
 10   7-7   fg=Cyan
-10   9-10  fg=LightBlue
-10  11-11  fg=Cyan
-10  12-17  fg=LightBlue
+10   9-18  fg=Cyan
 10  22-57  fg=Gray
 11   7-11  fg=Cyan
 11  22-57  fg=Gray

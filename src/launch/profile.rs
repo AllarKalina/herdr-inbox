@@ -73,8 +73,8 @@ impl Profile {
         match self {
             Self::Opus => {
                 push(&["--model", session.model, "--effort", session.effort]);
-                if session.bypass_permissions {
-                    push(&["--permission-mode", "bypassPermissions"]);
+                if session.auto_permissions {
+                    push(&["--permission-mode", "auto"]);
                 }
             }
             Self::Codex => {
@@ -97,7 +97,7 @@ impl Profile {
 pub struct Session<'a> {
     pub model: &'a str,
     pub effort: &'a str,
-    pub bypass_permissions: bool,
+    pub auto_permissions: bool,
     pub data_dir: &'a Path,
     pub spec_dir: Option<&'a Path>,
 }

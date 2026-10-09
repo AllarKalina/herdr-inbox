@@ -96,6 +96,8 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
             url: Some("https://jira.test/PAY-123".into()),
         },
     )?;
+    // Linking renamed the spec file; later steps must use the item's current path.
+    let record = store.get(&record.id)?;
     store.update(
         &record.id,
         Change::Implement {

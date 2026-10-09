@@ -106,6 +106,7 @@ impl Milestone {
             Self::Jira => match record.jira.status {
                 JiraStatus::Waiting => StageState::Waiting,
                 JiraStatus::Ready => StageState::Ready,
+                JiraStatus::Requested => StageState::Active,
                 JiraStatus::Created => StageState::Done,
             },
             Self::Dev => match record.implementation_stage(jira) {
@@ -138,7 +139,13 @@ impl Milestone {
         }
     }
 
-    pub(super) fn actions(self, record: &Record, jira: bool) -> Vec<DetailAction> {
+    /// `launches_dev` says whether a development skill is configured to be started.
+    pub(super) fn actions(
+        self,
+        record: &Record,
+        jira: bool,
+        launches_dev: bool,
+    ) -> Vec<DetailAction> {
         match self {
             Self::Spec => {
                 let mut actions = Vec::new();
@@ -157,10 +164,16 @@ impl Milestone {
                     actions.push(DetailAction::UpdateJira);
                     actions
                 }
-                JiraStatus::Ready => vec![DetailAction::Jira],
+                // An agent creates the ticket; linking an existing one by hand stays possible.
+                JiraStatus::Ready | JiraStatus::Requested => {
+                    vec![DetailAction::CreateJira, DetailAction::Jira]
+                }
                 JiraStatus::Waiting => Vec::new(),
             },
             Self::Dev => match record.implementation_stage(jira) {
+                ImplementationStage::Ready if launches_dev => {
+                    vec![DetailAction::StartDev, DetailAction::Implement]
+                }
                 ImplementationStage::Ready => vec![DetailAction::Implement],
                 ImplementationStage::InProgress | ImplementationStage::DraftPr => {
                     vec![DetailAction::UpdateImplementation]
@@ -186,10 +199,10 @@ impl Milestone {
         match self {
             Self::Spec => String::new(),
             Self::Jira => record.jira.key.clone().unwrap_or_else(|| {
-                if record.jira.status == JiraStatus::Ready {
-                    "Ticket needed"
-                } else {
-                    "After spec"
+                match record.jira.status {
+                    JiraStatus::Ready => "Ticket needed",
+                    JiraStatus::Requested => "Ticket requested",
+                    JiraStatus::Waiting | JiraStatus::Created => "After spec",
                 }
                 .into()
             }),
@@ -237,6 +250,9 @@ impl Milestone {
             Self::Jira if record.jira.status == JiraStatus::Created => {
                 "Ticket linked. Open it or update the link."
             }
+            Self::Jira if record.jira.status == JiraStatus::Requested => {
+                "An agent is creating the ticket."
+            }
             Self::Jira if record.spec == SpecStatus::Done => {
                 "Link a Jira ticket to unlock development."
             }
@@ -262,7 +278,9 @@ impl Milestone {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum DetailAction {
     Finish,
+    CreateJira,
     Jira,
+    StartDev,
     Implement,
     Pr,
     ReviewPr,
@@ -278,7 +296,9 @@ impl DetailAction {
     pub(super) fn label(self) -> &'static str {
         match self {
             Self::Finish => "Seal the spec",
+            Self::CreateJira => "Forge Jira ticket",
             Self::Jira => "Bind Jira ticket",
+            Self::StartDev => "Begin dev quest",
             Self::Implement => "Log dev quest",
             Self::Pr => "Bind draft PR",
             Self::ReviewPr => "Review draft PR",

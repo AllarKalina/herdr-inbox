@@ -140,10 +140,10 @@ fn relinking_to_a_scanned_copy_replaces_the_placeholder_a_scan_imported() -> Res
         key: key.into(),
         url: None,
     };
-    store.update(&original.id, jira("ONE-1"))?;
+    let original = store.update(&original.id, jira("ONE-1"))?;
 
     // The spec continues in a new file that a scan has already imported as a fresh item.
-    fs::copy(source.join("one.md"), source.join("renamed.md"))?;
+    fs::copy(&original.spec_path, source.join("renamed.md"))?;
     assert_eq!(store.scan()?.imported, 1);
     assert_eq!(store.list()?.len(), 2);
 
@@ -153,7 +153,7 @@ fn relinking_to_a_scanned_copy_replaces_the_placeholder_a_scan_imported() -> Res
     let records = store.list()?;
     assert_eq!(records.len(), 1, "the placeholder import is gone");
     assert_eq!(records[0].id, original.id);
-    fs::remove_file(source.join("one.md"))?;
+    fs::remove_file(&original.spec_path)?;
     let report = store.scan()?;
     assert_eq!((report.imported, report.known, report.dropped), (0, 1, 0));
     assert!(report.issues.is_empty(), "{:?}", report.issues);
@@ -242,7 +242,7 @@ fn scan_drops_records_whose_file_was_deleted_from_the_selected_folder() -> Resul
         key: "GONE-1".into(),
         url: None,
     };
-    store.update(&deleted.id, jira)?;
+    let deleted = store.update(&deleted.id, jira)?;
 
     fs::remove_file(&deleted.spec_path)?;
     let report = store.scan()?;
@@ -321,6 +321,90 @@ fn archive_holds_only_existing_specs_from_the_selected_folder() -> Result<()> {
     assert!(store.archived()?.is_empty());
     assert!(stays.spec_path.is_file());
     assert_eq!(store.get(&active.id)?.id, active.id);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn a_requested_ticket_waits_for_its_key_and_never_unlocks_development() -> Result<()> {
+    let mut record = imported();
+    assert!(record.permits(Change::RequestJira, false).is_err());
+    record.apply(Change::RequestJira, true)?;
+    assert_eq!(record.jira.status, "requested");
+    assert_eq!(record.next_actions(true), ["Await Jira ticket"]);
+    assert_eq!(record.implementation_stage(true), "locked");
+    assert!(!record.untouched_import());
+    // The agent reports back, or the user links one by hand: either completes the stage.
+    record.apply(jira_link(), true)?;
+    assert_eq!(record.jira.status, "created");
+    // Asking again for a linked item changes nothing.
+    record.apply(Change::RequestJira, true)?;
+    assert_eq!(record.jira.status, "created");
+
+    let mut unfinished = imported();
+    unfinished.spec = SpecStatus::InProgress;
+    assert!(unfinished.permits(Change::RequestJira, true).is_err());
+    Ok(())
+}
+
+#[test]
+fn linking_a_ticket_names_the_spec_file_after_its_key() -> Result<()> {
+    let root = temp_root("ticket-name");
+    let store = configured_store(&root)?;
+    let source = root.join("selected");
+    fs::create_dir_all(source.join("payments"))?;
+    fs::write(
+        source.join("payments/notes.markdown"),
+        "# Payment retries: v2 (EU & UK)\n",
+    )?;
+    fs::write(source.join("plain.md"), "No heading here\n")?;
+    store.scan()?;
+    let by_title = |title: &str| store.list().unwrap().into_iter().find(|r| r.title == title);
+    let link = |key: &str| Change::Jira {
+        key: key.into(),
+        url: None,
+    };
+
+    let retries = by_title("Payment retries: v2 (EU & UK)").unwrap();
+    let linked = store.update(&retries.id, link("BT-2300"))?;
+    let renamed =
+        fs::canonicalize(&source)?.join("payments/BT-2300-payment-retries-v2-eu-uk.markdown");
+    assert_eq!(linked.spec_path, renamed);
+    assert_eq!(
+        linked.source_relative_path,
+        PathBuf::from("payments/BT-2300-payment-retries-v2-eu-uk.markdown")
+    );
+    assert!(renamed.is_file());
+    assert!(!source.join("payments/notes.markdown").exists());
+    // The item keeps its identity: a scan neither imports the new name nor drops the old.
+    let report = store.scan()?;
+    assert_eq!((report.imported, report.dropped, report.known), (0, 0, 2));
+
+    // Linking the same key again leaves the name alone; a new key replaces the old prefix.
+    assert_eq!(
+        store.update(&retries.id, link("BT-2300"))?.spec_path,
+        renamed
+    );
+    let moved = store.update(&retries.id, link("BT-2400"))?;
+    assert!(
+        moved
+            .spec_path
+            .ends_with("payments/BT-2400-payment-retries-v2-eu-uk.markdown")
+    );
+    assert!(!renamed.exists());
+
+    // A name that is already taken refuses the link and changes nothing.
+    let plain = by_title("plain").unwrap();
+    fs::write(source.join("BT-7-plain.md"), "Someone else's file\n")?;
+    let refused = store
+        .update(&plain.id, link("BT-7"))
+        .unwrap_err()
+        .to_string();
+    assert!(refused.contains("already exists"), "{refused}");
+    let untouched = store.get(&plain.id)?;
+    assert_eq!(untouched.jira.status, "ready");
+    assert!(untouched.spec_path.ends_with("plain.md"));
+    assert!(source.join("plain.md").is_file());
     fs::remove_dir_all(root)?;
     Ok(())
 }

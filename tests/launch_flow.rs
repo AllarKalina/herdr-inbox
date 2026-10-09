@@ -66,9 +66,7 @@ esac
     assert_eq!(record["launch"]["tab_id"], "w2:t2");
     assert!(!PathBuf::from(record["spec_path"].as_str().unwrap()).exists());
     let calls = fs::read_to_string(&log).unwrap();
-    assert!(
-        calls.contains("--model claude-opus-5-5 --effort high --permission-mode bypassPermissions")
-    );
+    assert!(calls.contains("--model claude-opus-5-5 --effort high --permission-mode auto"));
     assert!(calls.contains("agent prompt spec_"));
     assert!(calls.contains("/grill-me Improve payment retries"));
     let spec = record["spec_path"].as_str().unwrap();
@@ -153,7 +151,7 @@ esac
         "-m gpt-6.1-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
     ));
     assert!(calls.contains("$grill-me Test launch"));
-    assert!(!calls.contains("bypassPermissions"));
+    assert!(!calls.contains("--permission-mode"));
     let records: Value = serde_json::from_slice(
         &Command::new(exe)
             .args(["list", "--json"])

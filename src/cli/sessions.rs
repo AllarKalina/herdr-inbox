@@ -11,6 +11,8 @@ const SESSION_OPTIONS: &str = "[--profile opus|codex] [--workspace LABEL] [--rep
 pub const COMMANDS: &[Command] = &[
     Command::new("launch", "launch [--spec PATH] [session options]", start),
     Command::new("refine", "refine ID [session options]", refine),
+    Command::new("ticket", "ticket ID [--parent KEY]", ticket),
+    Command::new("develop", "develop ID", develop),
     Command::new("profiles", "profiles", profiles),
     Command::new("tui", "tui", tui),
     Command::new("open", "open", open),
@@ -41,7 +43,7 @@ fn options(store: &Store, args: &mut Args) -> Result<Options> {
     if let Some(topic) = args.flag("--topic")? {
         options.topic = topic;
     }
-    options.bypass_permissions = !args.switch("--ask-permissions");
+    options.auto_permissions = !args.switch("--ask-permissions");
     Ok(options)
 }
 
@@ -61,6 +63,19 @@ fn refine(store: &Store, mut args: Args) -> Result<()> {
     let options = options(store, &mut args)?;
     let [id] = args.positionals()?;
     output::record(store, &launch::refine(store, &id, options)?)
+}
+
+/// Asks an agent to create the item's Jira ticket and report it back.
+fn ticket(store: &Store, mut args: Args) -> Result<()> {
+    let parent = args.flag("--parent")?;
+    let [id] = args.positionals()?;
+    output::record(store, &launch::ticket(store, &id, parent)?)
+}
+
+/// Starts the configured development skill on the item.
+fn develop(store: &Store, args: Args) -> Result<()> {
+    let [id] = args.positionals()?;
+    output::record(store, &launch::develop(store, &id)?)
 }
 
 fn profiles(_store: &Store, args: Args) -> Result<()> {

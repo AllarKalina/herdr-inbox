@@ -10,9 +10,9 @@
        ⢠⠖⠒⠲⡄
   JIRA ⢾ ○ ⡷ ready
        ⠘⠦⠤⠴⠃
-         │            ✦ Bind Jira ticket
+         │            ✦ Forge Jira ticket
   DEV    ○   locked
-         │
+         │              Bind Jira ticket
          │
   PR     ○   locked
 
@@ -42,10 +42,11 @@
 11   7-11  fg=Cyan
 11  22-57  fg=Gray
 12   9-9   fg=DarkGray
-12  22-39  fg=Cyan BOLD | UNDERLINED
+12  22-40  fg=Cyan BOLD | UNDERLINED
 13   2-5   fg=DarkGray
 13   9-18  fg=DarkGray
 14   9-9   fg=DarkGray
+14  22-39  fg=LightBlue
 15   9-9   fg=DarkGray
 16   2-5   fg=DarkGray
 16   9-18  fg=DarkGray

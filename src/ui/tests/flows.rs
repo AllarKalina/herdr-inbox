@@ -65,15 +65,21 @@ fn typing_through_the_prompts_advances_the_workflow_stage_by_stage() -> Result<(
     );
     press(app, KeyCode::Enter)?;
     assert_eq!(app.current().unwrap().spec, "done");
-    assert_eq!(app.actions(), [DetailAction::Jira]);
+    assert_eq!(
+        app.actions(),
+        [DetailAction::CreateJira, DetailAction::Jira]
+    );
 
-    press(app, KeyCode::Enter)?;
+    run_action(app, DetailAction::Jira)?;
     assert!(matches!(app.modal.prompt, Some(Prompt::Jira { .. })));
     // An empty required answer cancels instead of saving nothing.
     press(app, KeyCode::Enter)?;
     assert_eq!(app.notice.text(), "Cancelled");
-    assert_eq!(app.actions(), [DetailAction::Jira]);
-    press(app, KeyCode::Enter)?;
+    assert_eq!(
+        app.actions(),
+        [DetailAction::CreateJira, DetailAction::Jira]
+    );
+    run_action(app, DetailAction::Jira)?;
     type_text(app, "ABC-1234")?;
     press(app, KeyCode::Backspace)?;
     press(app, KeyCode::Enter)?;
@@ -163,5 +169,45 @@ fn scan_results_scroll_and_lead_back_to_the_inbox_or_settings() -> Result<()> {
     app.screen = Screen::Scan;
     press(app, KeyCode::Enter)?;
     assert_eq!(app.screen, Screen::List);
+    Ok(())
+}
+
+#[test]
+fn agent_actions_lead_and_the_ticket_prompt_remembers_the_last_parent() -> Result<()> {
+    let mut fixture = Fixture::new(1)?;
+    let app = &mut fixture.app;
+    press(app, KeyCode::Enter)?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::JiraParent { .. })));
+    assert!(app.modal.input.is_empty());
+    press(app, KeyCode::Esc)?;
+    app.store.update_settings(|settings| {
+        settings.jira_parent = Some("BT-2000".into());
+        Ok(())
+    })?;
+    app.refresh()?;
+    press(app, KeyCode::Enter)?;
+    assert_eq!(app.modal.input, "BT-2000");
+    // Outside Herdr nothing can be started: the request is refused and the item unchanged.
+    press(app, KeyCode::Enter)?;
+    assert!(app.notice.text().contains("inside a Herdr-managed pane"));
+    assert!(!app.should_exit);
+    assert_eq!(app.current().unwrap().jira.status, "ready");
+
+    // Development is only launched when a skill is configured; otherwise it is recorded.
+    let mut fixture = Fixture::new(2)?;
+    let app = &mut fixture.app;
+    assert_eq!(app.actions(), [DetailAction::Implement]);
+    app.store.update_settings(|settings| {
+        settings.dev_skill = Some("/team-dev".into());
+        Ok(())
+    })?;
+    app.refresh()?;
+    assert_eq!(
+        app.actions(),
+        [DetailAction::StartDev, DetailAction::Implement]
+    );
+    press(app, KeyCode::Enter)?;
+    assert!(app.notice.text().contains("inside a Herdr-managed pane"));
+    assert_eq!(app.current().unwrap().implementation.status, "ready");
     Ok(())
 }

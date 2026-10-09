@@ -37,7 +37,13 @@ macro_rules! status {
 }
 
 status!(SpecStatus { InProgress => "in_progress", Done => "done" });
-status!(JiraStatus { Waiting => "waiting", Ready => "ready", Created => "created" });
+status!(JiraStatus {
+    Waiting => "waiting",
+    Ready => "ready",
+    // An agent has been asked to create the ticket and has not reported back yet.
+    Requested => "requested",
+    Created => "created",
+});
 status!(ImplementationStatus {
     Waiting => "waiting",
     Ready => "ready",
@@ -80,6 +86,8 @@ pub enum Change {
     Launch(Box<Launch>, PathBuf),
     BeginRefinement(Box<Launch>, PathBuf),
     RefineSpec,
+    /// An agent was asked to create the ticket.
+    RequestJira,
     Jira {
         key: String,
         url: Option<String>,
@@ -213,8 +221,10 @@ impl Record {
         if self.spec == SpecStatus::InProgress {
             return vec!["Finish spec"];
         }
-        if jira && self.jira.status == JiraStatus::Ready {
-            return vec!["Create Jira ticket"];
+        match self.jira.status {
+            JiraStatus::Ready if jira => return vec!["Create Jira ticket"],
+            JiraStatus::Requested if jira => return vec!["Await Jira ticket"],
+            _ => {}
         }
         match self.implementation_stage(jira) {
             ImplementationStage::Ready => vec!["Hand spec to implementor"],
@@ -222,6 +232,11 @@ impl Record {
             ImplementationStage::DraftPr => vec!["Review draft PR"],
             ImplementationStage::Locked => Vec::new(),
         }
+    }
+
+    /// Checks that a step would be accepted, without taking it.
+    pub fn permits(&self, change: Change, jira: bool) -> Result<()> {
+        self.clone().apply(change, jira)
     }
 
     /// Applies one workflow step, or explains which prerequisite is missing.
@@ -250,6 +265,17 @@ impl Record {
                 }
                 if self.jira.status == JiraStatus::Waiting {
                     self.jira.status = JiraStatus::Ready;
+                }
+            }
+            Change::RequestJira => {
+                if !jira {
+                    return Err("Jira is turned off in Settings".into());
+                }
+                if self.spec != SpecStatus::Done {
+                    return Err("Finish the spec before creating a Jira ticket".into());
+                }
+                if self.jira.status != JiraStatus::Created {
+                    self.jira.status = JiraStatus::Requested;
                 }
             }
             Change::Jira { key, url } => {

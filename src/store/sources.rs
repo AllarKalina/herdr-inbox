@@ -43,6 +43,37 @@ impl Store {
         })
     }
 
+    /// Renames a linked spec so its file name starts with the ticket key, for example
+    /// `BT-2300-payment-retries.md`. Skills that are given only the key find the spec by it.
+    pub(super) fn name_after_ticket(&self, record: &mut Record, settings: &Settings) -> Result<()> {
+        let Some(key) = record.jira.key.clone() else {
+            return Ok(());
+        };
+        let path = record.spec_path.clone();
+        let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        let slug = slug(if record.title.is_empty() {
+            &stem
+        } else {
+            &record.title
+        });
+        let mut name = format!("{key}-{slug}");
+        if let Some(extension) = path.extension() {
+            name = format!("{name}.{}", extension.to_string_lossy());
+        }
+        let target = path.with_file_name(&name);
+        if target == path || !path.is_file() {
+            return Ok(());
+        }
+        if target.symlink_metadata().is_ok() {
+            return Err(format!("Cannot name the spec {name}: that file already exists").into());
+        }
+        // The new name must still belong to the selected folder and match its filters.
+        let location = locate(settings, &target)?;
+        fs::rename(&path, &target)?;
+        record.place(location);
+        Ok(())
+    }
+
     /// The caller confirms this is a relocation of the same source, never a replacement source.
     /// The source keeps its ID and filters; items whose file did not move with it keep their
     /// old reference and are reported for explicit relinking.
@@ -180,4 +211,18 @@ pub(super) fn locate(settings: &Settings, path: &Path) -> Result<Location> {
         });
     }
     Err("Spec destination must be inside a configured spec folder and match its filters".into())
+}
+
+/// A file-name-safe form of a title: lowercase words joined by single hyphens.
+fn slug(text: &str) -> String {
+    let mut slug = String::new();
+    for ch in text.chars().flat_map(char::to_lowercase) {
+        if ch.is_alphanumeric() {
+            slug.push(ch);
+        } else if !slug.ends_with('-') && !slug.is_empty() {
+            slug.push('-');
+        }
+    }
+    let slug: String = slug.chars().take(60).collect();
+    slug.trim_end_matches('-').to_owned()
 }

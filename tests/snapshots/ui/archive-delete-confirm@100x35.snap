@@ -1,8 +1,8 @@
 
   Inbox / Settings / Archive
 
-  Inbox layout                                                             designs/inbox-layout.md
-  Quarterly plan                                                           quarterly-plan.md
+  Inbox layout                                                           designs/inbox-layout.md
+  Quarterly plan                                                         PAY-123-quarterly-plan.md
 
 
 
@@ -26,7 +26,7 @@
   ┌ Confirm delete ──────────────────────────────────────────────────────────────────────────────┐
   │DELETE SPEC                                                                                   │
   │Quarterly plan                                                                                │
-  │/private/tmp/herdr-inbox-golden-settings/specs/quarterly-plan.md                              │
+  │/private/tmp/herdr-inbox-golden-settings/specs/PAY-123-quarterly-plan.md                      │
   │The file moves to the macOS Trash.                                                            │
   │Its archived record is deleted for good.                                                      │
   │                                                                                              │
@@ -36,5 +36,5 @@
 --- styles: row, columns, style ---
  1   2-20  fg=Gray
  1  21-27  fg=LightCyan BOLD
- 3  75-97  fg=Gray
+ 3  73-97  fg=Gray
  4   2-97  fg=Black bg=Cyan BOLD

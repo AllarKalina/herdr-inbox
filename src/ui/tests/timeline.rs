@@ -82,7 +82,7 @@ fn each_milestone_exposes_only_its_own_available_actions() -> Result<()> {
         ],
         [
             vec![DetailAction::ReadSpec, DetailAction::RefineSpec],
-            vec![DetailAction::Jira],
+            vec![DetailAction::CreateJira, DetailAction::Jira],
             vec![],
             vec![],
         ],

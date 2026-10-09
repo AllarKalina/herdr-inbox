@@ -20,7 +20,8 @@ src/
     scan.rs          discovery, pruning, ScanReport
     sources.rs       locate a spec in a folder, relink, relocate a folder
   launch.rs          start and refine spec sessions; one preflight for both
-  launch/            profile (clients), herdr (CLI client), prompts, session (the steps)
+  launch/            profile (clients), herdr (CLI client), prompts, session (the steps),
+                     follow_up (ticket and development sessions after a spec is done)
   ui.rs              App, Screen dispatch, refresh, the event loop
   ui/
     screens/         one module per screen: list, detail (+ rail), reader, settings (+ picker), archive, scan
@@ -41,6 +42,8 @@ scripts/regress      the regression gate
 - **Every write goes through the store**, under its lock, as an atomic replace. Settings change only through `Store::update_settings`.
 - **Errors bubble up.** Screens and commands return `Result`. The event loop turns a failure into the red notice; the CLI prints it and exits 1. Nothing swallows an error or substitutes a default.
 - **One schema, no migrations.** Settings and records are schema 1. A file from another version is rejected, never rewritten.
+- **Agents do the outside work.** The Inbox never calls Jira, Git or a model. It starts a session with instructions and records what the agent reports back through the CLI (`finish`, `jira`, `implement`, `pr`).
+- **In-process tests cannot reach Herdr.** `launch::herdr::inside` is false under `cfg(test)`; sessions are tested through the binary against a fake `herdr`.
 - **Rust files stay under 500 lines.** The gate enforces it; split by responsibility.
 
 ## Adding things
@@ -81,7 +84,7 @@ Add a variant to `Prompt` in `src/ui/modal.rs` with its `label`, say in `item` w
 - **Golden snapshots** (`src/ui/tests/golden/`, files in `tests/snapshots/ui/`) pin how every screen looks: text and styling at three sizes. Do not assert on rendered text anywhere else.
 - **Behaviour tests** (`src/ui/tests/*.rs`) pin what keys and clicks do to the state and the store. They send input through `dispatch`, the same entry point as the event loop.
 - **Workflow rules** are tested as pure functions in `src/store/tests/workflow.rs`; the rest of `src/store/tests/` covers scanning, folders and the archive on disk.
-- **End-to-end** tests in `tests/` drive the real binary: `cli_workflow.rs` and `cli_config.rs` for the CLI contract, `launch_flow.rs` and `refine_flow.rs` for sessions against a fake `herdr`.
+- **End-to-end** tests in `tests/` drive the real binary: `cli_workflow.rs` and `cli_config.rs` for the CLI contract, `launch_flow.rs`, `refine_flow.rs` and `follow_up_flow.rs` for sessions against a fake `herdr`.
 - `scripts/regress` runs all of it, plus lint, policy checks, the release build and two smoke runs. Run it after every change.
 
 Test one behaviour at one layer: rules in the store, contracts through the CLI, input handling in the UI, appearance in snapshots.

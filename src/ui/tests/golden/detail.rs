@@ -56,7 +56,18 @@ fn prompts_and_acknowledgements() -> Result<()> {
     fixture.press(KeyCode::Enter)?;
     fixture.check("detail-spec-sealed-feedback")?;
 
+    // The first Jira action asks which epic or story the new ticket belongs under.
     fixture.open("Inbox layout")?;
+    fixture.press(KeyCode::Enter)?;
+    fixture.type_text("PAY-100")?;
+    fixture.check("detail-jira-parent-prompt")?;
+    fixture.press(KeyCode::Esc)?;
+    let id = fixture.app.current().unwrap().id.clone();
+    fixture.app.store.update(&id, Change::RequestJira)?;
+    fixture.app.refresh()?;
+    fixture.check("detail-jira-requested")?;
+    // Linking an existing ticket by hand is the second action.
+    fixture.press(KeyCode::Tab)?;
     fixture.press(KeyCode::Enter)?;
     fixture.type_text("PAY-9")?;
     fixture.check("detail-jira-key-prompt")?;
@@ -66,7 +77,15 @@ fn prompts_and_acknowledgements() -> Result<()> {
     fixture.press(KeyCode::Enter)?;
     fixture.check("detail-jira-bound-feedback")?;
 
+    // With a development skill configured, starting it is the first Dev action.
     fixture.open("Transaction search")?;
+    fixture.app.store.update_settings(|settings| {
+        settings.dev_skill = Some("/team-dev".into());
+        Ok(())
+    })?;
+    fixture.app.refresh()?;
+    fixture.check("detail-dev-skill-configured")?;
+    fixture.press(KeyCode::Tab)?;
     fixture.press(KeyCode::Enter)?;
     fixture.type_text("codex")?;
     fixture.check("detail-dev-agent-prompt")?;

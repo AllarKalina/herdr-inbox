@@ -8,10 +8,10 @@
        ⢠⠖⠒⠲⡄
   JIRA ⢾ ◉ ⡷ active
        ⠘⠦⠤⠴⠃
-         │            Jira URL (optio…
-  DEV    ○   locked   le/browse/PAY-9█
-         │            Enter save · Esc
-         │            cancel
+         │            ✦ Forge Jira
+  DEV    ○   locked   ticket
+         │              Bind Jira
+         │            ticket
   PR     ○   locked
 
   j/k stage · Tab action · r read
@@ -34,9 +34,13 @@
  9   7-11  fg=Cyan
  9  22-37  fg=Gray
 10   9-9   fg=DarkGray
+10  22-37  fg=Cyan BOLD | UNDERLINED
 11   2-5   fg=DarkGray
 11   9-18  fg=DarkGray
+11  22-37  fg=Cyan BOLD | UNDERLINED
 12   9-9   fg=DarkGray
+12  22-37  fg=LightBlue
 13   9-9   fg=DarkGray
+13  22-37  fg=LightBlue
 14   2-5   fg=DarkGray
 14   9-18  fg=DarkGray

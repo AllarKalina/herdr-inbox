@@ -28,7 +28,7 @@ A terminal-native workflow inbox that launches a spec agent in Herdr and stores 
 - The inbox can launch or refine a grilling session, track its spec, mark it finished, link a Jira ticket, mark implementation started, and link or open a draft PR. Jira must be linked before implementation starts.
 - Refinement preserves Jira, implementation, and PR links and progress. SPEC becomes active only after the harness accepts the prompt; this is a launch status, not evidence that agent validation is complete. The agent reads the existing spec and item context, treats current code as truth, reports gaps, then interviews the user before updating the same file and finishing the same item.
 - Previous launches remain in the item's local JSON history. Cancellation leaves the item unchanged; failed refinement preserves its prior spec status and does not overwrite its file. Spec views expose workflow actions and reading navigation; relink, editor, and archive shortcuts are absent. Archive belongs in the main list.
-- Jira and PR actions currently store links to existing external work; they do not create tickets or PRs remotely. The implementation action records an agent and branch; it does not yet launch an implementer.
+- The Inbox itself never calls Jira or Git. With Jira on, it can ask a Claude agent to create the ticket from the spec under a chosen parent epic or story, and can start a configured development skill with the ticket key; both agents report back through the CLI. Linking an existing ticket, and recording agent, branch and PR by hand, remain available. Linking a ticket renames the spec file to start with its key.
 - Archiving an item with `a` requires a second Enter confirmation and moves only metadata to the local `archive/` folder. Spec files stay in their selected folders. The archive holds only specs that still exist inside the selected folders; scans drop the rest, and also drop the record of an Inbox spec whose file was deleted from its folder. Archived items are excluded from automatic rediscovery; the CLI provides `archive` and `restore` commands.
 - This plugin is for personal use. Public GitHub installation builds the same source on each Mac; the plugin and config can be shared while inbox records and specs remain separate on local disks. Local linking remains available for development.
 
@@ -49,7 +49,7 @@ Focused, playful, and personal. The progress path and next move can have a littl
 
 - The current Rust TUI, CLI, stage model, and tests are in this repository; [README.md](README.md) documents the working flow.
 - The real `grill-me` skill is maintained in the main AI configuration outside this plugin repository; launching a session requires it to be discoverable by the chosen client.
-- No remote Jira-creation or implementer-launch integration exists yet; future work must not present those actions as already automated.
+- Ticket creation and development are delegated to agents and depend on the Jira tools and skills configured for Claude on that computer; the Inbox only knows what those agents report back.
 
 ## Product Principles
 

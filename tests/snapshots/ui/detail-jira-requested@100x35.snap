@@ -11,9 +11,9 @@
   ## Requirements                                                  ⢠⠖⠒⠲⡄
                                                               JIRA ⢾ ◉ ⡷ active
   - First requirement                                              ⠘⠦⠤⠴⠃ Ticket requested
-  - Second requirement                                               │   Jira URL (optional)
-                                                                     │   ira.example/browse/PAY-9█
-                                                                     │   Enter save · Esc cancel
+  - Second requirement                                               │   ✦ Forge Jira ticket
+                                                                     │     Bind Jira ticket
+                                                                     │
                                                                      │
                                                               DEV    ○   locked
                                                                      │   Needs Jira
@@ -51,7 +51,9 @@
 12  67-71  fg=Cyan
 12  73-97  fg=Gray
 13  69-69  fg=DarkGray
+13  73-91  fg=Cyan BOLD | UNDERLINED
 14  69-69  fg=DarkGray
+14  73-90  fg=LightBlue
 15  69-69  fg=DarkGray
 16  69-69  fg=DarkGray
 17  62-65  fg=DarkGray

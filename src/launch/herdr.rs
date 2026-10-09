@@ -17,8 +17,17 @@ fn binary() -> PathBuf {
 }
 
 /// True inside a Herdr-managed pane, the only place tabs and agents can be driven from.
+#[cfg(not(test))]
 pub fn inside() -> bool {
     env::var("HERDR_ENV").as_deref() == Ok("1")
+}
+
+/// In-process tests never drive Herdr, even when the test run itself happens inside a Herdr
+/// pane: a test that got this far would open real tabs and start real agents. Sessions are
+/// tested end to end through the binary against a fake `herdr`.
+#[cfg(test)]
+pub fn inside() -> bool {
+    false
 }
 
 impl Herdr {
@@ -118,6 +127,13 @@ pub fn required_string<'a>(value: &'a Value, path: &[&str]) -> Result<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn in_process_tests_can_never_reach_a_real_herdr() {
+        // Test runs often happen inside a Herdr pane, where HERDR_ENV is set.
+        assert!(!inside());
+        assert!(Herdr::new().is_err());
+    }
 
     #[test]
     fn matches_exact_workspace_label() -> Result<()> {

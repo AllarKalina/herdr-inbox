@@ -189,7 +189,7 @@ fn archive_restore_and_scan_round_trip_through_the_cli() {
     assert!(restored.lines().next().unwrap().ends_with("Imported plan"));
     assert_eq!(cli.json(&["show", id, "--json"])["jira"]["key"], "PLAN-7");
     assert!(cli.err(&["restore", id]).contains("No such file"));
-    assert!(cli.source.join("imported.md").is_file());
+    assert!(cli.source.join("PLAN-7-imported-plan.md").is_file());
 }
 
 #[test]
@@ -199,6 +199,8 @@ fn help_lists_every_command_and_bad_invocations_fail_clearly() {
     for command in [
         "start",
         "launch",
+        "ticket",
+        "develop",
         "profiles",
         "settings show",
         "add-source",

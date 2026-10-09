@@ -5,7 +5,12 @@ const SIZES: [(u16, u16); 3] = [(40, 18), (60, 24), (100, 35)];
 
 fn complete(app: &mut App, milestone: Milestone) -> Result<()> {
     assert_eq!(app.detail.milestone, milestone);
-    press(app, KeyCode::Enter)?;
+    if milestone == Milestone::Jira {
+        // The first Jira action hands the ticket to an agent; these tests link by hand.
+        run_action(app, DetailAction::Jira)?;
+    } else {
+        press(app, KeyCode::Enter)?;
+    }
     match milestone {
         Milestone::Spec => {}
         Milestone::Jira => {
@@ -168,7 +173,7 @@ fn clicking_and_scrolling_the_milestone_rail_dismisses_feedback() -> Result<()> 
 fn feedback_clears_when_starting_another_action_or_leaving_the_detail_view() -> Result<()> {
     let mut fixture = Fixture::new(1)?;
     fixture.app.acknowledge(Milestone::Spec);
-    press(&mut fixture.app, KeyCode::Enter)?;
+    run_action(&mut fixture.app, DetailAction::Jira)?;
     assert!(matches!(
         fixture.app.modal.prompt,
         Some(Prompt::Jira { .. })

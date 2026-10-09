@@ -10,7 +10,7 @@ Press `s` for **Settings**. The page lists three rows with their current values:
 
 Imported specs start **Spec done**, Jira ready, Dev/PR locked. Titles come from the first Markdown H1, falling back to the filename. Repeated scans preserve UUIDs, titles, progress, timestamps, links, and launch history. The Inbox shows only existing files inside currently selected source folders that match their discovery filters. Actual filesystem paths determine membership; cached source IDs and relative paths do not authorize visibility. Missing files, removed sources, and metadata for other folders never appear in the Inbox. Each scan also drops the record of a spec whose file was deleted from its selected folder, along with its progress and links; only the metadata is removed. A folder that cannot be read drops nothing, and a new spec whose session has not written its file yet is kept. A file renamed inside the folder therefore returns as a fresh item. Context references can be files or folders; their paths are supplied to new/refinement sessions and checked before launch.
 
-The CLI configures context references and preferred client/workspace defaults. New sessions require a selected source folder and use an editable exact spec destination inside a selected folder; leaving it blank generates a filename directly in the first configured source. With no selected folders, the Inbox opens Settings and stays empty. Refinement keeps its exact existing file and UUID.
+The CLI configures context references, preferred client/workspace defaults, and the development skill. New sessions require a selected source folder and use an editable exact spec destination inside a selected folder; leaving it blank generates a filename directly in the first configured source. With no selected folders, the Inbox opens Settings and stays empty. Refinement keeps its exact existing file and UUID.
 
 Archiving (`a`, then Enter) moves metadata to the local `archive/` folder; user-selected spec files stay in place. Archived references remain suppressed across scans. The archive holds only specs that still exist inside the selected folders: a scan drops an archived record once its file is gone, and selecting another folder drops the archived records of the old one. Their files are never touched, so those specs appear as fresh items if that folder is selected again. The CLI's `archive` command performs the same recoverable operation.
 
@@ -99,7 +99,7 @@ The action opens an 85%-size Herdr popup. Its frame has no visible caption; the 
 
 Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6.1-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, exact spec destination, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
 
-The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort with bypass permissions. Codex defaults to GPT-6.1-Sol (`gpt-6.1-sol`) at High effort with `workspace-write` sandboxing and added writable Inbox and spec-parent directories. A missing context reference, workspace or client leaves the inbox unchanged. A failure before a tab exists also leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
+The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort in `auto` permission mode. Codex defaults to GPT-6.1-Sol (`gpt-6.1-sol`) at High effort with `workspace-write` sandboxing and added writable Inbox and spec-parent directories. A missing context reference, workspace or client leaves the inbox unchanged. A failure before a tab exists also leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
 
 CLI equivalent:
 
@@ -108,7 +108,7 @@ CLI equivalent:
 ~/git/herdr-inbox/target/release/herdr-inbox launch --profile codex --workspace ai-boiler-room --repo ~/git/my-service --topic "Improve payment retries"
 ```
 
-`--profile opus` selects Claude. `--model` and `--effort` override a profile's defaults; `--ask-permissions` disables Claude's bypass default for one launch. The title is supplied after the spec is written:
+`--profile opus` selects Claude. `--model` and `--effort` override a profile's defaults; `--ask-permissions` starts Claude without a permission mode for one launch, so it asks as usual. The title is supplied after the spec is written:
 
 ```sh
 ~/git/herdr-inbox/target/release/herdr-inbox finish <id> --title "Payment retry handling"
@@ -132,6 +132,22 @@ CLI equivalent, run inside Herdr after setting `INBOX_ITEM_ID` to an existing it
 ```
 
 `--repo` overrides the stored repo for that launch; omit it to reuse the item's repo. `refine` accepts the same profile, workspace, model, effort, topic, and permission overrides as `launch`; `--spec` is only for a new launch. Ensure the real `grill-me` skill from your main AI configuration is discoverable by the chosen client; the inbox passes the skill invocation rather than installing it.
+
+## Jira and development through agents
+
+The Inbox never talks to Jira or writes code. It starts an agent with instructions, and the agent reports back through the CLI. Both steps need Jira turned on, a Herdr pane, and Claude with your Jira tools and skills configured.
+
+**Forge Jira ticket** asks for an optional parent key, an epic or story such as `BT-2000`, and remembers it for next time. An agent then creates the issue from the spec under that parent, in the parent's project. The spec's own session is reused while its Claude tab is still open, since that agent already knows the spec; otherwise a new `Jira · <title>` tab starts. JIRA shows `active` until the agent reports the issue with `herdr-inbox jira ID KEY --url URL`. **Bind Jira ticket** links an existing issue by hand at any point.
+
+Linking a ticket, by agent or by hand, renames the spec file to start with its key: `payment-retries.md` becomes `BT-2300-payment-retries.md`, in the same folder, with the item's identity and progress intact. Skills that are given only the key can find the spec by it. A name that already exists refuses the link.
+
+**Begin dev quest** appears on DEV once a development skill is configured:
+
+```sh
+herdr-inbox settings defaults --dev-skill /team-dev    # `none` removes it
+```
+
+It opens a `Dev · BT-2300` tab in the item's repo and sends `/team-dev BT-2300`, followed by the spec path and the commands to report a branch (`implement`) and a draft PR (`pr`). Without a configured skill, DEV only records agent and branch as before. The CLI equivalents are `herdr-inbox ticket ID [--parent KEY]` and `herdr-inbox develop ID`.
 
 ## Workflow
 
@@ -157,7 +173,7 @@ Milestones keep their positions as you navigate. Every node reserves five column
 
 Completing an action leaves a short green acknowledgement beside its milestone, rather than in the footer. It occupies the existing context row, so the layout stays steady; compact terminals use a shorter caption. Automatic selection of the next step keeps the acknowledgement attached to the completed stage. Any manual milestone navigation or leaving the detail view dismisses it, including navigating back to the stage you just completed.
 
-Use Tab, `h/l`, or Left/Right to cycle actions; Enter or a mouse click runs the selected flow. SPEC offers **Seal the spec**, **Read the scroll**, and **Refine the spec**; refinement opens the client chooser and starts a new AI interview for the existing spec. JIRA offers **Bind Jira ticket**, then **Visit Jira ticket** and **Update Jira link**. DEV offers **Log dev quest**, then **Update dev quest**; both record agent and branch information rather than launching an implementer. PR offers **Bind draft PR**, then **Review draft PR** and **Update PR link**. A locked milestone explains its prerequisite in its control area. Input and confirmation prompts replace the selected stage's controls. When progress advances, selection follows the next recommended stage if you were on the previous recommended stage; manually selected history stays selected. Below a body width of 78 columns, the 36-column right rail moves below the spec preview. At 40 × 18 and larger, all four milestones stay visible; short terminals prioritize the progress controls.
+Use Tab, `h/l`, or Left/Right to cycle actions; Enter or a mouse click runs the selected flow. SPEC offers **Seal the spec**, **Read the scroll**, and **Refine the spec**; refinement opens the client chooser and starts a new AI interview for the existing spec. JIRA offers **Forge Jira ticket** and **Bind Jira ticket**, then **Visit Jira ticket** and **Update Jira link**. DEV offers **Log dev quest**, then **Update dev quest**, which record agent and branch information; with a development skill configured it offers **Begin dev quest** first, which launches that skill. PR offers **Bind draft PR**, then **Review draft PR** and **Update PR link**. A locked milestone explains its prerequisite in its control area. Input and confirmation prompts replace the selected stage's controls. When progress advances, selection follows the next recommended stage if you were on the previous recommended stage; manually selected history stays selected. Below a body width of 78 columns, the 36-column right rail moves below the spec preview. At 40 × 18 and larger, all four milestones stay visible; short terminals prioritize the progress controls.
 
 Press `r` for the full scrollable Markdown spec; use `j/k` to scroll one line or `Shift+J/K` to scroll ten. Scrolling stops two rows after its last rendered line and adjusts to wrapping, file edits, and resizing. Press Esc to return to the previous view, or `q` to close the inbox. Spec views have no relink, editor, or archive shortcuts. Return to the list to archive with `a`, then Enter.
 

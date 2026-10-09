@@ -1,71 +1,57 @@
-//! The steps of one launch: open a tab, start the agent in it, hand over the prompt.
-//! Each completed step is recorded, so a failure shows exactly how far the launch got.
+//! The steps every session shares: open a tab, start the agent in it, hand over the prompt.
+//! The caller hears about each completed step, so a failure shows how far the launch got.
 
-use super::herdr::required_string;
-use super::profile::Session;
-use super::{Herdr, Launch, LaunchStatus, Options, Record, Result, Store, mark};
-use crate::store::Change;
+use super::herdr::{Herdr, required_string};
+use super::profile::{Profile, Session};
+use crate::store::Result;
+use std::path::Path;
 
-pub(super) struct Target {
-    pub label: String,
-    pub agent: String,
-    pub refinement: bool,
+/// One session to open.
+pub(super) struct Plan<'a> {
+    pub workspace_id: &'a str,
+    /// The tab's label.
+    pub label: &'a str,
+    /// The agent's name inside Herdr; unique per session.
+    pub agent: &'a str,
+    pub profile: Profile,
+    pub session: Session<'a>,
+    /// The tab's working directory.
+    pub repo: Option<&'a Path>,
+    pub prompt: &'a str,
 }
 
-pub(super) fn run(
-    store: &Store,
+pub(super) enum Step {
+    TabOpened { tab: String, pane: String },
+    AgentStarted,
+    PromptSent,
+}
+
+pub(super) fn open(
     herdr: &Herdr,
-    record: &Record,
-    launch: &mut Launch,
-    options: &Options,
-    target: &Target,
+    plan: &Plan,
+    mut completed: impl FnMut(Step) -> Result<()>,
 ) -> Result<()> {
-    let workspace = launch.workspace_id.clone().ok_or("Missing workspace ID")?;
-    let mut args = vec!["tab", "create", "--workspace", &workspace];
-    args.extend(["--label", &target.label, "--focus"]);
-    let repo = options
-        .repo
-        .as_ref()
-        .map(|path| path.to_string_lossy().into_owned());
+    let mut args = vec!["tab", "create", "--workspace", plan.workspace_id];
+    args.extend(["--label", plan.label, "--focus"]);
+    let repo = plan.repo.map(|path| path.to_string_lossy().into_owned());
     if let Some(repo) = &repo {
         args.extend(["--cwd", repo]);
     }
     let tab = herdr.call(&args)?;
     let pane = required_string(&tab, &["result", "root_pane", "pane_id"])?.to_owned();
-    launch.tab_id = Some(required_string(&tab, &["result", "tab", "tab_id"])?.into());
-    launch.pane_id = Some(pane.clone());
-    launch.status = LaunchStatus::TabOpened;
-    mark(store, record, launch)?;
+    completed(Step::TabOpened {
+        tab: required_string(&tab, &["result", "tab", "tab_id"])?.into(),
+        pane: pane.clone(),
+    })?;
 
-    let client = options.profile.arguments(&Session {
-        model: &launch.model,
-        effort: &launch.effort,
-        bypass_permissions: options.bypass_permissions,
-        data_dir: store.path(),
-        spec_dir: record.spec_path.parent(),
-    });
-    let kind = options.profile.executable();
-    let mut args = vec!["agent", "start", &target.agent, "--kind", kind];
+    let client = plan.profile.arguments(&plan.session);
+    let kind = plan.profile.executable();
+    let mut args = vec!["agent", "start", plan.agent, "--kind", kind];
     args.extend(["--pane", &pane, "--"]);
     args.extend(client.iter().map(String::as_str));
     herdr.start_agent(&args)?;
-    launch.agent = Some(target.agent.clone());
-    launch.status = LaunchStatus::AgentStarted;
-    mark(store, record, launch)?;
+    completed(Step::AgentStarted)?;
 
-    herdr.call(&["agent", "prompt", &target.agent, &launch.prompt])?;
-    if target.refinement {
-        // The spec is open again only once an agent has actually accepted the work.
-        store.update(&record.id, Change::RefineSpec)?;
-    }
-    launch.status = LaunchStatus::PromptSent;
-    mark(store, record, launch)?;
-
-    if let Err(error) = herdr.call(&["workspace", "focus", &workspace]) {
-        launch.error = Some(format!(
-            "Session started, but workspace focus failed: {error}. Select the new tab manually."
-        ));
-        mark(store, record, launch)?;
-    }
-    Ok(())
+    herdr.call(&["agent", "prompt", plan.agent, plan.prompt])?;
+    completed(Step::PromptSent)
 }

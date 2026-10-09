@@ -75,7 +75,12 @@ fn imports_nested_done_and_preserves_enrichment_on_repeat() -> Result<()> {
             url: "https://example.test/1".into(),
         },
     )?;
-    fs::write(&record.spec_path, "# Changed content")?;
+    assert!(
+        enriched
+            .spec_path
+            .ends_with("nested/TEST-1-my-spec.markdown")
+    );
+    fs::write(&enriched.spec_path, "# Changed content")?;
     let report = store.scan()?;
     assert_eq!((report.imported, report.known), (0, 2));
     assert_eq!(
@@ -117,7 +122,7 @@ fn deletion_suppresses_reimport_and_restore_keeps_identity() -> Result<()> {
         },
     )?;
     store.archive(&record.id)?;
-    assert!(record.spec_path.is_file());
+    assert!(enriched.spec_path.is_file());
     assert_eq!(store.scan()?.archived, 1);
     assert!(store.list()?.is_empty());
     assert_eq!(
