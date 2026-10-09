@@ -150,7 +150,7 @@ Use the existing flat canvas and shared `Inbox / Settings` breadcrumb. Settings 
 
 ### Breadcrumb and spec
 
-The shared breadcrumb shows domain folders and the spec title, with the current location teal. The full reader appends `FULL SPEC`; long ancestry shortens before the final crumb. `SPEC` introduces a text preview; opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
+The shared breadcrumb shows domain folders and the spec title, with the current location teal. The full reader appends `FULL SPEC`; long ancestry shortens before the final crumb. The spec's text starts directly under the breadcrumb, with no heading of its own: the breadcrumb already names it. Opening the full reader gives the Markdown its own scrollable surface. The preview and progress rail share a top edge on wide terminals.
 
 ### Milestone navigation
 

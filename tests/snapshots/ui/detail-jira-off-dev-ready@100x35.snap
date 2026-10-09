@@ -1,17 +1,17 @@
 
   Inbox / designs / Inbox layout
 
-  SPEC                                                        PROGRESS
-  # Inbox layout
-                                                              SPEC   ●   done
-  ## Goal                                                            │
+  # Inbox layout                                              PROGRESS
+
+  ## Goal                                                     SPEC   ●   done
                                                                      │
   Describe Inbox layout well enough to build it.                     │
                                                                      │
-  ## Requirements                                                  ⢠⠖⠒⠲⡄
-                                                              DEV  ⢾ ○ ⡷ ready
-  - First requirement                                              ⠘⠦⠤⠴⠃ Record agent and branch
-  - Second requirement                                               │   ✦ Log dev quest
+  ## Requirements                                                    │
+                                                                   ⢠⠖⠒⠲⡄
+  - First requirement                                         DEV  ⢾ ○ ⡷ ready
+  - Second requirement                                             ⠘⠦⠤⠴⠃ Record agent and branch
+                                                                     │   ✦ Log dev quest
                                                                      │
                                                                      │
                                                                      │

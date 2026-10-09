@@ -1,18 +1,18 @@
 
   Inbox / missions / zeller / Settlement reconciliation across acquirers and ledgers
 
-  SPEC                                                        PROGRESS
-  # Settlement reconciliation across acquirers and ledgers
-                                                              SPEC   ●   done
-  ## Goal                                                            │
+  # Settlement reconciliation across acquirers and ledgers    PROGRESS
+
+  ## Goal                                                     SPEC   ●   done
                                                                      │
   Describe Settlement reconciliation across acquirers and            │
   ledgers well enough to build it.                                   │
                                                                      │
-  ## Requirements                                             JIRA   ●   done
-                                                                     │   PAY-123
-  - First requirement                                                │
+  ## Requirements                                                    │
+                                                              JIRA   ●   done
+  - First requirement                                                │   PAY-123
   - Second requirement                                               │
+                                                                     │
                                                                      │
                                                                      │
                                                               DEV    ●   done

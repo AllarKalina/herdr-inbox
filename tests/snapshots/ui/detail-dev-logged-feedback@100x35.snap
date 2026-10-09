@@ -1,17 +1,17 @@
 
   Inbox / missions / zeller / Transaction search
 
-  SPEC                                                        PROGRESS
-  # Transaction search
-                                                              SPEC   ●   done
-  ## Goal                                                            │
+  # Transaction search                                        PROGRESS
+
+  ## Goal                                                     SPEC   ●   done
                                                                      │
   Describe Transaction search well enough to build it.               │
                                                                      │
   ## Requirements                                                    │
-                                                              JIRA   ●   done
-  - First requirement                                                │   PAY-123
-  - Second requirement                                               │
+                                                                     │
+  - First requirement                                         JIRA   ●   done
+  - Second requirement                                               │   PAY-123
+                                                                     │
                                                                      │
                                                                      │
                                                                      │

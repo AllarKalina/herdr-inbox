@@ -10,7 +10,7 @@ use crate::ui::{
 };
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::widgets::{Block, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 use std::process::Command;
 
 pub(crate) struct View {
@@ -334,17 +334,22 @@ pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     }
 }
 
+/// The start of the spec, as plain text. The breadcrumb already says what this is.
 fn draw_preview(frame: &mut ratatui::Frame, record: &Record, area: Rect) {
     let text = reader::spec_text(record);
+    // One row stays clear below, so the preview never runs into what follows it.
     let preview = text
         .lines()
-        .take(area.height.saturating_sub(2) as usize)
+        .take(area.height.saturating_sub(1) as usize)
         .collect::<Vec<_>>()
         .join("\n");
     frame.render_widget(
-        Paragraph::new(preview)
-            .block(Block::default().title("SPEC"))
-            .wrap(Wrap { trim: false }),
-        Rect::new(area.x, area.y, area.width.min(86), area.height),
+        Paragraph::new(preview).wrap(Wrap { trim: false }),
+        Rect::new(
+            area.x,
+            area.y,
+            area.width.min(86),
+            area.height.saturating_sub(1),
+        ),
     );
 }

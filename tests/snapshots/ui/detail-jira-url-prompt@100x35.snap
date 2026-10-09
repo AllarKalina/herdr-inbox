@@ -1,17 +1,17 @@
 
   Inbox / designs / Inbox layout
 
-  SPEC                                                        PROGRESS
-  # Inbox layout
-                                                              SPEC   ●   done
-  ## Goal                                                            │
+  # Inbox layout                                              PROGRESS
+
+  ## Goal                                                     SPEC   ●   done
                                                                      │
   Describe Inbox layout well enough to build it.                     │
                                                                      │
-  ## Requirements                                                  ⢠⠖⠒⠲⡄
-                                                              JIRA ⢾ ◉ ⡷ active
-  - First requirement                                              ⠘⠦⠤⠴⠃ Ticket requested
-  - Second requirement                                               │   Jira URL (optional)
+  ## Requirements                                                    │
+                                                                   ⢠⠖⠒⠲⡄
+  - First requirement                                         JIRA ⢾ ◉ ⡷ active
+  - Second requirement                                             ⠘⠦⠤⠴⠃ Ticket requested
+                                                                     │   Jira URL (optional)
                                                                      │   ira.example/browse/PAY-9█
                                                                      │   Enter save · Esc cancel
                                                                      │

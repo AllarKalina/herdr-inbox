@@ -1,17 +1,17 @@
 
   Inbox / designs / Inbox layout
 
-  SPEC                                                        PROGRESS
-  # Inbox layout
-                                                              SPEC   ●   done
-  ## Goal                                                            │
+  # Inbox layout                                              PROGRESS
+
+  ## Goal                                                     SPEC   ●   done
                                                                      │
   Describe Inbox layout well enough to build it.                     │
                                                                      │
   ## Requirements                                                    │
-                                                              JIRA   ●   done
-  - First requirement                                                │   Jira bound
-  - Second requirement                                               │
+                                                                     │
+  - First requirement                                         JIRA   ●   done
+  - Second requirement                                               │   Jira bound
+                                                                     │
                                                                      │
                                                                      │
                                                                    ⢠⠖⠒⠲⡄

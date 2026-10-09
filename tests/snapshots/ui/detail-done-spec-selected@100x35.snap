@@ -1,17 +1,17 @@
 
   Inbox / Quarterly plan
 
-  SPEC                                                        PROGRESS
-  # Quarterly plan                                                 ⢠⠖⠒⠲⡄
-                                                              SPEC ⢾ ● ⡷ done
-  ## Goal                                                          ⠘⠦⠤⠴⠃
-                                                                     │   ✦ Read the scroll
-  Describe Quarterly plan well enough to build it.                   │     Refine the spec
-                                                                     │
+  # Quarterly plan                                            PROGRESS
+                                                                   ⢠⠖⠒⠲⡄
+  ## Goal                                                     SPEC ⢾ ● ⡷ done
+                                                                   ⠘⠦⠤⠴⠃
+  Describe Quarterly plan well enough to build it.                   │   ✦ Read the scroll
+                                                                     │     Refine the spec
   ## Requirements                                                    │
-                                                              JIRA   ●   done
-  - First requirement                                                │   PAY-123
-  - Second requirement                                               │
+                                                                     │
+  - First requirement                                         JIRA   ●   done
+  - Second requirement                                               │   PAY-123
+                                                                     │
                                                                      │
                                                                      │
                                                                      │
