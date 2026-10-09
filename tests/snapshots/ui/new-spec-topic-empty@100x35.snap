@@ -25,13 +25,13 @@
 
 
 
-  ┌ New spec ────────────────────────────────────────────────────────────────────────────────────┐
-  │ Client  ✦ Claude · Opus 5.5 · Medium                                                         │
-  │           Codex · GPT-6.1-Sol · Medium                                                       │
+
+  ┌ New spec · Topic ────────────────────────────────────────────────────────────────────────────┐
+  │ Client  Codex · GPT-6.1-Sol · Medium                                                         │
   │                                                                                              │
   │ Topic   █ optional                                                                           │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
-  ↑↓ client · Enter start session · Esc cancel
+  Enter start session · Esc back
 
 --- styles: row, columns, style ---
  1   2-9   fg=Gray
@@ -76,9 +76,6 @@
 12  70-77  fg=LightGreen
 12  80-87  fg=LightGreen
 12  90-97  fg=Yellow
-28   4-11  fg=Gray
-28  12-39  fg=Cyan BOLD | UNDERLINED
 29   4-11  fg=Gray
-29  12-41  fg=LightBlue
 31   4-11  fg=Gray
 31  13-21  fg=Gray

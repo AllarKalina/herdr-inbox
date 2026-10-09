@@ -17,8 +17,8 @@
 
 
   ┌ New spec · Client ───────────────────────────────────┐
-  │ Client    Claude · Opus 5.5 · Medium                 │
-  │         ✦ Codex · GPT-6.1-Sol · Medium               │
+  │ Client  ✦ Claude · Opus 5.5 · Medium                 │
+  │           Codex · GPT-6.1-Sol · Medium               │
   └──────────────────────────────────────────────────────┘
   j/k choose · Enter next · Esc cancel
 
@@ -66,6 +66,6 @@
 12  55-55  fg=LightGreen
 12  57-57  fg=Yellow
 19   4-11  fg=Gray
-19  12-39  fg=LightBlue
+19  12-39  fg=Cyan BOLD | UNDERLINED
 20   4-11  fg=Gray
-20  12-41  fg=Cyan BOLD | UNDERLINED
+20  12-41  fg=LightBlue

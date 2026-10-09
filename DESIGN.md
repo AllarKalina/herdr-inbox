@@ -172,9 +172,14 @@ Completion feedback belongs to its milestone. A transient green acknowledgement 
 
 A panel is the one bordered element: it interrupts the list or detail view for a choice or a confirmation. Every panel is a plain rectangular border with a title and one cell of air inside, and takes only the rows its content needs.
 
-**New spec** (`n`) is a single panel, not a sequence. A muted eight-cell label column holds `Client` and `Topic`. Clients are listed one per row and marked like milestone actions: `✦` with bold, underlined teal for the chosen one, blue for the rest. A blank row separates them from the topic, which shows a cursor, a muted `optional` while empty, and scrolls to keep the cursor visible. Up/Down or Tab pick the client; every other key types. In a narrow popup a client's label drops trailing details (effort first) before it is cut. The footer reads `↑↓ client · Enter start session · Esc cancel`. A failed start appears in Red on the row above the footer while the panel stays open with the topic intact.
+**New spec** (`n`) takes two steps in one panel position, one decision each, so no key ever means two things. A muted eight-cell label column runs through both.
 
-**Refine spec** uses the same client rows in a centred panel of its own, with `j/k` as well as arrows since nothing is typed there.
+1. `New spec · Client`: clients one per row, marked like milestone actions: `✦` with bold, underlined teal for the chosen one, blue for the rest. `j/k`, arrows or Tab choose. Footer: `j/k choose · Enter next · Esc cancel`.
+2. `New spec · Topic`: the chosen client in neutral text, a blank row, then the topic with a cursor, a muted `optional` while empty, scrolling to keep the cursor visible. Every key types. Footer: `Enter start session · Esc back`; Esc returns to the client step and keeps the text.
+
+In a narrow popup a client's label drops trailing details (effort first) before it is cut. A failed start appears in Red on the row above the footer while the panel stays open with the topic intact.
+
+**Refine spec** uses the same client rows in a centred panel of its own; Enter starts the session at once, since a refinement has no topic step.
 
 ### Prompts
 

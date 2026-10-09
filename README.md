@@ -97,7 +97,7 @@ The action opens an 85%-size Herdr popup. Its frame has no visible caption; the 
 
 ## New spec session
 
-Press `n` in the inbox. One **New spec** panel asks for everything: the client, **Claude · Opus 5.5 · Medium** or **Codex · GPT-6.1-Sol · Medium** (only clients found on `PATH` are listed, starting on your preferred one), and an optional topic. Up/Down or Tab pick the client, typing fills in the topic, Enter starts the session, Esc cancels. A long topic scrolls so the cursor stays visible, and a failed start explains itself above the shortcuts with the panel still open to retry.
+Press `n` in the inbox. A new spec takes two short steps in the same panel. First choose the client, **Claude · Opus 5.5 · Medium** or **Codex · GPT-6.1-Sol · Medium** (only clients found on `PATH` are listed, starting on your preferred one), with `j/k` or the arrows, and press Enter. Then type a topic if you want one, with the chosen client still shown above it, and press Enter to start. Esc on the topic step goes back to the client and keeps what you typed; Esc on the client step cancels. A long topic scrolls so the cursor stays visible, and a failed start explains itself above the shortcuts with the panel still open to retry.
 
 Starting creates an untitled item and a `Spec · <id>` tab in the `ai-boiler-room` workspace, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. Sessions always run in that workspace: it is where agents are set up, and it is not a setting. The popup closes on success so the tab is visible.
 

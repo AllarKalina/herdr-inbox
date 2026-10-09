@@ -8,13 +8,13 @@
   └─    Settings navigation   ● ○ ○ ○
   ▾  missions
   └─ ▾  zeller
-  ┌ New spec · Topic ────────────────┐
-  │ Client  Codex · GPT-6.1-Sol      │
-  │                                  │
-  │ Topic   ery acquirer and wallet█ │
+     ├─    Settlement reconc… ✓ ✓ ● →
+     └─    Transaction search ✓ ✓ → ○
+  ┌ New spec · Client ───────────────┐
+  │ Client  ✦ Claude · Opus 5.5      │
+  │           Codex · GPT-6.1-Sol    │
   └──────────────────────────────────┘
-  Open the Inbox inside Herdr to star…
-  Enter start session · Esc back
+  j/k choose · Enter next · Esc cancel
 
 --- styles: row, columns, style ---
  1   2-9   fg=Gray
@@ -42,6 +42,19 @@
  8   2-13  fg=Yellow BOLD
  9   2-4   fg=DarkGray
  9   5-14  fg=Yellow BOLD
-11   4-11  fg=Gray
+10   2-7   fg=DarkGray
+10   8-11  fg=LightBlue
+10  31-31  fg=LightGreen
+10  33-33  fg=LightGreen
+10  35-35  fg=Cyan
+10  37-37  fg=LightBlue
+11   2-7   fg=DarkGray
+11   8-11  fg=LightBlue
+11  31-31  fg=LightGreen
+11  33-33  fg=LightGreen
+11  35-35  fg=LightBlue
+11  37-37  fg=DarkGray
 13   4-11  fg=Gray
-15   2-37  fg=Red
+13  12-30  fg=Cyan BOLD | UNDERLINED
+14   4-11  fg=Gray
+14  12-32  fg=LightBlue

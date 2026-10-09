@@ -211,3 +211,46 @@ fn agent_actions_lead_and_the_ticket_prompt_remembers_the_last_parent() -> Resul
     assert_eq!(app.current().unwrap().implementation.status, "ready");
     Ok(())
 }
+
+#[test]
+fn a_new_spec_takes_the_client_first_and_then_an_optional_topic() -> Result<()> {
+    let mut fixture = Fixture::new(1)?;
+    let app = &mut fixture.app;
+    press(app, KeyCode::Esc)?;
+    app.choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus, Profile::Codex]);
+    let choice = |app: &App| {
+        let choice = app.modal.choice.as_ref().unwrap();
+        (choice.selected, choice.entering_topic)
+    };
+    // Step one: letters move the selection; nothing is typed yet.
+    press(app, KeyCode::Char('j'))?;
+    assert_eq!(choice(app), (1, false));
+    assert!(app.modal.input.is_empty());
+    press(app, KeyCode::Enter)?;
+    assert_eq!(choice(app), (1, true));
+
+    // Step two: every key types, and Esc steps back without losing the client or the text.
+    type_text(app, "jk retries")?;
+    assert_eq!(app.modal.input, "jk retries");
+    assert_eq!(choice(app), (1, true));
+    press(app, KeyCode::Esc)?;
+    assert_eq!(choice(app), (1, false));
+    press(app, KeyCode::Char('k'))?;
+    press(app, KeyCode::Enter)?;
+    assert_eq!(choice(app), (0, true));
+    assert_eq!(app.modal.input, "jk retries");
+
+    // Starting fails here because tests never reach Herdr; everything stays for a retry.
+    press(app, KeyCode::Enter)?;
+    assert!(app.notice.text().contains("inside Herdr"));
+    assert_eq!(choice(app), (0, true));
+    assert_eq!(app.modal.input, "jk retries");
+    assert!(app.records.iter().all(|record| !record.title.is_empty()));
+
+    // Esc from the first step cancels the whole thing.
+    press(app, KeyCode::Esc)?;
+    press(app, KeyCode::Esc)?;
+    assert!(!app.modal.is_open());
+    assert!(app.modal.input.is_empty());
+    Ok(())
+}

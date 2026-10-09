@@ -13,14 +13,14 @@
      Quarterly plan                               ✓ ✓ ✓ ◐
 
 
-  ┌ New spec ────────────────────────────────────────────┐
-  │ Client    Claude · Opus 5.5 · Medium                 │
-  │         ✦ Codex · GPT-6.1-Sol · Medium               │
+
+  ┌ New spec · Topic ────────────────────────────────────┐
+  │ Client  Codex · GPT-6.1-Sol · Medium                 │
   │                                                      │
   │ Topic   le charge, across every acquirer and wallet█ │
   └──────────────────────────────────────────────────────┘
   Open the Inbox inside Herdr to start sessions
-  ↑↓ client · Enter start session · Esc cancel
+  Enter start session · Esc back
 
 --- styles: row, columns, style ---
  1   2-9   fg=Gray
@@ -65,9 +65,6 @@
 12  53-53  fg=LightGreen
 12  55-55  fg=LightGreen
 12  57-57  fg=Yellow
-16   4-11  fg=Gray
-16  12-39  fg=LightBlue
 17   4-11  fg=Gray
-17  12-41  fg=Cyan BOLD | UNDERLINED
 19   4-11  fg=Gray
 21   2-57  fg=Red

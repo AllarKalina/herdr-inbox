@@ -64,7 +64,8 @@ fn no_screen_panics_at_any_size() -> Result<()> {
         sweep(app, "list archive confirm", failures);
         app.modal.prompt = None;
         app.choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus, Profile::Codex]);
-        sweep(app, "list new spec", failures);
+        sweep(app, "list new spec client", failures);
+        press(app, KeyCode::Enter)?;
         app.modal.input = "A topic long enough to scroll inside the narrowest panel".into();
         sweep(app, "list new spec with topic", failures);
         app.modal.close();

@@ -71,6 +71,8 @@ pub(super) struct Choice {
     pub purpose: ChoicePurpose,
     pub profiles: Vec<Profile>,
     pub selected: usize,
+    /// A new spec has a second step after the client is chosen: its optional topic.
+    pub entering_topic: bool,
 }
 
 #[derive(Default)]
@@ -145,6 +147,7 @@ impl App {
             purpose,
             profiles,
             selected,
+            entering_topic: false,
         });
     }
 }
@@ -174,35 +177,52 @@ fn choice_key(app: &mut App, key: KeyEvent) -> Result<()> {
     let Some(choice) = &mut app.modal.choice else {
         return Ok(());
     };
+    if choice.entering_topic {
+        match key.code {
+            // Back to the client; what was typed is kept in case this was a slip.
+            KeyCode::Esc => choice.entering_topic = false,
+            KeyCode::Char(ch) => app.modal.input.push(ch),
+            KeyCode::Backspace => {
+                app.modal.input.pop();
+            }
+            KeyCode::Enter => return start(app),
+            _ => {}
+        }
+        return Ok(());
+    }
     let last = choice.profiles.len() - 1;
-    // A new spec also takes a topic, so letters type; the arrows and Tab pick the client.
-    let typing = choice.purpose == ChoicePurpose::NewSpec;
     match key.code {
         KeyCode::Esc => app.modal.close(),
-        KeyCode::Down | KeyCode::Tab => choice.selected = (choice.selected + 1).min(last),
-        KeyCode::Up | KeyCode::BackTab => choice.selected = choice.selected.saturating_sub(1),
-        KeyCode::Char('j') if !typing => choice.selected = (choice.selected + 1).min(last),
-        KeyCode::Char('k') if !typing => choice.selected = choice.selected.saturating_sub(1),
-        KeyCode::Char(ch) if typing => app.modal.input.push(ch),
-        KeyCode::Backspace if typing => {
-            app.modal.input.pop();
+        KeyCode::Char('j') | KeyCode::Down | KeyCode::Tab => {
+            choice.selected = (choice.selected + 1).min(last)
         }
-        KeyCode::Enter => {
-            let options = Options {
-                topic: app.modal.input.trim().to_owned(),
-                ..Options::for_profile(choice.profiles[choice.selected])
-            };
-            // A failed launch leaves the choice and the typed topic in place to retry.
-            match &choice.purpose {
-                ChoicePurpose::NewSpec => launch::start(&app.store, options)?,
-                ChoicePurpose::Refine { id } => launch::refine(&app.store, id, options)?,
-            };
-            app.modal.close();
-            // The session's tab now has focus; the popup would only hide it.
-            app.should_exit = true;
+        KeyCode::Char('k') | KeyCode::Up | KeyCode::BackTab => {
+            choice.selected = choice.selected.saturating_sub(1)
         }
+        KeyCode::Enter if choice.purpose == ChoicePurpose::NewSpec => choice.entering_topic = true,
+        KeyCode::Enter => return start(app),
         _ => {}
     }
+    Ok(())
+}
+
+/// Starts the session the open choice describes. A failed start leaves the choice, and any
+/// typed topic, in place to retry.
+fn start(app: &mut App) -> Result<()> {
+    let Some(choice) = &app.modal.choice else {
+        return Ok(());
+    };
+    let options = Options {
+        topic: app.modal.input.trim().to_owned(),
+        ..Options::for_profile(choice.profiles[choice.selected])
+    };
+    match &choice.purpose {
+        ChoicePurpose::NewSpec => launch::start(&app.store, options)?,
+        ChoicePurpose::Refine { id } => launch::refine(&app.store, id, options)?,
+    };
+    app.modal.close();
+    // The session's tab now has focus; the popup would only hide it.
+    app.should_exit = true;
     Ok(())
 }
 

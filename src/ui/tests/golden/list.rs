@@ -47,9 +47,11 @@ fn new_spec_flow() -> Result<()> {
     let mut fixture = Fixture::new("new-spec")?;
     let clients = || vec![Profile::Opus, Profile::Codex];
     fixture.app.choose_client(ChoicePurpose::NewSpec, clients());
-    fixture.check("new-spec")?;
-    fixture.press(KeyCode::Down)?;
+    fixture.check("new-spec-client")?;
+    fixture.press(KeyCode::Char('j'))?;
     fixture.check("new-spec-second-client")?;
+    fixture.press(KeyCode::Enter)?;
+    fixture.check("new-spec-topic-empty")?;
     fixture.type_text("Card retries")?;
     fixture.check("new-spec-topic")?;
     fixture.type_text(" that never double charge, across every acquirer and wallet")?;

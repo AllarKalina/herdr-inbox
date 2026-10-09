@@ -14,9 +14,10 @@ pub(crate) fn hints(app: &App, width: u16) -> Option<&'static str> {
     let pick = |full: &'static str, short: &'static str| if fits(full) { full } else { short };
     if let Some(choice) = &app.modal.choice {
         return Some(match choice.purpose {
+            ChoicePurpose::NewSpec if choice.entering_topic => "Enter start session · Esc back",
             ChoicePurpose::NewSpec => pick(
-                "↑↓ client · Enter start session · Esc cancel",
-                "↑↓ client · Enter start · Esc cancel",
+                "j/k choose · Enter next · Esc cancel",
+                "j/k · Enter next · Esc cancel",
             ),
             ChoicePurpose::Refine { .. } => pick(
                 "j/k choose · Enter start session · Esc cancel",
@@ -33,8 +34,9 @@ pub(crate) fn hints(app: &App, width: u16) -> Option<&'static str> {
 /// Rows the list gives the open modal: its content and its border, nothing spare.
 pub(crate) fn panel_height(app: &App) -> u16 {
     match (&app.modal.choice, &app.modal.prompt) {
-        // Clients, a blank row, the topic.
-        (Some(choice), _) => choice.profiles.len() as u16 + 4,
+        // The chosen client, a blank row, the topic.
+        (Some(choice), _) if choice.entering_topic => 5,
+        (Some(choice), _) => choice.profiles.len() as u16 + 2,
         (None, Some(_)) => 8,
         (None, None) => 0,
     }
@@ -97,24 +99,34 @@ fn client_lines(choice: &Choice, width: u16) -> Vec<Line<'static>> {
         .collect()
 }
 
-/// Everything a new spec needs, in one place: which client interviews, and about what.
+/// A new spec in two steps: choose the client, then say what the interview is about.
 fn draw_new_spec(frame: &mut ratatui::Frame, choice: &Choice, topic: &str, area: Rect) {
-    let block = chrome::panel(" New spec ");
+    if !choice.entering_topic {
+        let block = chrome::panel(" New spec · Client ");
+        let lines = client_lines(choice, block.inner(area).width);
+        return frame.render_widget(Paragraph::new(lines).block(block), area);
+    }
+    let block = chrome::panel(" New spec · Topic ");
     let inner = block.inner(area);
-    let mut lines = client_lines(choice, inner.width);
-    lines.push(Line::default());
+    let value = usize::from(inner.width).saturating_sub(LABEL_WIDTH);
+    let label = |text: &'static str| Span::styled(format!("{text:<LABEL_WIDTH$}"), theme::muted());
+    // The client is settled; it stays in view so the choice is not taken on trust.
+    let client = fit_client(choice.profiles[choice.selected].label(), value);
     // The topic scrolls so the cursor stays visible however much is typed.
-    let room = usize::from(inner.width).saturating_sub(LABEL_WIDTH + 1);
     let count = topic.chars().count();
-    let shown: String = topic.chars().skip(count.saturating_sub(room)).collect();
-    let mut topic_line = vec![
-        Span::styled(format!("{:<LABEL_WIDTH$}", "Topic"), theme::muted()),
-        Span::raw(format!("{shown}█")),
-    ];
+    let shown: String = topic
+        .chars()
+        .skip(count.saturating_sub(value.saturating_sub(1)))
+        .collect();
+    let mut topic_line = vec![label("Topic"), Span::raw(format!("{shown}█"))];
     if topic.is_empty() {
         topic_line.push(Span::styled(" optional", theme::muted()));
     }
-    lines.push(Line::from(topic_line));
+    let lines = vec![
+        Line::from(vec![label("Client"), Span::raw(client)]),
+        Line::default(),
+        Line::from(topic_line),
+    ];
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
