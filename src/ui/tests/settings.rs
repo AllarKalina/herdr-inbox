@@ -326,18 +326,14 @@ fn a_prompt_is_dropped_only_when_its_own_item_leaves_the_inbox() -> Result<()> {
         .id
         .clone();
 
-    // Typing a new spec's details must survive some other item being archived elsewhere.
-    app.begin(Prompt::LaunchWorkspace {
-        profile: Profile::Opus,
-    });
-    app.modal.input = "my-workspace".into();
+    // Typing a new spec's topic must survive some other item being archived elsewhere.
+    app.choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus]);
+    app.modal.input = "payment retries".into();
     app.store.archive(&first)?;
     app.refresh()?;
-    assert!(matches!(
-        app.modal.prompt,
-        Some(Prompt::LaunchWorkspace { .. })
-    ));
-    assert_eq!(app.modal.input, "my-workspace");
+    assert!(app.modal.choice.is_some());
+    assert_eq!(app.modal.input, "payment retries");
+    app.modal.close();
 
     // A prompt about an item goes away with that item.
     app.begin(Prompt::Jira { id: second.clone() });

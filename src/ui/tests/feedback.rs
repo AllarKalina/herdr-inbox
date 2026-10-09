@@ -70,7 +70,7 @@ fn completed_actions_acknowledge_their_owner_and_follow_the_next_milestone() -> 
 #[test]
 fn finishing_an_untitled_spec_uses_the_same_local_acknowledgement() -> Result<()> {
     let mut fixture = Fixture::new(0)?;
-    let record = fixture.app.store.start_untitled(None, None)?;
+    let record = fixture.app.store.start_untitled()?;
     fs::write(
         &record.spec_path,
         "# A named spec\n\nThe finished specification.\n",
@@ -196,7 +196,7 @@ fn feedback_clears_when_starting_another_action_or_leaving_the_detail_view() -> 
     press(&mut fixture.app, KeyCode::Esc)?;
     assert_eq!(fixture.app.screen, Screen::List);
     assert!(fixture.app.detail.feedback.is_none());
-    let another = fixture.app.store.start("Another spec", None, None)?;
+    let another = fixture.app.store.start("Another spec", None)?;
     fixture.app.refresh()?;
     focus(&mut fixture.app, &another.id);
     fixture.open()?;

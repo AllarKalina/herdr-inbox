@@ -4,43 +4,54 @@ use super::*;
 use std::collections::HashSet;
 
 impl Store {
+    /// Points an item at another spec file, on the user's explicit instruction.
     pub fn relink(&self, id: &str, path: PathBuf) -> Result<Record> {
         self.locked(|| {
             let mut record = self.get(id)?;
             if record.active_spec_session() {
                 return Err("Settle the active spec session before relinking".into());
             }
-            let path = absolute(path)?;
-            if !path.is_file() {
-                return Err("Spec destination must be a readable file".into());
-            }
-            fs::File::open(&path)?;
-            // A scan that saw the moved file first imported it as a fresh item. That
-            // placeholder gives way; an item with work on it, or an archived one, does not.
-            let mut placeholder = None;
-            for other in self.all_records()? {
-                if other.id == id || !same_file(&other.spec_path, &path) {
-                    continue;
-                }
-                let active = self.item_path(&other.id)?.is_file();
-                if !active || !other.untouched_import() || placeholder.is_some() {
-                    return Err(
-                        "Another item (including Trash) already references this spec".into(),
-                    );
-                }
-                placeholder = Some(other.id);
-            }
-            let settings = self.settings()?;
-            let location = locate(&settings, &path)?;
-            if let Some(placeholder) = placeholder {
-                fs::remove_file(self.item_path(&placeholder)?)?;
-            }
-            record.place(location);
-            record.content_fingerprint = fingerprint(&record.spec_path).ok();
+            self.rebind(&mut record, path, &self.settings()?)?;
             record.updated_at = timestamp();
             self.write(&record)?;
             Ok(record)
         })
+    }
+
+    /// Moves a record onto an existing spec file inside a selected folder.
+    pub(super) fn rebind(
+        &self,
+        record: &mut Record,
+        path: PathBuf,
+        settings: &Settings,
+    ) -> Result<()> {
+        let path = absolute(path)?;
+        if !path.is_file() {
+            return Err(format!("Spec is not a readable file: {}", path.display()).into());
+        }
+        fs::File::open(&path)?;
+        // A scan that saw the file first imported it as a fresh item. That placeholder
+        // gives way; an item with work on it, or an archived one, does not.
+        let mut placeholder = None;
+        for other in self.all_records()? {
+            if other.id == record.id || !same_file(&other.spec_path, &path) {
+                continue;
+            }
+            let active = self.item_path(&other.id)?.is_file();
+            if !active || !other.untouched_import() || placeholder.is_some() {
+                return Err(
+                    "Another item (including the archive) already references this spec".into(),
+                );
+            }
+            placeholder = Some(other.id);
+        }
+        let location = locate(settings, &path)?;
+        if let Some(placeholder) = placeholder {
+            fs::remove_file(self.item_path(&placeholder)?)?;
+        }
+        record.place(location);
+        record.content_fingerprint = fingerprint(&record.spec_path).ok();
+        Ok(())
     }
 
     /// Renames a linked spec so its file name starts with the ticket key, for example

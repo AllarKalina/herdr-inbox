@@ -5,7 +5,7 @@ use crate::ui::{App, Screen, chrome, text, theme};
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
-use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
+use ratatui::widgets::{Cell, Paragraph, Row, Table, TableState, Wrap};
 
 #[derive(Default)]
 pub(crate) struct View {
@@ -161,7 +161,7 @@ pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
         draw_list(frame, app, areas[0]);
     }
     if confirming && let Some(record) = app.archive.current() {
-        let width = usize::from(areas[1].width.saturating_sub(2));
+        let width = usize::from(areas[1].width.saturating_sub(4));
         let file = if record.spec_path.symlink_metadata().is_ok() {
             "The file moves to the macOS Trash."
         } else {
@@ -173,11 +173,9 @@ pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
             text::fit_tail(&text::tilde(&record.spec_path), width),
         );
         frame.render_widget(
-            Paragraph::new(text).wrap(Wrap { trim: false }).block(
-                Block::default()
-                    .title(" Confirm delete ")
-                    .borders(Borders::ALL),
-            ),
+            Paragraph::new(text)
+                .wrap(Wrap { trim: false })
+                .block(chrome::panel(" Confirm delete ")),
             areas[1],
         );
     }

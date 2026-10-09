@@ -10,7 +10,7 @@ Press `s` for **Settings**. The page lists three rows with their current values:
 
 Imported specs start **Spec done**, Jira ready, Dev/PR locked. Titles come from the first Markdown H1, falling back to the filename. Repeated scans preserve UUIDs, titles, progress, timestamps, links, and launch history. The Inbox shows only existing files inside currently selected source folders that match their discovery filters. Actual filesystem paths determine membership; cached source IDs and relative paths do not authorize visibility. Missing files, removed sources, and metadata for other folders never appear in the Inbox. Each scan also drops the record of a spec whose file was deleted from its selected folder, along with its progress and links; only the metadata is removed. A folder that cannot be read drops nothing, and a new spec whose session has not written its file yet is kept. A file renamed inside the folder therefore returns as a fresh item. Context references can be files or folders; their paths are supplied to new/refinement sessions and checked before launch.
 
-The CLI configures context references, preferred client/workspace defaults, and the development skill. New sessions require a selected source folder and use an editable exact spec destination inside a selected folder; leaving it blank generates a filename directly in the first configured source. With no selected folders, the Inbox opens Settings and stays empty. Refinement keeps its exact existing file and UUID.
+The CLI configures context references, the preferred client, and the development skill. New sessions require a selected source folder; the session itself chooses where inside it the spec goes. With no selected folders, the Inbox opens Settings and stays empty. Refinement keeps its exact existing file and UUID.
 
 Archiving (`a`, then Enter) moves metadata to the local `archive/` folder; user-selected spec files stay in place. Archived references remain suppressed across scans. The archive holds only specs that still exist inside the selected folders: a scan drops an archived record once its file is gone, and selecting another folder drops the archived records of the old one. Their files are never touched, so those specs appear as fresh items if that folder is selected again. The CLI's `archive` command performs the same recoverable operation.
 
@@ -25,7 +25,7 @@ CLI setup example:
 ```sh
 herdr-inbox settings add-source "$HOME/my-specs"
 herdr-inbox settings add-context "$HOME/my-project-context"
-herdr-inbox settings defaults --profile codex --workspace ai-boiler-room
+herdr-inbox settings defaults --profile codex
 herdr-inbox settings show --json
 herdr-inbox scan --json
 ```
@@ -97,28 +97,34 @@ The action opens an 85%-size Herdr popup. Its frame has no visible caption; the 
 
 ## New spec session
 
-Press `n` in the inbox, then choose an installed client: **Claude · Opus 5.5 · High** or **Codex · GPT-6.1-Sol · High**. The picker lists only clients found on `PATH`. Enter the target workspace (default `ai-boiler-room`), optional repo directory, exact spec destination, and optional topic. The inbox creates an untitled item and a `Spec · <id>` tab, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. The prompt gives the agent the Markdown spec path and the command to set the final title after the session. The inbox popup closes on successful launch so the tab is visible.
+Press `n` in the inbox. One **New spec** panel asks for everything: the client, **Claude · Opus 5.5 · Medium** or **Codex · GPT-6.1-Sol · Medium** (only clients found on `PATH` are listed, starting on your preferred one), and an optional topic. Up/Down or Tab pick the client, typing fills in the topic, Enter starts the session, Esc cancels. A long topic scrolls so the cursor stays visible, and a failed start explains itself above the shortcuts with the panel still open to retry.
 
-The target Herdr workspace, selected client, and its `grill-me` skill must exist where you run this. Claude defaults to Opus 5.5 at High effort in `auto` permission mode. Codex defaults to GPT-6.1-Sol (`gpt-6.1-sol`) at High effort with `workspace-write` sandboxing and added writable Inbox and spec-parent directories. A missing context reference, workspace or client leaves the inbox unchanged. A failure before a tab exists also leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
+Starting creates an untitled item and a `Spec · <id>` tab in the `ai-boiler-room` workspace, starts the selected agent, and sends `/grill-me` to Claude or `$grill-me` to Codex. Sessions always run in that workspace: it is where agents are set up, and it is not a setting. The popup closes on success so the tab is visible.
+
+The session decides where the spec goes. The prompt names your specs folder, not a file: the agent picks the existing subfolder that fits the subject, names the file, names the affected repositories in the spec, and reports the file when it finishes:
+
+```sh
+herdr-inbox finish <id> --title "Payment retry handling" --spec ~/my-specs/payments/retry-handling.md
+```
+
+Until then the item has no file and stays out of the Inbox. If the Inbox was opened in between and already listed the new file, finishing replaces that untouched entry with the session's item.
+
+The selected client and its `grill-me` skill must exist where you run this, along with a Herdr workspace named `ai-boiler-room`. Claude runs Opus 5.5 at Medium effort in `auto` permission mode. Codex runs GPT-6.1-Sol (`gpt-6.1-sol`) at Medium effort with `workspace-write` sandboxing and added writable Inbox and specs directories. A missing context reference, workspace or client leaves the inbox unchanged. A failure before a tab exists also leaves the inbox unchanged. A failure after tab creation leaves the item and tab in place with an error recorded for inspection.
 
 CLI equivalent:
 
 ```sh
 ~/git/herdr-inbox/target/release/herdr-inbox profiles
-~/git/herdr-inbox/target/release/herdr-inbox launch --profile codex --workspace ai-boiler-room --repo ~/git/my-service --topic "Improve payment retries"
+~/git/herdr-inbox/target/release/herdr-inbox launch --profile codex --topic "Improve payment retries"
 ```
 
-`--profile opus` selects Claude. `--model` and `--effort` override a profile's defaults; `--ask-permissions` starts Claude without a permission mode for one launch, so it asks as usual. The title is supplied after the spec is written:
-
-```sh
-~/git/herdr-inbox/target/release/herdr-inbox finish <id> --title "Payment retry handling"
-```
+`--profile opus` selects Claude. `--model` and `--effort` override a profile's defaults; `--ask-permissions` starts Claude without a permission mode for one launch, so it asks as usual.
 
 In the personal setup, the real skill lives at `~/git/ai-boiler-room/skills/grill-me/SKILL.md`, linked into `~/.codex/skills/grill-me`. Restore the skill through the main AI configuration on each Mac. The plugin supplies the skill invocation and inbox context; it does not bundle or install a skill.
 
 ## Refine an existing spec
 
-Open an item, select SPEC, and choose **Refine the spec**. The installed-client chooser opens again; choosing Claude or Codex creates a new grilling tab in `ai-boiler-room` for the same inbox item. Its title, repo, and Markdown spec path are retained. Cancelling the chooser changes nothing. The client defaults and permission modes match a new session.
+Open an item, select SPEC, and choose **Refine the spec**. The installed-client chooser opens again; choosing Claude or Codex creates a new grilling tab in `ai-boiler-room` for the same inbox item. Its title and Markdown spec path are retained. Cancelling the chooser changes nothing. The client defaults and permission modes match a new session.
 
 The agent first reads the existing spec and item context, uses the services, files, and paths named in the spec to locate the affected codebases, and validates its claims against current code. Then it reports discrepancies or missing context, asks what you want to change, challenges assumptions, and continues the interview. Code is the source of truth. The existing Markdown file is updated only after the required decisions are made, and the agent finishes the same item ID. Refinement does not create another inbox item or erase Jira, implementation, or PR links and progress.
 
@@ -128,10 +134,10 @@ CLI equivalent, run inside Herdr after setting `INBOX_ITEM_ID` to an existing it
 
 ```sh
 "$HOME/git/herdr-inbox/target/release/herdr-inbox" refine "$INBOX_ITEM_ID" --profile codex
-"$HOME/git/herdr-inbox/target/release/herdr-inbox" refine "$INBOX_ITEM_ID" --profile opus --repo "$HOME/git/my-service"
+"$HOME/git/herdr-inbox/target/release/herdr-inbox" refine "$INBOX_ITEM_ID" --profile opus --topic "Tighten the retry limits"
 ```
 
-`--repo` overrides the stored repo for that launch; omit it to reuse the item's repo. `refine` accepts the same profile, workspace, model, effort, topic, and permission overrides as `launch`; `--spec` is only for a new launch. Ensure the real `grill-me` skill from your main AI configuration is discoverable by the chosen client; the inbox passes the skill invocation rather than installing it.
+`refine` accepts the same profile, model, effort, topic, and permission overrides as `launch`. Neither takes a repo: the agent finds the affected code from the spec. Ensure the real `grill-me` skill from your main AI configuration is discoverable by the chosen client; the inbox passes the skill invocation rather than installing it.
 
 ## Jira and development through agents
 
@@ -147,12 +153,12 @@ Linking a ticket, by agent or by hand, renames the spec file to start with its k
 herdr-inbox settings defaults --dev-skill /team-dev    # `none` removes it
 ```
 
-It opens a `Dev · BT-2300` tab in the item's repo and sends `/team-dev BT-2300`, followed by the spec path and the commands to report a branch (`implement`) and a draft PR (`pr`). Without a configured skill, DEV only records agent and branch as before. The CLI equivalents are `herdr-inbox ticket ID [--parent KEY]` and `herdr-inbox develop ID`.
+It opens a `Dev · BT-2300` tab and sends `/team-dev BT-2300`, followed by the spec path and the commands to report a branch (`implement`) and a draft PR (`pr`). Without a configured skill, DEV only records agent and branch as before. The CLI equivalents are `herdr-inbox ticket ID [--parent KEY]` and `herdr-inbox develop ID`.
 
 ## Workflow
 
 ```sh
-~/git/herdr-inbox/target/release/herdr-inbox start "Payment retry handling" --repo ~/git/my-service
+~/git/herdr-inbox/target/release/herdr-inbox start "Payment retry handling"
 ~/git/herdr-inbox/target/release/herdr-inbox show <id>
 ~/git/herdr-inbox/target/release/herdr-inbox finish <id>
 ~/git/herdr-inbox/target/release/herdr-inbox jira <id> ABC-123 --url https://jira.example/browse/ABC-123

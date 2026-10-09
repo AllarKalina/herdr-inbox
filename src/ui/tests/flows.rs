@@ -189,7 +189,7 @@ fn agent_actions_lead_and_the_ticket_prompt_remembers_the_last_parent() -> Resul
     assert_eq!(app.modal.input, "BT-2000");
     // Outside Herdr nothing can be started: the request is refused and the item unchanged.
     press(app, KeyCode::Enter)?;
-    assert!(app.notice.text().contains("inside a Herdr-managed pane"));
+    assert!(app.notice.text().contains("inside Herdr to start sessions"));
     assert!(!app.should_exit);
     assert_eq!(app.current().unwrap().jira.status, "ready");
 
@@ -207,7 +207,7 @@ fn agent_actions_lead_and_the_ticket_prompt_remembers_the_last_parent() -> Resul
         [DetailAction::StartDev, DetailAction::Implement]
     );
     press(app, KeyCode::Enter)?;
-    assert!(app.notice.text().contains("inside a Herdr-managed pane"));
+    assert!(app.notice.text().contains("inside Herdr to start sessions"));
     assert_eq!(app.current().unwrap().implementation.status, "ready");
     Ok(())
 }

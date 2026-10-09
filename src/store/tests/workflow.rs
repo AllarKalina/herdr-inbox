@@ -186,7 +186,7 @@ fn scans_stay_quiet_about_unwritten_new_specs_and_unselected_folders() -> Result
     store.scan()?;
 
     // A new spec session is recorded before its agent has written the file.
-    let pending = store.start_untitled(None, None)?;
+    let pending = store.start_untitled()?;
     assert!(!pending.spec_path.exists());
     let launch = Launch {
         status: LaunchStatus::PromptSent,

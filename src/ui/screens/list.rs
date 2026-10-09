@@ -70,11 +70,7 @@ pub(crate) fn handle_mouse(app: &mut App, mouse: MouseEvent) -> Result<()> {
 }
 
 pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
-    let panel = if app.modal.is_open() {
-        modal::PANEL_HEIGHT
-    } else {
-        0
-    };
+    let panel = modal::panel_height(app);
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -98,25 +94,19 @@ pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
     }
     modal::draw_panel(frame, app, areas[1]);
     let footer = chrome::footer_area(frame.area());
-    match modal::hints(app, footer.width) {
-        Some(hints) => chrome::draw_footer(frame, hints),
-        None => {
-            if !app.notice.is_empty() {
-                let row = Rect::new(footer.x, footer.y.saturating_sub(1), footer.width, 1);
-                chrome::draw_notice(frame, &app.notice, row);
-            }
-            // Narrow popups shorten Enter so every action stays readable.
-            let fits = usize::from(footer.width) >= HINTS.chars().count();
-            chrome::draw_footer(
-                frame,
-                if fits {
-                    HINTS
-                } else {
-                    "↵ · n new · a archive · s settings"
-                },
-            );
-        }
+    // A failed action must be readable even while its panel is still open.
+    if !app.notice.is_empty() {
+        let row = Rect::new(footer.x, footer.y.saturating_sub(1), footer.width, 1);
+        chrome::draw_notice(frame, &app.notice, row);
     }
+    // Narrow popups shorten Enter so every action stays readable.
+    let fits = usize::from(footer.width) >= HINTS.chars().count();
+    let own = if fits {
+        HINTS
+    } else {
+        "↵ · n new · a archive · s settings"
+    };
+    chrome::draw_footer(frame, modal::hints(app, footer.width).unwrap_or(own));
 }
 
 fn draw_table(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {

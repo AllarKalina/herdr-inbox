@@ -7,12 +7,12 @@
   └─ ▾  zeller
      ├─    Settlement reconc… ✓ ✓ ● →
   ┌ Confirm archive ─────────────────┐
-  │ARCHIVE ITEM                      │
-  │Settlement reconciliation across a│
-  │ID: 00000000-0000-4000-8000-000000│
-  │Spec: /private/tmp/herdr-inbox-gol│
-  │Linked spec stays in place.       │
-  │Open agent tabs are not closed.   │
+  │ ARCHIVE ITEM                     │
+  │ Settlement reconciliation across │
+  │ ID: 00000000-0000-4000-8000-0000 │
+  │ Spec: /private/tmp/herdr-inbox-g │
+  │ Linked spec stays in place.      │
+  │ Open agent tabs are not closed.  │
   └──────────────────────────────────┘
   Enter archive this item · Esc cancel
 

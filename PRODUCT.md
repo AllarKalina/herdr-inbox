@@ -17,8 +17,8 @@ A terminal-native workflow inbox that launches a spec agent in Herdr and stores 
 ## Operating Context
 
 - Runs as a macOS terminal popup inside Herdr, with a CLI for direct updates and agent-readable JSON output.
-- Opens spec sessions in the configured workspace (default `ai-boiler-room`). The user chooses an available Claude or Codex client; each session gets its own tab, and each new item gets its own Markdown spec path.
-- Refining a spec opens another client chooser and a new session tab for the existing item, title, repo, and Markdown path. The agent validates the spec against current code before continuing the grilling interview.
+- Opens spec sessions in the `ai-boiler-room` workspace, always: it is where agents are set up. Starting one takes a single panel, the client and an optional topic. Each session gets its own tab, and the session decides where in the specs folder its spec goes and reports that file when it finishes.
+- Refining a spec opens another client chooser and a new session tab for the existing item, title, and Markdown path. The agent validates the spec against current code before continuing the grilling interview.
 - A spec is named when the session is finished. The current path is spec → linked Jira ticket → implementation → linked draft PR.
 - The user reads the spec and selects next actions from the inbox detail view. Keyboard operation is central to this workflow.
 

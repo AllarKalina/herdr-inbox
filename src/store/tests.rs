@@ -17,7 +17,7 @@ fn existing_spec_is_preserved() -> Result<()> {
     let spec = root.join("selected/existing.md");
     fs::write(&spec, "Existing work\n")?;
     let store = configured_store(&root)?;
-    let record = store.start("Existing", None, Some(spec.clone()))?;
+    let record = store.start("Existing", Some(spec.clone()))?;
     assert_eq!(fs::read_to_string(&spec)?, "Existing work\n");
     assert_eq!(record.spec_path, fs::canonicalize(spec)?);
     fs::remove_dir_all(root)?;
@@ -28,7 +28,7 @@ fn existing_spec_is_preserved() -> Result<()> {
 fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
     let store = configured_store(&root)?;
-    let record = store.start_untitled(None, None)?;
+    let record = store.start_untitled()?;
     assert_eq!(record.display_title(), "Untitled spec");
     assert!(!record.spec_path.exists());
     assert!(
@@ -36,7 +36,8 @@ fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
             .update(
                 &record.id,
                 Change::Finish {
-                    title: Some("Final name".into())
+                    title: Some("Final name".into()),
+                    spec: None,
                 }
             )
             .is_err()
@@ -46,6 +47,7 @@ fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
         &record.id,
         Change::Finish {
             title: Some("Final name".into()),
+            spec: None,
         },
     )?;
     assert_eq!(done.title, "Final name");
@@ -58,10 +60,10 @@ fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
 fn archiving_only_moves_metadata_and_keeps_all_source_files() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
     let store = configured_store(&root)?;
-    let owned = store.start("Created", None, None)?;
+    let owned = store.start("Created", None)?;
     let external_path = root.join("selected/elsewhere.md");
     fs::write(&external_path, "Keep me")?;
-    let external = store.start("Linked", None, Some(external_path.clone()))?;
+    let external = store.start("Linked", Some(external_path.clone()))?;
 
     store.archive(&owned.id)?;
     store.archive(&external.id)?;
@@ -87,8 +89,14 @@ fn archiving_only_moves_metadata_and_keeps_all_source_files() -> Result<()> {
 fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-refine-{}", Uuid::new_v4()));
     let store = configured_store(&root)?;
-    let record = store.start("Existing title", None, None)?;
-    store.update(&record.id, Change::Finish { title: None })?;
+    let record = store.start("Existing title", None)?;
+    store.update(
+        &record.id,
+        Change::Finish {
+            title: None,
+            spec: None,
+        },
+    )?;
     store.update(
         &record.id,
         Change::Jira {
@@ -148,7 +156,13 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
     )?;
     let refining = store.update(&record.id, Change::RefineSpec)?;
     assert_eq!(refining.spec, "in_progress");
-    let finished = store.update(&record.id, Change::Finish { title: None })?;
+    let finished = store.update(
+        &record.id,
+        Change::Finish {
+            title: None,
+            spec: None,
+        },
+    )?;
     assert_eq!(finished.title, "Existing title");
     assert_eq!(finished.spec_path, record.spec_path);
     assert_eq!(finished.jira.status, "created");
@@ -178,8 +192,14 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
 fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-refine-locks-{}", Uuid::new_v4()));
     let store = configured_store(&root)?;
-    let record = store.start("Existing", None, None)?;
-    store.update(&record.id, Change::Finish { title: None })?;
+    let record = store.start("Existing", None)?;
+    store.update(
+        &record.id,
+        Change::Finish {
+            title: None,
+            spec: None,
+        },
+    )?;
     let linked = store.update(
         &record.id,
         Change::Jira {
@@ -190,7 +210,13 @@ fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()>
     assert_eq!(linked.implementation_stage(true), "ready");
     let refining = store.update(&record.id, Change::RefineSpec)?;
     assert_eq!(refining.implementation_stage(true), "locked");
-    store.update(&record.id, Change::Finish { title: None })?;
+    store.update(
+        &record.id,
+        Change::Finish {
+            title: None,
+            spec: None,
+        },
+    )?;
     let active = store.update(
         &record.id,
         Change::Implement {
@@ -206,7 +232,13 @@ fn refinement_pauses_new_progression_without_erasing_active_work() -> Result<()>
         refining.implementation.branch.as_deref(),
         Some("feature/existing")
     );
-    let finished = store.update(&record.id, Change::Finish { title: None })?;
+    let finished = store.update(
+        &record.id,
+        Change::Finish {
+            title: None,
+            spec: None,
+        },
+    )?;
     assert_eq!(finished.pr_stage(true), "ready");
     fs::remove_dir_all(root)?;
     Ok(())

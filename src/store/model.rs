@@ -38,7 +38,6 @@ pub struct Record {
     pub content_fingerprint: Option<String>,
     pub id: String,
     pub title: String,
-    pub repo: Option<PathBuf>,
     pub spec_path: PathBuf,
     pub created_at: u64,
     pub updated_at: u64,

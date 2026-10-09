@@ -5,14 +5,20 @@ use super::{Profile, Record, Result};
 use std::env;
 use std::path::{Path, PathBuf};
 
+/// Starts the interview for a new spec. The session owns where the spec goes: it knows the
+/// folder's layout and the subject, and reports the file it wrote when it finishes.
 pub(super) fn initial(
     record: &Record,
     topic: &str,
     profile: Profile,
     data_dir: &Path,
+    specs_folder: &Path,
     context_paths: &[PathBuf],
 ) -> Result<String> {
-    let executable = env::current_exe()?;
+    let executable = shell_quote(&env::current_exe()?.to_string_lossy());
+    let inbox = shell_quote(&data_dir.to_string_lossy());
+    let folder = shell_quote(&specs_folder.to_string_lossy());
+    let id = shell_quote(&record.id);
     let context = context_references(context_paths);
     let lead = if topic.trim().is_empty() {
         profile.skill().to_string()
@@ -20,12 +26,15 @@ pub(super) fn initial(
         format!("{} {}", profile.skill(), topic.trim())
     };
     Ok(format!(
-        "{lead}\n{context}\nThis session is inbox item {}. The title is intentionally unset until the spec is complete. Write the final Markdown spec to {}. When finished, choose a concise title and run: HERDR_INBOX_HOME={} {} finish {} --title \"<title>\". Do not mark the spec done before the file is complete.",
+        "{lead}\n{context}\nThis session is inbox item {}. Its title and file do not exist yet; \
+         you choose both. Write the finished spec as one Markdown file inside {folder}: use the \
+         existing subfolder that fits its subject, add one only when none fits, and give the \
+         file a short descriptive name. Identify the affected repositories and services from \
+         the conversation and name them in the spec.\n\nWhen the file is complete, choose a \
+         concise title and run: HERDR_INBOX_HOME={inbox} {executable} finish {id} --title \
+         \"<title>\" --spec <path of the file you wrote>. Do not run it before the file is \
+         complete.",
         record.id,
-        shell_quote(&record.spec_path.to_string_lossy()),
-        shell_quote(&data_dir.to_string_lossy()),
-        shell_quote(&executable.to_string_lossy()),
-        shell_quote(&record.id),
     ))
 }
 
@@ -34,7 +43,6 @@ pub(super) fn refinement(
     topic: &str,
     profile: Profile,
     data_dir: &Path,
-    repo: Option<&Path>,
     context_paths: &[PathBuf],
 ) -> Result<String> {
     let context = context_references(context_paths);
@@ -42,20 +50,13 @@ pub(super) fn refinement(
     let spec = shell_quote(&record.spec_path.to_string_lossy());
     let id = shell_quote(&record.id);
     let inbox = shell_quote(&data_dir.to_string_lossy());
-    let repo = match repo {
-        Some(path) => format!(
-            "The launch repository directory is {}. Begin inspecting there, and identify any other affected repositories and services from the spec, instructions, or paths the user provides. Do not guess repository paths.",
-            shell_quote(&path.to_string_lossy())
-        ),
-        None => String::new(),
-    };
     let topic = if topic.trim().is_empty() {
         String::new()
     } else {
         format!("\nInitial context from the user: {}", topic.trim())
     };
     Ok(format!(
-        "{}\n\nRefine the existing spec for inbox item {} ({}) at {spec}. Reuse this item and this exact Markdown file; do not create a new spec or inbox record.{topic}\n{context}\n{repo}\n\nFirst read the existing spec in full. Use the services, files, and paths named in the spec to locate the affected codebases. Inspect the relevant codebases, services, repository instructions, and documentation to validate the spec's assumptions; treat the current code and verified documentation as the source of truth and collect any needed context. Report the validated facts, stale assumptions, and gaps concisely. Then ask what the user wants changed or challenged. Wait for the user's answers before revising the spec, and continue the grill-me interview normally from there. Do not implement code changes, and do not automatically edit the spec before the user answers.\n\nOnce the interview is complete, revise the same spec file at {spec}. Keep the existing title unless the user explicitly asks to rename it. Only after the revised Markdown is complete, run: HERDR_INBOX_HOME={inbox} {executable} finish {id}. If the user explicitly requests a new title, supply --title with the safely shell-quoted new title. Do not mark the spec done before the revised file is complete.",
+        "{}\n\nRefine the existing spec for inbox item {} ({}) at {spec}. Reuse this item and this exact Markdown file; do not create a new spec or inbox record.{topic}\n{context}\n\nFirst read the existing spec in full. Use the services, files, and paths named in the spec to locate the affected codebases. Inspect the relevant codebases, services, repository instructions, and documentation to validate the spec's assumptions; treat the current code and verified documentation as the source of truth and collect any needed context. Report the validated facts, stale assumptions, and gaps concisely. Then ask what the user wants changed or challenged. Wait for the user's answers before revising the spec, and continue the grill-me interview normally from there. Do not implement code changes, and do not automatically edit the spec before the user answers.\n\nOnce the interview is complete, revise the same spec file at {spec}. Keep the existing title unless the user explicitly asks to rename it. Only after the revised Markdown is complete, run: HERDR_INBOX_HOME={inbox} {executable} finish {id}. If the user explicitly requests a new title, supply --title with the safely shell-quoted new title. Do not mark the spec done before the revised file is complete.",
         profile.skill(),
         record.id,
         record.display_title(),

@@ -33,7 +33,7 @@ pub fn inside() -> bool {
 impl Herdr {
     pub fn new() -> Result<Self> {
         if !inside() {
-            return Err("Start the inbox inside a Herdr-managed pane".into());
+            return Err("Open the Inbox inside Herdr to start sessions".into());
         }
         Ok(Self { binary: binary() })
     }

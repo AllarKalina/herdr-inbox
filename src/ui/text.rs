@@ -1,7 +1,6 @@
-//! Fitting titles and paths into terminal columns, and reading paths the user typed.
+//! Fitting titles and paths into terminal columns.
 
-use crate::store::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Keeps the start of a label, ending with an ellipsis when it cannot fit.
 pub(super) fn fit_label(value: &str, width: usize) -> String {
@@ -57,16 +56,4 @@ pub(super) fn fit_prefix(prefix: &str, available: usize) -> String {
         .rev()
         .collect::<String>();
     format!("…{suffix}")
-}
-
-/// Expands a typed path; `~` means the home directory.
-pub(super) fn typed_path(value: &str) -> Result<PathBuf> {
-    if value.is_empty() {
-        return Err("Path cannot be empty".into());
-    }
-    if value == "~" || value.starts_with("~/") {
-        let home = std::env::var_os("HOME").ok_or("HOME unavailable; enter an absolute path")?;
-        return Ok(PathBuf::from(home).join(value.trim_start_matches('~').trim_start_matches('/')));
-    }
-    Ok(PathBuf::from(value))
 }

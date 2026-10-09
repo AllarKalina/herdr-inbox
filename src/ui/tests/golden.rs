@@ -68,7 +68,6 @@ impl Fixture {
         // A spec still being written: Jira waits, and its session is live.
         let started = store.start(
             "Settings navigation",
-            None,
             Some(specs.join("designs/settings-navigation.md")),
         )?;
         let launch = Launch {

@@ -79,6 +79,8 @@ status!(
 pub enum Change {
     Finish {
         title: Option<String>,
+        /// Where the session wrote the spec, when it chose the place itself.
+        spec: Option<PathBuf>,
     },
     Title {
         title: String,
@@ -111,7 +113,6 @@ impl Record {
             content_fingerprint: None,
             id,
             title: String::new(),
-            repo: None,
             spec_path: location.path,
             created_at: now,
             updated_at: now,
@@ -164,7 +165,6 @@ impl Record {
             && self.implementation.branch.is_none()
             && self.pr.status == PrStatus::Waiting
             && self.pr.url.is_none()
-            && self.repo.is_none()
             && self.launch.is_none()
             && self.previous_launches.is_empty()
     }
@@ -242,7 +242,7 @@ impl Record {
     /// Applies one workflow step, or explains which prerequisite is missing.
     pub(super) fn apply(&mut self, change: Change, jira: bool) -> Result<()> {
         match change {
-            Change::Finish { title } => {
+            Change::Finish { title, .. } => {
                 if self.spec != SpecStatus::InProgress {
                     return Err("Spec is already finished".into());
                 }
@@ -256,7 +256,9 @@ impl Record {
                     return Err("Give the spec a title before finishing".into());
                 }
                 if !self.spec_path.is_file() {
-                    return Err("Spec file is missing".into());
+                    return Err(
+                        "Spec file is missing; name the file that was written with --spec".into(),
+                    );
                 }
                 self.spec = SpecStatus::Done;
                 self.content_fingerprint = fingerprint(&self.spec_path).ok();

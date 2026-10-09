@@ -5,7 +5,7 @@
 use super::herdr::Herdr;
 use super::profile::{DEFAULT_EFFORT, Profile, Session};
 use super::session::{self, Plan};
-use super::{prompts, readable_spec};
+use super::{WORKSPACE, prompts, readable_spec};
 use crate::store::{Change, Record, Result, Store};
 
 /// Follow-up work needs the tools and skills configured for Claude.
@@ -77,8 +77,7 @@ fn open(
     prefix: &str,
     prompt: &str,
 ) -> Result<()> {
-    let settings = store.settings()?;
-    let workspace_id = herdr.workspace(&settings.workspace)?;
+    let workspace_id = herdr.workspace(WORKSPACE)?;
     let name = record
         .jira
         .key
@@ -99,7 +98,6 @@ fn open(
             data_dir: store.path(),
             spec_dir: record.spec_path.parent(),
         },
-        repo: record.repo.as_deref(),
         prompt,
     };
     session::open(herdr, &plan, |_| Ok(()))?;

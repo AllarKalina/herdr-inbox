@@ -27,7 +27,7 @@ src/
     screens/         one module per screen: list, detail (+ rail), reader, settings (+ picker), archive, scan
     modal.rs         prompts and the client choice: state, keys, submission (+ modal/view.rs)
     milestone.rs     stages as the UI sees them: state, actions, guidance
-    chrome.rs        header, content area, notice row, shortcut line
+    chrome.rs        header, content area, panel, notice row, shortcut line
     notice.rs, scroll.rs, text.rs, theme.rs, tree.rs
 tests/               end-to-end tests through the real binary
 tests/snapshots/ui/  golden snapshots of every screen

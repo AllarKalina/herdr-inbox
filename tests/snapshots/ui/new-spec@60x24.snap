@@ -12,15 +12,15 @@
      └─    Transaction search                     ✓ ✓ → ○
      Quarterly plan                               ✓ ✓ ✓ ◐
 
-  ┌ Choose client ───────────────────────────────────────┐
-  │Claude · Opus 5.5 · High                              │
-  │Codex · GPT-6.1-Sol · High                            │
+
+
+  ┌ New spec ────────────────────────────────────────────┐
+  │ Client  ✦ Claude · Opus 5.5 · Medium                 │
+  │           Codex · GPT-6.1-Sol · Medium               │
   │                                                      │
-  │                                                      │
-  │                                                      │
-  │                                                      │
+  │ Topic   █ optional                                   │
   └──────────────────────────────────────────────────────┘
-  j/k choose · Enter continue · Esc cancel
+  ↑↓ client · Enter start session · Esc cancel
 
 --- styles: row, columns, style ---
  1   2-9   fg=Gray
@@ -65,4 +65,9 @@
 12  53-53  fg=LightGreen
 12  55-55  fg=LightGreen
 12  57-57  fg=Yellow
-15   3-56  fg=Black bg=Cyan BOLD
+17   4-11  fg=Gray
+17  12-39  fg=Cyan BOLD | UNDERLINED
+18   4-11  fg=Gray
+18  12-41  fg=LightBlue
+20   4-11  fg=Gray
+20  13-21  fg=Gray

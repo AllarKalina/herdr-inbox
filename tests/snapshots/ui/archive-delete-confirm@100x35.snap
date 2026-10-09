@@ -24,11 +24,11 @@
 
 
   ┌ Confirm delete ──────────────────────────────────────────────────────────────────────────────┐
-  │DELETE SPEC                                                                                   │
-  │Quarterly plan                                                                                │
-  │/private/tmp/herdr-inbox-golden-settings/specs/PAY-123-quarterly-plan.md                      │
-  │The file moves to the macOS Trash.                                                            │
-  │Its archived record is deleted for good.                                                      │
+  │ DELETE SPEC                                                                                  │
+  │ Quarterly plan                                                                               │
+  │ /private/tmp/herdr-inbox-golden-settings/specs/PAY-123-quarterly-plan.md                     │
+  │ The file moves to the macOS Trash.                                                           │
+  │ Its archived record is deleted for good.                                                     │
   │                                                                                              │
   └──────────────────────────────────────────────────────────────────────────────────────────────┘
   Enter delete this spec · Esc cancel

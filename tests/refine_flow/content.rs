@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn configured_context_reaches_new_and_refinement_prompts_and_explicit_targets_stay_pinned() {
+fn configured_context_reaches_new_and_refinement_prompts_and_the_reported_spec_stays_pinned() {
     let fixture = Fixture::new();
     let context = fixture.root.join("context ' notes");
     let specs = fixture.root.join("custom specs");
@@ -9,29 +9,21 @@ fn configured_context_reaches_new_and_refinement_prompts_and_explicit_targets_st
     fs::create_dir(&specs).unwrap();
     fixture.success(&["settings", "add-source", specs.to_str().unwrap()]);
     fixture.success(&["settings", "add-context", context.to_str().unwrap()]);
-    let spec = specs.join("chosen filename.md");
-    fixture.success(&[
-        "launch",
-        "--profile",
-        "codex",
-        "--spec",
-        spec.to_str().unwrap(),
-    ]);
+    fixture.success(&["launch", "--profile", "codex"]);
     let listed: Value = serde_json::from_slice(&fixture.run(&["list", "--json"]).stdout).unwrap();
     let id = listed[0]["id"].as_str().unwrap();
     let quoted = format!("'{}'", context.to_str().unwrap().replace('\'', "'\\''"));
     let initial = listed[0]["launch"]["prompt"].as_str().unwrap();
     assert!(initial.contains(&quoted));
-    let spec = fs::canonicalize(&specs).unwrap().join("chosen filename.md");
-    assert!(initial.contains(spec.to_str().unwrap()));
-    assert!(fixture.calls().contains(&format!(
-        "--add-dir {}",
-        fs::canonicalize(&specs).unwrap().display()
-    )));
+    assert!(initial.contains("one Markdown file inside"));
+    // The session may place the spec in any selected folder, not only the first.
+    let specs = fs::canonicalize(&specs).unwrap();
+    let spec = specs.join("chosen filename.md");
     fixture.success(&["settings", "remove-context", context.to_str().unwrap()]);
     assert_eq!(fixture.record(id)["launch"]["prompt"], initial);
     fs::write(&spec, "# Chosen spec\n\nComplete.\n").unwrap();
-    fixture.success(&["finish", id, "--title", "Chosen spec"]);
+    let chosen = spec.to_str().unwrap();
+    fixture.success(&["finish", id, "--title", "Chosen spec", "--spec", chosen]);
     fixture.success(&["settings", "add-context", context.to_str().unwrap()]);
     fixture.success(&["refine", id, "--profile", "codex"]);
     assert!(
@@ -41,26 +33,6 @@ fn configured_context_reaches_new_and_refinement_prompts_and_explicit_targets_st
             .contains(&quoted)
     );
     assert_eq!(fixture.record(id)["spec_path"], spec.to_str().unwrap());
-}
-
-#[test]
-fn existing_new_destination_fails_without_item_or_tab_creation() {
-    let fixture = Fixture::new();
-    let spec = fixture.root.join("chosen/existing.md");
-    fs::write(&spec, "# Existing\n").unwrap();
-    let output = fixture.run(&[
-        "launch",
-        "--profile",
-        "codex",
-        "--spec",
-        spec.to_str().unwrap(),
-    ]);
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("already exists"));
-    assert!(!fixture.calls().contains("tab create"));
-    let list: Value = serde_json::from_slice(&fixture.run(&["list", "--json"]).stdout).unwrap();
-    assert!(list.as_array().unwrap().is_empty());
-    assert_eq!(fs::read_to_string(&spec).unwrap(), "# Existing\n");
 }
 
 #[test]

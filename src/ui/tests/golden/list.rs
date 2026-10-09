@@ -47,12 +47,18 @@ fn new_spec_flow() -> Result<()> {
     let mut fixture = Fixture::new("new-spec")?;
     let clients = || vec![Profile::Opus, Profile::Codex];
     fixture.app.choose_client(ChoicePurpose::NewSpec, clients());
-    fixture.check("new-spec-client-choice")?;
-    fixture.press(KeyCode::Char('j'))?;
+    fixture.check("new-spec")?;
+    fixture.press(KeyCode::Down)?;
     fixture.check("new-spec-second-client")?;
+    fixture.type_text("Card retries")?;
+    fixture.check("new-spec-topic")?;
+    fixture.type_text(" that never double charge, across every acquirer and wallet")?;
+    fixture.check("new-spec-topic-long")?;
+    // Tests never reach Herdr, so starting fails the way it does outside a Herdr pane.
     fixture.press(KeyCode::Enter)?;
-    fixture.check("new-spec-workspace-prompt")?;
+    fixture.check("new-spec-launch-error")?;
     fixture.press(KeyCode::Esc)?;
+    fixture.app.notice.clear();
     fixture
         .app
         .choose_client(ChoicePurpose::NewSpec, Vec::new());

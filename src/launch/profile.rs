@@ -5,7 +5,7 @@ use super::Result;
 use std::env;
 use std::path::Path;
 
-pub const DEFAULT_EFFORT: &str = "high";
+pub const DEFAULT_EFFORT: &str = "medium";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Profile {
@@ -32,8 +32,8 @@ impl Profile {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Opus => "Claude · Opus 5.5 · High",
-            Self::Codex => "Codex · GPT-6.1-Sol · High",
+            Self::Opus => "Claude · Opus 5.5 · Medium",
+            Self::Codex => "Codex · GPT-6.1-Sol · Medium",
         }
     }
 

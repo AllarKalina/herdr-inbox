@@ -3,13 +3,12 @@
 use super::{Args, Command, output};
 use crate::launch::{self, Options, Profile};
 use crate::store::{Result, Store};
-use std::path::PathBuf;
 
-const SESSION_OPTIONS: &str = "[--profile opus|codex] [--workspace LABEL] [--repo PATH] \
-     [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]";
+const SESSION_OPTIONS: &str =
+    "[--profile opus|codex] [--model MODEL] [--effort LEVEL] [--topic TEXT] [--ask-permissions]";
 
 pub const COMMANDS: &[Command] = &[
-    Command::new("launch", "launch [--spec PATH] [session options]", start),
+    Command::new("launch", "launch [session options]", start),
     Command::new("refine", "refine ID [session options]", refine),
     Command::new("ticket", "ticket ID [--parent KEY]", ticket),
     Command::new("develop", "develop ID", develop),
@@ -32,8 +31,6 @@ fn options(store: &Store, args: &mut Args) -> Result<Options> {
         .transpose()?
         .unwrap_or(Profile::Opus);
     let mut options = Options::for_profile(profile);
-    options.workspace = args.flag("--workspace")?.unwrap_or(settings.workspace);
-    options.repo = args.flag("--repo")?.map(PathBuf::from);
     if let Some(model) = args.flag("--model")? {
         options.model = model;
     }
@@ -48,18 +45,12 @@ fn options(store: &Store, args: &mut Args) -> Result<Options> {
 }
 
 fn start(store: &Store, mut args: Args) -> Result<()> {
-    let spec = args.flag("--spec")?.map(PathBuf::from);
     let options = options(store, &mut args)?;
     let [] = args.positionals()?;
-    output::record(store, &launch::start(store, options, spec)?)
+    output::record(store, &launch::start(store, options)?)
 }
 
 fn refine(store: &Store, mut args: Args) -> Result<()> {
-    if args.flag("--spec")?.is_some() {
-        return Err(
-            "Refinement uses the existing spec path; use relink before starting a session".into(),
-        );
-    }
     let options = options(store, &mut args)?;
     let [id] = args.positionals()?;
     output::record(store, &launch::refine(store, &id, options)?)

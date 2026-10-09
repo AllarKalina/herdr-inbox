@@ -4,7 +4,7 @@ use super::*;
 fn cached_archive_provenance_cannot_suppress_an_unrelated_selected_file() -> Result<()> {
     let (root, store, source) = fixture()?;
     let selected = source.join("selected.md");
-    let mut record = store.start("Selected", None, Some(selected.clone()))?;
+    let mut record = store.start("Selected", Some(selected.clone()))?;
     let outside = root.join("outside.md");
     fs::write(&outside, "# Outside\n")?;
     record.spec_path = outside;
@@ -242,17 +242,17 @@ fn active_session_requires_settle_before_relink_and_relocation() -> Result<()> {
 }
 
 #[test]
-fn creation_uses_selected_folder_and_rejects_existing_agent_target() -> Result<()> {
+fn a_new_spec_gets_a_provisional_path_in_the_selected_folder() -> Result<()> {
     let (root, store, source) = fixture()?;
-    let new = store.start_untitled(None, None)?;
+    let new = store.start_untitled()?;
     assert_eq!(
         new.spec_path.parent(),
         Some(fs::canonicalize(&source)?.as_path())
     );
-    let existing = source.join("existing.md");
-    fs::write(&existing, "# Keep")?;
-    assert!(store.start_untitled(None, Some(existing.clone())).is_err());
-    assert_eq!(fs::read_to_string(existing)?, "# Keep");
+    assert!(
+        !new.spec_path.exists(),
+        "nothing is written until the session writes it"
+    );
     assert!(store.settings_path().is_file());
     let mut settings = store.settings()?;
     settings.sources[0].path = root.clone();
@@ -267,12 +267,12 @@ fn creation_requires_sources_and_rejects_outside_destinations() -> Result<()> {
     let empty = Store::new(root.join("app"));
     assert!(
         empty
-            .start("Wrong", None, None)
+            .start("Wrong", None)
             .unwrap_err()
             .to_string()
             .contains("settings")
     );
-    assert!(empty.start_untitled(None, None).is_err());
+    assert!(empty.start_untitled().is_err());
     assert!(!empty.path().join("specs").exists());
     let source = root.join("selected");
     fs::create_dir_all(&source)?;
@@ -280,27 +280,27 @@ fn creation_requires_sources_and_rejects_outside_destinations() -> Result<()> {
     settings.sources.push(SpecSource::new(source.clone())?);
     empty.save_settings(&settings)?;
     let outside = root.join("outside/new.md");
-    assert!(empty.start("Wrong", None, Some(outside.clone())).is_err());
+    assert!(empty.start("Wrong", Some(outside.clone())).is_err());
     assert!(!outside.exists());
     assert!(!root.join("outside").exists());
     fs::create_dir(root.join("external"))?;
     symlink(root.join("external"), source.join("escape"))?;
     assert!(
         empty
-            .start("Wrong", None, Some(source.join("escape/new.md")))
+            .start("Wrong", Some(source.join("escape/new.md")))
             .is_err()
     );
     assert!(
         empty
-            .start("Wrong", None, Some(source.join("../wrong.md")))
+            .start("Wrong", Some(source.join("../wrong.md")))
             .is_err()
     );
     assert!(
         empty
-            .start("Wrong", None, Some(source.join("wrong.txt")))
+            .start("Wrong", Some(source.join("wrong.txt")))
             .is_err()
     );
-    empty.start("Current", None, None)?;
+    empty.start("Current", None)?;
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -339,12 +339,12 @@ fn creation_and_discovery_share_canonical_scope_and_ancestor_exclusions() -> Res
     settings.sources.push(child);
     settings.sources[0].exclude = vec!["nested/ignored".into()];
     store.save_settings(&settings)?;
-    let created = store.start("Created", None, Some(nested.join("new.md")))?;
+    let created = store.start("Created", Some(nested.join("new.md")))?;
     assert_eq!(created.source_id, child_id);
     assert_eq!(created.source_relative_path, PathBuf::from("new.md"));
     assert!(
         store
-            .start("Excluded", None, Some(nested.join("ignored/new.md")))
+            .start("Excluded", Some(nested.join("ignored/new.md")))
             .is_err()
     );
     fs::write(nested.join("scan.md"), "# Scanned")?;

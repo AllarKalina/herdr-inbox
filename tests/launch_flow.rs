@@ -6,7 +6,7 @@ use std::process::Command;
 use uuid::Uuid;
 
 #[test]
-fn launches_untitled_spec_and_names_it_after_completion() {
+fn a_new_session_chooses_where_its_spec_goes_and_reports_it_when_finishing() {
     let root = std::env::temp_dir().join(format!("herdr-inbox-launch-{}", Uuid::new_v4()));
     let bin_dir = root.join("bin");
     fs::create_dir_all(&bin_dir).unwrap();
@@ -37,7 +37,6 @@ esac
             .output()
             .unwrap()
     };
-    let repo = root.to_str().unwrap();
     let source = root.join("chosen");
     fs::create_dir_all(&source).unwrap();
     assert!(
@@ -45,13 +44,7 @@ esac
             .status
             .success()
     );
-    let output = run(&[
-        "launch",
-        "--repo",
-        repo,
-        "--topic",
-        "Improve payment retries",
-    ]);
+    let output = run(&["launch", "--topic", "Improve payment retries"]);
     assert!(
         output.status.success(),
         "{}",
@@ -66,18 +59,56 @@ esac
     assert_eq!(record["launch"]["tab_id"], "w2:t2");
     assert!(!PathBuf::from(record["spec_path"].as_str().unwrap()).exists());
     let calls = fs::read_to_string(&log).unwrap();
-    assert!(calls.contains("--model claude-opus-5-5 --effort high --permission-mode auto"));
+    assert!(calls.contains("--model claude-opus-5-5 --effort medium --permission-mode auto"));
+    assert!(calls.contains("tab create --workspace w2 --label Spec · "));
+    assert!(
+        !calls.contains("--cwd"),
+        "sessions start in the workspace's own folder"
+    );
     assert!(calls.contains("agent prompt spec_"));
     assert!(calls.contains("/grill-me Improve payment retries"));
-    let spec = record["spec_path"].as_str().unwrap();
-    fs::write(spec, "# Payment retries\n\nDetails.\n").unwrap();
+    // The session is told the folder, not a file: it chooses the place and the name.
+    let folder = fs::canonicalize(&source).unwrap();
     let id = record["id"].as_str().unwrap();
-    let finish = run(&["finish", id, "--title", "Payment retries"]);
+    assert!(calls.contains(&format!("one Markdown file inside '{}'", folder.display())));
+    assert!(calls.contains(&format!(
+        "finish '{id}' --title \"<title>\" --spec <path of the file you wrote>"
+    )));
+
+    // Finishing without saying where the spec is cannot work: nothing is at the provisional path.
+    let lost = run(&["finish", id, "--title", "Payment retries"]);
+    assert!(!lost.status.success());
+    assert!(String::from_utf8_lossy(&lost.stderr).contains("--spec"));
+
+    // What the session runs once it has written the spec where it belongs.
+    let spec = source.join("payments/retries.md");
+    fs::create_dir_all(spec.parent().unwrap()).unwrap();
+    fs::write(&spec, "# Payment retries\n\nDetails.\n").unwrap();
+    // Opening the Inbox meanwhile imports the new file as an item of its own.
+    assert!(run(&["scan"]).status.success());
+    let before: Value = serde_json::from_slice(&run(&["list", "--json"]).stdout).unwrap();
+    assert_eq!(before.as_array().unwrap().len(), 2);
+    let finish = run(&[
+        "finish",
+        id,
+        "--title",
+        "Payment retries",
+        "--spec",
+        spec.to_str().unwrap(),
+    ]);
     assert!(
         finish.status.success(),
         "{}",
         String::from_utf8_lossy(&finish.stderr)
     );
+    // The session's item takes the file over; the scan's placeholder is gone.
+    let after: Value = serde_json::from_slice(&run(&["list", "--json"]).stdout).unwrap();
+    assert_eq!(after.as_array().unwrap().len(), 1);
+    assert_eq!(after[0]["id"], id);
+    assert_eq!(after[0]["title"], "Payment retries");
+    assert_eq!(after[0]["spec"], "done");
+    assert_eq!(after[0]["source_relative_path"], "payments/retries.md");
+    assert_eq!(after[0]["launch"]["status"], "completed");
     assert!(
         fs::read_to_string(&log)
             .unwrap()
@@ -87,7 +118,7 @@ esac
 }
 
 #[test]
-fn codex_profile_uses_sol_high_and_codex_skill() {
+fn codex_profile_uses_sol_medium_and_codex_skill() {
     let root = std::env::temp_dir().join(format!("herdr-inbox-codex-{}", Uuid::new_v4()));
     let bin_dir = root.join("bin");
     fs::create_dir_all(&bin_dir).unwrap();
@@ -122,15 +153,7 @@ esac
         .unwrap();
     assert!(configured.status.success());
     let output = Command::new(&exe)
-        .args([
-            "launch",
-            "--profile",
-            "codex",
-            "--repo",
-            root.to_str().unwrap(),
-            "--topic",
-            "Test launch",
-        ])
+        .args(["launch", "--profile", "codex", "--topic", "Test launch"])
         .env("HERDR_ENV", "1")
         .env("HERDR_BIN_PATH", &herdr)
         .env("HERDR_FAKE_LOG", &log)
@@ -148,7 +171,7 @@ esac
     assert_eq!(calls.matches("agent start spec_").count(), 2);
     assert!(calls.contains("--kind codex"));
     assert!(calls.contains(
-        "-m gpt-6.1-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
+        "-m gpt-6.1-sol -c model_reasoning_effort=\"medium\" -s workspace-write --add-dir"
     ));
     assert!(calls.contains("$grill-me Test launch"));
     assert!(!calls.contains("--permission-mode"));
@@ -162,7 +185,7 @@ esac
     )
     .unwrap();
     assert_eq!(records[0]["launch"]["harness"], "codex");
-    assert_eq!(records[0]["launch"]["effort"], "high");
+    assert_eq!(records[0]["launch"]["effort"], "medium");
     fs::remove_dir_all(root).unwrap();
 }
 

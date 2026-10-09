@@ -3,31 +3,22 @@
 use super::*;
 
 impl Store {
-    pub fn start(
-        &self,
-        title: &str,
-        repo: Option<PathBuf>,
-        spec: Option<PathBuf>,
-    ) -> Result<Record> {
+    /// Records a spec with a title and an empty file to write it in.
+    pub fn start(&self, title: &str, spec: Option<PathBuf>) -> Result<Record> {
         let title = title.trim();
         if title.is_empty() {
             return Err("Title cannot be empty".into());
         }
-        self.create(title, repo, spec, true)
+        self.create(title, spec, true)
     }
 
-    /// Records a new spec whose title and file its session will supply.
-    pub fn start_untitled(&self, repo: Option<PathBuf>, spec: Option<PathBuf>) -> Result<Record> {
-        self.create("", repo, spec, false)
+    /// Records a new spec whose session will supply its title, its file, and where that
+    /// file lives. Until then the item holds a provisional path that nothing is written to.
+    pub fn start_untitled(&self) -> Result<Record> {
+        self.create("", None, false)
     }
 
-    pub(super) fn create(
-        &self,
-        title: &str,
-        repo: Option<PathBuf>,
-        spec: Option<PathBuf>,
-        create_spec: bool,
-    ) -> Result<Record> {
+    fn create(&self, title: &str, spec: Option<PathBuf>, create_spec: bool) -> Result<Record> {
         self.locked(|| {
             let id = Uuid::new_v4().to_string();
             let settings = self.settings()?;
@@ -78,7 +69,6 @@ impl Store {
             let record = Record {
                 content_fingerprint: fingerprint(&path).ok(),
                 title: title.to_owned(),
-                repo: repo.map(absolute).transpose()?,
                 ..Record::new(id, location, SpecStatus::InProgress, timestamp())
             };
             self.write(&record)?;
@@ -156,6 +146,12 @@ impl Store {
             let mut record = self.get(id)?;
             let settings = self.settings()?;
             let linked = matches!(change, Change::Jira { .. });
+            if let Change::Finish {
+                spec: Some(path), ..
+            } = &change
+            {
+                self.rebind(&mut record, path.clone(), &settings)?;
+            }
             record.apply(change, settings.jira)?;
             if linked {
                 self.name_after_ticket(&mut record, &settings)?;

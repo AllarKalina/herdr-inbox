@@ -64,13 +64,10 @@ fn no_screen_panics_at_any_size() -> Result<()> {
         sweep(app, "list archive confirm", failures);
         app.modal.prompt = None;
         app.choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus, Profile::Codex]);
-        sweep(app, "list chooser", failures);
+        sweep(app, "list new spec", failures);
+        app.modal.input = "A topic long enough to scroll inside the narrowest panel".into();
+        sweep(app, "list new spec with topic", failures);
         app.modal.close();
-        app.begin(Prompt::LaunchWorkspace {
-            profile: Profile::Opus,
-        });
-        sweep(app, "list launch prompt", failures);
-        app.modal.prompt = None;
 
         app.screen = Screen::Settings;
         sweep(app, "settings", failures);

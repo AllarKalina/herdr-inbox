@@ -42,7 +42,7 @@ const ACTIONS: &[Action] = &[
     },
     Action {
         name: "defaults",
-        usage: "defaults [--profile opus|codex] [--workspace LABEL] [--dev-skill NAME|none]",
+        usage: "defaults [--profile opus|codex] [--dev-skill NAME|none]",
         apply: defaults,
     },
 ];
@@ -155,9 +155,6 @@ fn defaults(settings: &mut Settings, mut args: Args) -> Result<()> {
     if let Some(profile) = args.flag("--profile")? {
         Profile::parse(&profile)?;
         settings.preferred_client = Some(profile);
-    }
-    if let Some(workspace) = args.flag("--workspace")? {
-        settings.workspace = workspace;
     }
     if let Some(skill) = args.flag("--dev-skill")? {
         settings.dev_skill = (skill != "none").then_some(skill);

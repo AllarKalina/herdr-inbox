@@ -11,10 +11,9 @@
 
 
 
-                        ┌ Refine spec · Choose client ─────────────────────┐
-                        │Claude · Opus 5.5 · High                          │
-                        │Codex · GPT-6.1-Sol · High                        │
-                        │                                                  │
+                        ┌ Refine spec ─────────────────────────────────────┐
+                        │ Client  ✦ Claude · Opus 5.5 · Medium             │
+                        │           Codex · GPT-6.1-Sol · Medium           │
                         └──────────────────────────────────────────────────┘
 
 
@@ -31,9 +30,13 @@
 
 
 
-  j/k choose · Enter continue · Esc cancel
+
+  j/k choose · Enter start session · Esc cancel
 
 --- styles: row, columns, style ---
  1   2-50  fg=Gray
  1  51-56  fg=LightCyan BOLD
-14  25-74  fg=Black bg=Cyan BOLD
+14  26-33  fg=Gray
+14  34-61  fg=Cyan BOLD | UNDERLINED
+15  26-33  fg=Gray
+15  34-63  fg=LightBlue

@@ -6,7 +6,7 @@ use super::{text, theme};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 
 /// The area below the header, inset two columns on each side and one row at the bottom.
 pub(super) fn content(area: Rect) -> Rect {
@@ -43,6 +43,15 @@ pub(super) fn draw_notice(frame: &mut ratatui::Frame, notice: &Notice, row: Rect
     };
     let fitted = text::fit_label(notice.text(), usize::from(row.width));
     frame.render_widget(Paragraph::new(fitted).style(style), row);
+}
+
+/// A panel that interrupts the normal flow, such as a choice or a confirmation: a plain
+/// border with one cell of air inside. Everything else stays on the flat canvas.
+pub(super) fn panel(title: &'static str) -> Block<'static> {
+    Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .padding(Padding::horizontal(1))
 }
 
 /// Draws `Inbox / … / current`: the anchor stays put, and only the last segment is accented.

@@ -34,7 +34,10 @@ fn adding_a_folder_imports_its_specs_at_once_and_leaves_the_folder_untouched() {
     let settings = cli.json(&["settings", "show", "--json"]);
     assert_eq!(settings["schema_version"], 1);
     assert_eq!(settings["jira"], true);
-    assert_eq!(settings["workspace"], "ai-boiler-room");
+    assert!(
+        settings.get("workspace").is_none(),
+        "the workspace is fixed, not a setting"
+    );
     let source = &settings["sources"][0];
     assert_eq!(source["id"], record["source_id"]);
     assert_eq!(source["recursive"], true);
@@ -88,17 +91,15 @@ fn defaults_and_context_references_are_validated_and_stored() {
         cli.err(&["settings", "defaults", "--profile", "gpt"])
             .contains("Unknown profile")
     );
-    cli.ok(&[
-        "settings",
-        "defaults",
-        "--profile",
-        "codex",
-        "--workspace",
-        "work",
-    ]);
+    cli.ok(&["settings", "defaults", "--profile", "codex"]);
+    // The workspace is fixed, so it is not something to configure.
+    assert!(
+        !cli.run(&["settings", "defaults", "--workspace", "work"])
+            .status
+            .success()
+    );
     let settings = cli.json(&["settings", "show", "--json"]);
     assert_eq!(settings["preferred_client"], "codex");
-    assert_eq!(settings["workspace"], "work");
 
     let context = cli.root.join("local context.txt");
     assert!(
@@ -119,7 +120,7 @@ fn defaults_and_context_references_are_validated_and_stored() {
         assert!(error.to_lowercase().contains("context"), "{error}");
         assert!(error.contains(context.to_str().unwrap()), "{error}");
     };
-    blocked(&["launch", "--repo", cli.root.to_str().unwrap()]);
+    blocked(&["launch"]);
     assert_eq!(cli.json(&["list", "--json"]), serde_json::json!([]));
     assert_eq!(fs::read_dir(&cli.source).unwrap().count(), 0);
     cli.spec("completed.md", "# Existing spec\n");

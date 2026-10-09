@@ -9,8 +9,8 @@
   ▾  missions
   └─ ▾  zeller
   ┌ New spec ────────────────────────┐
-  │ Client    Claude · Opus 5.5      │
-  │         ✦ Codex · GPT-6.1-Sol    │
+  │ Client  ✦ Claude · Opus 5.5      │
+  │           Codex · GPT-6.1-Sol    │
   │                                  │
   │ Topic   █ optional               │
   └──────────────────────────────────┘
@@ -43,8 +43,8 @@
  9   2-4   fg=DarkGray
  9   5-14  fg=Yellow BOLD
 11   4-11  fg=Gray
-11  12-30  fg=LightBlue
+11  12-30  fg=Cyan BOLD | UNDERLINED
 12   4-11  fg=Gray
-12  12-32  fg=Cyan BOLD | UNDERLINED
+12  12-32  fg=LightBlue
 14   4-11  fg=Gray
 14  13-21  fg=Gray

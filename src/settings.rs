@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 pub const SCHEMA_VERSION: u32 = 1;
-pub const DEFAULT_WORKSPACE: &str = "ai-boiler-room";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
@@ -14,7 +13,6 @@ pub struct Settings {
     pub sources: Vec<SpecSource>,
     pub context_paths: Vec<PathBuf>,
     pub preferred_client: Option<String>,
-    pub workspace: String,
     /// Whether the Jira stage is part of this computer's workflow.
     pub jira: bool,
     /// The epic or story the last ticket was created under, offered again next time.
@@ -31,7 +29,6 @@ impl Default for Settings {
             sources: Vec::new(),
             context_paths: Vec::new(),
             preferred_client: None,
-            workspace: DEFAULT_WORKSPACE.into(),
             jira: true,
             jira_parent: None,
             dev_skill: None,
@@ -136,10 +133,6 @@ impl Settings {
             )
             .into());
         }
-        if self.workspace.trim().is_empty() {
-            return Err("Workspace cannot be empty".into());
-        }
-        self.workspace = self.workspace.trim().into();
         let mut ids = HashSet::new();
         for source in &mut self.sources {
             Uuid::parse_str(&source.id)?;

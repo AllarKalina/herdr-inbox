@@ -5,23 +5,24 @@ use super::{Choice, ChoicePurpose, Prompt};
 use crate::ui::notice::Tone;
 use crate::ui::{App, chrome, text, theme};
 use ratatui::layout::Rect;
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Paragraph, Wrap};
 
-const CHOICE_HINTS: &str = "j/k choose · Enter continue · Esc cancel";
-
-fn choice_hints(width: u16) -> &'static str {
-    if usize::from(width) >= CHOICE_HINTS.chars().count() {
-        CHOICE_HINTS
-    } else {
-        "j/k · Enter continue · Esc cancel"
-    }
-}
-
-/// The shortcut line while a modal is open in the list.
+/// The shortcut line for the open modal, shortened when the popup is narrow.
 pub(crate) fn hints(app: &App, width: u16) -> Option<&'static str> {
-    if app.modal.choice.is_some() {
-        return Some(choice_hints(width));
+    let fits = |text: &str| usize::from(width) >= text.chars().count();
+    let pick = |full: &'static str, short: &'static str| if fits(full) { full } else { short };
+    if let Some(choice) = &app.modal.choice {
+        return Some(match choice.purpose {
+            ChoicePurpose::NewSpec => pick(
+                "↑↓ client · Enter start session · Esc cancel",
+                "↑↓ client · Enter start · Esc cancel",
+            ),
+            ChoicePurpose::Refine { .. } => pick(
+                "j/k choose · Enter start session · Esc cancel",
+                "j/k · Enter start · Esc cancel",
+            ),
+        });
     }
     Some(match app.modal.prompt.as_ref()? {
         Prompt::Archive { .. } => "Enter archive this item · Esc cancel",
@@ -29,10 +30,20 @@ pub(crate) fn hints(app: &App, width: u16) -> Option<&'static str> {
     })
 }
 
+/// Rows the list gives the open modal: its content and its border, nothing spare.
+pub(crate) fn panel_height(app: &App) -> u16 {
+    match (&app.modal.choice, &app.modal.prompt) {
+        // Clients, a blank row, the topic.
+        (Some(choice), _) => choice.profiles.len() as u16 + 4,
+        (None, Some(_)) => 8,
+        (None, None) => 0,
+    }
+}
+
 /// Draws the open modal in the panel the list reserves for it.
 pub(crate) fn draw_panel(frame: &mut ratatui::Frame, app: &App, area: Rect) {
     if let Some(choice) = &app.modal.choice {
-        draw_choices(frame, choice, area);
+        draw_new_spec(frame, choice, &app.modal.input, area);
     } else if let Some(Prompt::Archive { id }) = &app.modal.prompt {
         let detail = match app.record(id) {
             Some(record) => format!(
@@ -44,31 +55,67 @@ pub(crate) fn draw_panel(frame: &mut ratatui::Frame, app: &App, area: Rect) {
             ),
             None => "Item disappeared; press Esc to cancel.".into(),
         };
-        let block = Block::default()
-            .title(" Confirm archive ")
-            .borders(Borders::ALL);
+        let block = chrome::panel(" Confirm archive ");
         frame.render_widget(Paragraph::new(detail).block(block), area);
-    } else if let Some(prompt) = &app.modal.prompt {
-        let block = Block::default().title(" Action ").borders(Borders::ALL);
-        let line = format!("{}: {}█", prompt.label(), app.modal.input);
-        frame.render_widget(Paragraph::new(line).block(block), area);
     }
 }
 
-fn draw_choices(frame: &mut ratatui::Frame, choice: &Choice, area: Rect) {
-    let title = match choice.purpose {
-        ChoicePurpose::Refine { .. } => " Refine spec · Choose client ",
-        ChoicePurpose::NewSpec => " Choose client ",
-    };
-    let items = choice
+const LABEL_WIDTH: usize = 8;
+
+/// A client's label in `room` cells: trailing details go first, then the text is cut.
+fn fit_client(label: &str, room: usize) -> String {
+    let mut label = label;
+    while label.chars().count() > room {
+        match label.rsplit_once(" · ") {
+            Some((shorter, _)) => label = shorter,
+            None => break,
+        }
+    }
+    text::fit_label(label, room)
+}
+
+/// One client per row, the chosen one marked the way the detail view marks its chosen action.
+fn client_lines(choice: &Choice, width: u16) -> Vec<Line<'static>> {
+    let room = usize::from(width).saturating_sub(LABEL_WIDTH + 2);
+    choice
         .profiles
         .iter()
-        .map(|profile| ListItem::new(profile.label()));
-    let list = List::new(items)
-        .block(Block::default().title(title).borders(Borders::ALL))
-        .highlight_style(theme::selection());
-    let mut state = ListState::default().with_selected(Some(choice.selected));
-    frame.render_stateful_widget(list, area, &mut state);
+        .enumerate()
+        .map(|(index, profile)| {
+            let label = if index == 0 { "Client" } else { "" };
+            let name = fit_client(profile.label(), room);
+            let option = if index == choice.selected {
+                Span::styled(format!("✦ {name}"), theme::chosen_action())
+            } else {
+                Span::styled(format!("  {name}"), theme::action())
+            };
+            Line::from(vec![
+                Span::styled(format!("{label:<LABEL_WIDTH$}"), theme::muted()),
+                option,
+            ])
+        })
+        .collect()
+}
+
+/// Everything a new spec needs, in one place: which client interviews, and about what.
+fn draw_new_spec(frame: &mut ratatui::Frame, choice: &Choice, topic: &str, area: Rect) {
+    let block = chrome::panel(" New spec ");
+    let inner = block.inner(area);
+    let mut lines = client_lines(choice, inner.width);
+    lines.push(Line::default());
+    // The topic scrolls so the cursor stays visible however much is typed.
+    let room = usize::from(inner.width).saturating_sub(LABEL_WIDTH + 1);
+    let count = topic.chars().count();
+    let shown: String = topic.chars().skip(count.saturating_sub(room)).collect();
+    let mut topic_line = vec![
+        Span::styled(format!("{:<LABEL_WIDTH$}", "Topic"), theme::muted()),
+        Span::raw(format!("{shown}█")),
+    ];
+    if topic.is_empty() {
+        topic_line.push(Span::styled(" optional", theme::muted()));
+    }
+    lines.push(Line::from(topic_line));
+    frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
 /// Draws the client choice as a view of its own, in place of the detail view.
@@ -78,18 +125,18 @@ pub(crate) fn draw_choice(frame: &mut ratatui::Frame, app: &App) {
     };
     let area = frame.area();
     let width = area.width.saturating_sub(4).min(52);
-    let height = area.height.saturating_sub(2).min(9);
+    let rows = choice.profiles.len() as u16 + 2;
+    let height = area.height.saturating_sub(2).min(rows + 4);
     let popup = Rect::new(
         area.x + (area.width - width) / 2,
         area.y + (area.height - height) / 2,
         width,
         height,
     );
-    draw_choices(
-        frame,
-        choice,
-        Rect::new(popup.x, popup.y, popup.width, 5.min(popup.height)),
-    );
+    let block = chrome::panel(" Refine spec ");
+    let area = Rect::new(popup.x, popup.y, popup.width, rows.min(popup.height));
+    let lines = client_lines(choice, block.inner(area).width);
+    frame.render_widget(Paragraph::new(lines).block(block), area);
     // A failed launch explains itself directly under the choice it came from.
     if app.notice.tone() == Tone::Error {
         frame.render_widget(
@@ -98,14 +145,16 @@ pub(crate) fn draw_choice(frame: &mut ratatui::Frame, app: &App) {
                 .wrap(Wrap { trim: false }),
             Rect::new(
                 popup.x + 1,
-                popup.y + 5,
+                popup.y + rows,
                 popup.width.saturating_sub(2),
-                popup.height.saturating_sub(6),
+                popup.height.saturating_sub(rows),
             ),
         );
     }
     let footer = chrome::footer_area(area);
-    chrome::draw_footer(frame, choice_hints(footer.width));
+    if let Some(hints) = hints(app, footer.width) {
+        chrome::draw_footer(frame, hints);
+    }
 }
 
 /// The open prompt as lines for the detail view's milestone controls.

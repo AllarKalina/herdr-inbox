@@ -153,7 +153,13 @@ fn enter_on_a_locked_milestone_is_safe() -> Result<()> {
 fn external_progress_follows_the_next_step_but_preserves_history_selection() -> Result<()> {
     let mut fixture = Fixture::new(0)?;
     for (change, next) in [
-        (Change::Finish { title: None }, Milestone::Jira),
+        (
+            Change::Finish {
+                title: None,
+                spec: None,
+            },
+            Milestone::Jira,
+        ),
         (
             Change::Jira {
                 key: "PAY-123".into(),

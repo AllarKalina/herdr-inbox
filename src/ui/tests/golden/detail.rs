@@ -119,9 +119,8 @@ fn prompts_and_acknowledgements() -> Result<()> {
 #[test]
 fn untitled_spec_asks_for_its_title() -> Result<()> {
     let mut fixture = Fixture::new("detail-untitled")?;
-    let file = fixture.root.join("specs/untitled-draft.md");
-    let record = fixture.app.store.start_untitled(None, Some(file.clone()))?;
-    fs::write(file, "Notes without a heading yet.\n")?;
+    let record = fixture.app.store.start_untitled()?;
+    fs::write(&record.spec_path, "Notes without a heading yet.\n")?;
     fixture.app.refresh()?;
     let index = fixture
         .app

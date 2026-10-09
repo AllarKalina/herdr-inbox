@@ -13,10 +13,8 @@ fn settings_persist_local_defaults_filters_and_refuse_future_version() -> Result
     settings.sources[0].exclude = vec!["nested/**".into()];
     settings.context_paths.push(source.clone());
     settings.preferred_client = Some("codex".into());
-    settings.workspace = "my-workspace".into();
     store.save_settings(&settings)?;
     let loaded = Store::new(root.join("app")).settings()?;
-    assert_eq!(loaded.workspace, "my-workspace");
     assert_eq!(loaded.preferred_client.as_deref(), Some("codex"));
     assert_eq!(loaded.sources[0].id, settings.sources[0].id);
     loaded.validate_context()?;
@@ -53,10 +51,10 @@ fn context_preflight_requires_readable_reference_and_missing_roots_are_not_creat
     settings.context_paths.clear();
     let store = Store::new(root.join("app"));
     store.save_settings(&settings)?;
-    store.start("New", None, None)?;
+    store.start("New", None)?;
     assert_eq!(fs::metadata(&source)?.permissions().mode() & 0o777, 0o755);
     fs::rename(&source, root.join("moved"))?;
-    assert!(store.start("Wrong", None, None).is_err());
+    assert!(store.start("Wrong", None).is_err());
     assert!(!source.exists());
     fs::remove_dir_all(root)?;
     Ok(())
@@ -66,7 +64,7 @@ fn context_preflight_requires_readable_reference_and_missing_roots_are_not_creat
 fn obsolete_metadata_is_rejected_without_rewriting_it() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-schema-{}", Uuid::new_v4()));
     let store = configured_store(&root)?;
-    let record = store.start("Current", None, None)?;
+    let record = store.start("Current", None)?;
     for field in ["schema_version", "previous_launches"] {
         let mut value = serde_json::to_value(&record)?;
         value.as_object_mut().unwrap().remove(field);

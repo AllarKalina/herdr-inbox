@@ -27,9 +27,15 @@ impl Fixture {
     pub(super) fn new(stage: usize) -> Result<Self> {
         let root = std::env::temp_dir().join(format!("herdr-inbox-ui-{}", Uuid::new_v4()));
         let store = configured_store(root.clone())?;
-        let record = store.start("Payment retries", None, None)?;
+        let record = store.start("Payment retries", None)?;
         if stage >= 1 {
-            store.update(&record.id, Change::Finish { title: None })?;
+            store.update(
+                &record.id,
+                Change::Finish {
+                    title: None,
+                    spec: None,
+                },
+            )?;
         }
         if stage >= 2 {
             store.update(

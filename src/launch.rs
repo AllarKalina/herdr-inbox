@@ -11,19 +11,19 @@ pub use follow_up::{develop, ticket};
 pub use herdr::open_inbox;
 pub use profile::{Profile, available_profiles};
 
-use crate::settings::{DEFAULT_WORKSPACE, Settings};
-use crate::store::{Change, Launch, LaunchStatus, Record, Result, Store, absolute};
+use crate::settings::Settings;
+use crate::store::{Change, Launch, LaunchStatus, Record, Result, Store};
 use herdr::Herdr;
 use profile::Session;
 use session::{Plan, Step};
 use std::fs;
-use std::path::PathBuf;
 use uuid::Uuid;
+
+/// Every session runs in this Herdr workspace, the folder agents are set up in.
+pub const WORKSPACE: &str = "ai-boiler-room";
 
 pub struct Options {
     pub profile: Profile,
-    pub workspace: String,
-    pub repo: Option<PathBuf>,
     pub model: String,
     pub effort: String,
     pub topic: String,
@@ -34,8 +34,6 @@ impl Options {
     pub fn for_profile(profile: Profile) -> Self {
         Self {
             profile,
-            workspace: DEFAULT_WORKSPACE.into(),
-            repo: None,
             model: profile.default_model().into(),
             effort: profile::DEFAULT_EFFORT.into(),
             topic: String::new(),
@@ -51,15 +49,9 @@ struct Ready {
     workspace_id: String,
 }
 
-fn preflight(store: &Store, options: &mut Options) -> Result<Ready> {
+fn preflight(store: &Store, options: &Options) -> Result<Ready> {
     let settings = store.settings()?;
     settings.validate_context()?;
-    options.repo = options.repo.take().map(absolute).transpose()?;
-    if let Some(repo) = &options.repo
-        && !repo.is_dir()
-    {
-        return Err(format!("Repo directory does not exist: {}", repo.display()).into());
-    }
     if options.model.trim().is_empty() || options.effort.trim().is_empty() {
         return Err("Model and effort cannot be empty".into());
     }
@@ -71,7 +63,7 @@ fn preflight(store: &Store, options: &mut Options) -> Result<Ready> {
         .into());
     }
     let herdr = Herdr::new()?;
-    let workspace_id = herdr.workspace(&options.workspace)?;
+    let workspace_id = herdr.workspace(WORKSPACE)?;
     Ok(Ready {
         settings,
         herdr,
@@ -83,7 +75,7 @@ fn new_launch(options: &Options, workspace_id: String, prompt: String) -> Launch
     Launch {
         status: LaunchStatus::Starting,
         harness: options.profile.id().into(),
-        workspace: options.workspace.clone(),
+        workspace: WORKSPACE.into(),
         workspace_id: Some(workspace_id),
         tab_id: None,
         pane_id: None,
@@ -109,16 +101,24 @@ struct Target {
     refinement: bool,
 }
 
-/// Starts a session for a new, untitled spec. `spec` names its file; without one the file
-/// gets a generated name in the first selected folder.
-pub fn start(store: &Store, mut options: Options, spec: Option<PathBuf>) -> Result<Record> {
-    let ready = preflight(store, &mut options)?;
-    let record = store.start_untitled(options.repo.clone(), spec)?;
+/// Starts a session for a new spec. The session decides the spec's title, file name and
+/// place inside the specs folder, and reports them when it finishes.
+pub fn start(store: &Store, options: Options) -> Result<Record> {
+    let ready = preflight(store, &options)?;
+    let folder = ready
+        .settings
+        .sources
+        .first()
+        .ok_or("Choose a spec folder in settings before creating a spec")?
+        .path
+        .clone();
+    let record = store.start_untitled()?;
     let prompt = prompts::initial(
         &record,
         &options.topic,
         options.profile,
         store.path(),
+        &folder,
         &ready.settings.context_paths,
     )?;
     let mut launch = new_launch(&options, ready.workspace_id, prompt);
@@ -137,7 +137,7 @@ pub fn start(store: &Store, mut options: Options, spec: Option<PathBuf>) -> Resu
 }
 
 /// Starts another session on an existing item and its existing spec file.
-pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
+pub fn refine(store: &Store, id: &str, options: Options) -> Result<Record> {
     let record = store.get(id)?;
     if record.active_spec_session() {
         return Err(
@@ -145,14 +145,12 @@ pub fn refine(store: &Store, id: &str, mut options: Options) -> Result<Record> {
         );
     }
     readable_spec(&record)?;
-    options.repo = options.repo.take().or_else(|| record.repo.clone());
-    let ready = preflight(store, &mut options)?;
+    let ready = preflight(store, &options)?;
     let prompt = prompts::refinement(
         &record,
         &options.topic,
         options.profile,
         store.path(),
-        options.repo.as_deref(),
         &ready.settings.context_paths,
     )?;
     let mut launch = new_launch(&options, ready.workspace_id, prompt);
@@ -198,7 +196,6 @@ fn run(
             data_dir: store.path(),
             spec_dir: record.spec_path.parent(),
         },
-        repo: options.repo.as_deref(),
         prompt: &prompt,
     };
     let opened = session::open(herdr, &plan, |step| {

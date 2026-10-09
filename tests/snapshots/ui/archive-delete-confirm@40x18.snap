@@ -7,12 +7,12 @@
 
 
   ┌ Confirm delete ──────────────────┐
-  │DELETE SPEC                       │
-  │Quarterly plan                    │
-  │…s/specs/PAY-123-quarterly-plan.md│
-  │The file moves to the macOS Trash.│
-  │Its archived record is deleted for│
-  │good.                             │
+  │ DELETE SPEC                      │
+  │ Quarterly plan                   │
+  │ …specs/PAY-123-quarterly-plan.md │
+  │ The file moves to the macOS      │
+  │ Trash.                           │
+  │ Its archived record is deleted   │
   └──────────────────────────────────┘
   Enter delete this spec · Esc cancel
 

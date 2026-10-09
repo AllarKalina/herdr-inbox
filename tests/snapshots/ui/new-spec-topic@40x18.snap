@@ -6,15 +6,15 @@
   ├─    Inbox layout          ✓ → ○ ○
   ├─    preview               ✓ → ○ ○
   └─    Settings navigation   ● ○ ○ ○
-  ┌ Choose client ───────────────────┐
-  │Claude · Opus 5.5 · High          │
-  │Codex · GPT-6.1-Sol · High        │
+  ▾  missions
+  └─ ▾  zeller
+  ┌ New spec ────────────────────────┐
+  │ Client    Claude · Opus 5.5      │
+  │         ✦ Codex · GPT-6.1-Sol    │
   │                                  │
-  │                                  │
-  │                                  │
-  │                                  │
+  │ Topic   Card retries█            │
   └──────────────────────────────────┘
-  j/k · Enter continue · Esc cancel
+  ↑↓ client · Enter start · Esc cancel
 
 --- styles: row, columns, style ---
  1   2-9   fg=Gray
@@ -39,4 +39,11 @@
  7  33-33  fg=Gray
  7  35-35  fg=DarkGray
  7  37-37  fg=DarkGray
- 9   3-36  fg=Black bg=Cyan BOLD
+ 8   2-13  fg=Yellow BOLD
+ 9   2-4   fg=DarkGray
+ 9   5-14  fg=Yellow BOLD
+11   4-11  fg=Gray
+11  12-30  fg=LightBlue
+12   4-11  fg=Gray
+12  12-32  fg=Cyan BOLD | UNDERLINED
+14   4-11  fg=Gray

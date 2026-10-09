@@ -4,7 +4,6 @@
 use super::herdr::{Herdr, required_string};
 use super::profile::{Profile, Session};
 use crate::store::Result;
-use std::path::Path;
 
 /// One session to open.
 pub(super) struct Plan<'a> {
@@ -15,8 +14,6 @@ pub(super) struct Plan<'a> {
     pub agent: &'a str,
     pub profile: Profile,
     pub session: Session<'a>,
-    /// The tab's working directory.
-    pub repo: Option<&'a Path>,
     pub prompt: &'a str,
 }
 
@@ -33,10 +30,6 @@ pub(super) fn open(
 ) -> Result<()> {
     let mut args = vec!["tab", "create", "--workspace", plan.workspace_id];
     args.extend(["--label", plan.label, "--focus"]);
-    let repo = plan.repo.map(|path| path.to_string_lossy().into_owned());
-    if let Some(repo) = &repo {
-        args.extend(["--cwd", repo]);
-    }
     let tab = herdr.call(&args)?;
     let pane = required_string(&tab, &["result", "root_pane", "pane_id"])?.to_owned();
     completed(Step::TabOpened {

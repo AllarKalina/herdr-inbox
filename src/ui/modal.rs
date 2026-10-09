@@ -2,71 +2,31 @@
 //! answered or dismissed. The list shows them in a panel above its shortcuts; the detail
 //! view shows prompts beside the selected milestone and the client choice on its own.
 
-use super::{App, Milestone, Screen, detail, text};
+use super::{App, Milestone, Screen, detail};
 use crate::launch::{self, Options, Profile};
 use crate::store::{Change, Record, Result};
 use crossterm::event::{KeyCode, KeyEvent};
-use std::path::PathBuf;
 
 mod view;
-pub(super) use view::{draw_choice, draw_panel, hints, rail_lines};
+pub(super) use view::{draw_choice, draw_panel, hints, panel_height, rail_lines};
 
-/// A question the user is answering. Launch prompts form a chain that ends by starting a
-/// session; the others act on one item.
+/// A question about one item that the user is answering.
 #[derive(Clone)]
 pub(super) enum Prompt {
-    LaunchWorkspace {
-        profile: Profile,
-    },
-    LaunchRepo {
-        profile: Profile,
-        workspace: String,
-    },
-    LaunchSpec {
-        profile: Profile,
-        workspace: String,
-        repo: Option<PathBuf>,
-    },
-    LaunchTopic {
-        profile: Profile,
-        workspace: String,
-        repo: Option<PathBuf>,
-        spec: Option<PathBuf>,
-    },
-    Settle {
-        id: String,
-    },
-    FinishTitle {
-        id: String,
-    },
-    JiraParent {
-        id: String,
-    },
-    Jira {
-        id: String,
-    },
-    JiraUrl {
-        id: String,
-        key: String,
-    },
-    Agent {
-        id: String,
-    },
-    Branch {
-        id: String,
-        agent: Option<String>,
-    },
-    Pr {
-        id: String,
-    },
-    Archive {
-        id: String,
-    },
+    Settle { id: String },
+    FinishTitle { id: String },
+    JiraParent { id: String },
+    Jira { id: String },
+    JiraUrl { id: String, key: String },
+    Agent { id: String },
+    Branch { id: String, agent: Option<String> },
+    Pr { id: String },
+    Archive { id: String },
 }
 
 impl Prompt {
-    /// The item this prompt acts on; launch prompts create a new one.
-    pub(super) fn item(&self) -> Option<&str> {
+    /// The item this prompt acts on.
+    pub(super) fn item(&self) -> &str {
         match self {
             Self::Settle { id }
             | Self::FinishTitle { id }
@@ -76,11 +36,7 @@ impl Prompt {
             | Self::Agent { id }
             | Self::Branch { id, .. }
             | Self::Pr { id }
-            | Self::Archive { id } => Some(id),
-            Self::LaunchWorkspace { .. }
-            | Self::LaunchRepo { .. }
-            | Self::LaunchSpec { .. }
-            | Self::LaunchTopic { .. } => None,
+            | Self::Archive { id } => id,
         }
     }
 
@@ -91,11 +47,7 @@ impl Prompt {
 
     pub(super) fn label(&self) -> &'static str {
         match self {
-            Self::LaunchWorkspace { .. } => "Herdr workspace",
-            Self::LaunchSpec { .. } => "Spec path (blank = first source folder)",
             Self::Settle { .. } => "Confirm session has ended",
-            Self::LaunchRepo { .. } => "Repo path (blank for workspace cwd)",
-            Self::LaunchTopic { .. } => "Grilling topic (optional)",
             Self::FinishTitle { .. } => "Finished spec title",
             Self::JiraParent { .. } => "Parent key (optional)",
             Self::Jira { .. } => "Jira key",
@@ -114,9 +66,6 @@ pub(super) enum ChoicePurpose {
     NewSpec,
     Refine { id: String },
 }
-
-/// Rows the list reserves for a prompt or client choice.
-pub(super) const PANEL_HEIGHT: u16 = 8;
 
 pub(super) struct Choice {
     pub purpose: ChoicePurpose,
@@ -149,8 +98,7 @@ impl Modal {
         if self
             .prompt
             .as_ref()
-            .and_then(Prompt::item)
-            .is_some_and(|id| !shown(id))
+            .is_some_and(|prompt| !shown(prompt.item()))
         {
             self.prompt = None;
             self.input.clear();
@@ -201,20 +149,16 @@ impl App {
     }
 }
 
-/// The breadcrumb while a modal belongs to a flow of its own.
+/// The breadcrumb while the client choice is open: it is a flow of its own.
 pub(super) fn crumbs(app: &App) -> Option<Vec<String>> {
-    match (&app.modal.choice, &app.modal.prompt) {
-        (Some(choice), _) => Some(match choice.purpose {
-            ChoicePurpose::NewSpec => vec!["New spec".into()],
-            ChoicePurpose::Refine { .. } => {
-                let mut crumbs = detail::crumbs(app);
-                crumbs.push("Refine".into());
-                crumbs
-            }
-        }),
-        (None, Some(prompt)) if prompt.item().is_none() => Some(vec!["New spec".into()]),
-        _ => None,
-    }
+    Some(match app.modal.choice.as_ref()?.purpose {
+        ChoicePurpose::NewSpec => vec!["New spec".into()],
+        ChoicePurpose::Refine { .. } => {
+            let mut crumbs = detail::crumbs(app);
+            crumbs.push("Refine".into());
+            crumbs
+        }
+    })
 }
 
 /// Handles a key while a modal is open. `None` means no modal is open.
@@ -230,29 +174,32 @@ fn choice_key(app: &mut App, key: KeyEvent) -> Result<()> {
     let Some(choice) = &mut app.modal.choice else {
         return Ok(());
     };
+    let last = choice.profiles.len() - 1;
+    // A new spec also takes a topic, so letters type; the arrows and Tab pick the client.
+    let typing = choice.purpose == ChoicePurpose::NewSpec;
     match key.code {
-        KeyCode::Esc => app.modal.choice = None,
-        KeyCode::Char('j') | KeyCode::Down => {
-            choice.selected = (choice.selected + 1).min(choice.profiles.len() - 1)
+        KeyCode::Esc => app.modal.close(),
+        KeyCode::Down | KeyCode::Tab => choice.selected = (choice.selected + 1).min(last),
+        KeyCode::Up | KeyCode::BackTab => choice.selected = choice.selected.saturating_sub(1),
+        KeyCode::Char('j') if !typing => choice.selected = (choice.selected + 1).min(last),
+        KeyCode::Char('k') if !typing => choice.selected = choice.selected.saturating_sub(1),
+        KeyCode::Char(ch) if typing => app.modal.input.push(ch),
+        KeyCode::Backspace if typing => {
+            app.modal.input.pop();
         }
-        KeyCode::Char('k') | KeyCode::Up => choice.selected = choice.selected.saturating_sub(1),
         KeyCode::Enter => {
-            let profile = choice.profiles[choice.selected];
-            match choice.purpose.clone() {
-                ChoicePurpose::NewSpec => {
-                    app.modal.choice = None;
-                    let workspace = app.config.workspace.clone();
-                    app.begin_with(Prompt::LaunchWorkspace { profile }, workspace);
-                }
-                ChoicePurpose::Refine { id } => {
-                    let mut options = Options::for_profile(profile);
-                    options.workspace = app.config.workspace.clone();
-                    launch::refine(&app.store, &id, options)?;
-                    app.modal.choice = None;
-                    // The session's tab now has focus; the popup would only hide it.
-                    app.should_exit = true;
-                }
-            }
+            let options = Options {
+                topic: app.modal.input.trim().to_owned(),
+                ..Options::for_profile(choice.profiles[choice.selected])
+            };
+            // A failed launch leaves the choice and the typed topic in place to retry.
+            match &choice.purpose {
+                ChoicePurpose::NewSpec => launch::start(&app.store, options)?,
+                ChoicePurpose::Refine { id } => launch::refine(&app.store, id, options)?,
+            };
+            app.modal.close();
+            // The session's tab now has focus; the popup would only hide it.
+            app.should_exit = true;
         }
         _ => {}
     }
@@ -297,41 +244,6 @@ fn submit(app: &mut App) -> Result<()> {
     let value = std::mem::take(&mut app.modal.input).trim().to_string();
     let filled = (!value.is_empty()).then(|| value.clone());
     match prompt {
-        Prompt::LaunchWorkspace { profile } => app.begin(Prompt::LaunchRepo {
-            profile,
-            workspace: filled.unwrap_or_else(|| app.config.workspace.clone()),
-        }),
-        Prompt::LaunchRepo { profile, workspace } => app.begin(Prompt::LaunchSpec {
-            profile,
-            workspace,
-            repo: filled.map(PathBuf::from),
-        }),
-        Prompt::LaunchSpec {
-            profile,
-            workspace,
-            repo,
-        } => app.begin(Prompt::LaunchTopic {
-            profile,
-            workspace,
-            repo,
-            spec: filled.as_deref().map(text::typed_path).transpose()?,
-        }),
-        Prompt::LaunchTopic {
-            profile,
-            workspace,
-            repo,
-            spec,
-        } => {
-            let options = Options {
-                workspace,
-                repo,
-                topic: value,
-                ..Options::for_profile(profile)
-            };
-            launch::start(&app.store, options, spec)?;
-            // The session's tab now has focus; the popup would only hide it.
-            app.should_exit = true;
-        }
         Prompt::Settle { id } => {
             app.store.settle(&id)?;
             app.notice
@@ -343,7 +255,11 @@ fn submit(app: &mut App) -> Result<()> {
             app.screen = Screen::List;
         }
         Prompt::FinishTitle { id } if filled.is_some() => {
-            let record = app.store.update(&id, Change::Finish { title: filled })?;
+            let finished = Change::Finish {
+                title: filled,
+                spec: None,
+            };
+            let record = app.store.update(&id, finished)?;
             let _ = launch::rename_tab(&record);
             app.acknowledge(Milestone::Spec);
         }

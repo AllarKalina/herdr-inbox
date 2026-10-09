@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 struct Fixture {
     root: PathBuf,
-    repo: PathBuf,
     data: PathBuf,
     log: PathBuf,
     herdr: PathBuf,
@@ -18,9 +17,7 @@ impl Fixture {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!("herdr-inbox-refine-{}", Uuid::new_v4()));
         let bin = root.join("bin");
-        let repo = root.join("repo with ' quote");
         fs::create_dir_all(&bin).unwrap();
-        fs::create_dir_all(&repo).unwrap();
         let herdr = bin.join("herdr-fake");
         fs::write(&herdr, r##"#!/bin/sh
 printf '%s\n' "$*" >> "$HERDR_FAKE_LOG"
@@ -51,7 +48,6 @@ esac
             fs::set_permissions(executable, fs::Permissions::from_mode(0o700)).unwrap();
         }
         let fixture = Self {
-            repo,
             data: root.join("local inbox's data"),
             log: root.join("herdr.log"),
             herdr,
@@ -96,12 +92,7 @@ esac
     }
 
     fn completed(&self) -> Value {
-        self.success(&[
-            "start",
-            "Payment retries",
-            "--repo",
-            self.repo.to_str().unwrap(),
-        ]);
+        self.success(&["start", "Payment retries"]);
         let listed: Value = serde_json::from_slice(&self.run(&["list", "--json"]).stdout).unwrap();
         let id = listed[0]["id"].as_str().unwrap();
         let spec = listed[0]["spec_path"].as_str().unwrap();
@@ -166,7 +157,7 @@ fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
         assert_eq!(record["launch"]["status"], "prompt_sent");
         assert_eq!(record["launch"]["harness"], profile);
         assert_eq!(record["launch"]["model"], model);
-        assert_eq!(record["launch"]["effort"], "high");
+        assert_eq!(record["launch"]["effort"], "medium");
         assert_eq!(record["launch"]["workspace"], "ai-boiler-room");
         let prompt = record["launch"]["prompt"].as_str().unwrap();
         assert!(prompt.contains(skill));
@@ -181,15 +172,10 @@ fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
             prompt.contains(&format!("{finish}.")),
             "default finish command should retain the title"
         );
-        let quoted_repo = format!(
-            "'{}'",
-            fixture.repo.to_str().unwrap().replace('\'', "'\\''")
-        );
         let quoted_inbox = format!(
             "'{}'",
             fixture.data.to_str().unwrap().replace('\'', "'\\''")
         );
-        assert!(prompt.contains(&quoted_repo));
         assert!(prompt.contains(&format!("HERDR_INBOX_HOME={quoted_inbox} {finish}")));
         assert!(prompt.contains("current code and verified documentation as the source of truth"));
         let inspect = prompt.find("First read the existing spec in full").unwrap();
@@ -202,7 +188,10 @@ fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
         assert!(prompt.contains("Do not implement code changes"));
         let calls = fixture.calls();
         assert!(calls.contains("tab create --workspace w2"));
-        assert!(calls.contains(&format!("--cwd {}", fixture.repo.display())));
+        assert!(
+            !calls.contains("--cwd"),
+            "sessions start in the workspace's own folder"
+        );
         assert!(calls.contains("workspace focus w2"));
         assert!(calls.contains(if profile == "codex" {
             "--kind codex"
@@ -211,11 +200,13 @@ fn refinement_uses_the_same_item_and_spec_with_both_client_profiles() {
         }));
         if profile == "codex" {
             assert!(calls.contains(
-                "-m gpt-6.1-sol -c model_reasoning_effort=\"high\" -s workspace-write --add-dir"
+                "-m gpt-6.1-sol -c model_reasoning_effort=\"medium\" -s workspace-write --add-dir"
             ));
             assert!(!calls.contains("--permission-mode"));
         } else {
-            assert!(calls.contains("--model claude-opus-5-5 --effort high --permission-mode auto"));
+            assert!(
+                calls.contains("--model claude-opus-5-5 --effort medium --permission-mode auto")
+            );
         }
         let listed: Value =
             serde_json::from_slice(&fixture.run(&["list", "--json"]).stdout).unwrap();
@@ -397,21 +388,15 @@ fn refinement_accepts_launch_overrides_without_changing_item_identity() {
     let fixture = Fixture::new();
     let before = fixture.completed();
     let id = before["id"].as_str().unwrap();
-    let repo = fixture.root.join("alternate repo");
-    fs::create_dir(&repo).unwrap();
     fixture.success(&[
         "refine",
         id,
         "--profile",
         "opus",
-        "--repo",
-        repo.to_str().unwrap(),
-        "--workspace",
-        "ai-boiler-room",
         "--model",
         "test-opus-model",
         "--effort",
-        "medium",
+        "low",
         "--topic",
         "Review retry deadlines",
         "--ask-permissions",
@@ -420,7 +405,7 @@ fn refinement_accepts_launch_overrides_without_changing_item_identity() {
     assert_eq!(record["spec_path"], before["spec_path"]);
     assert_eq!(record["title"], before["title"]);
     assert_eq!(record["launch"]["model"], "test-opus-model");
-    assert_eq!(record["launch"]["effort"], "medium");
+    assert_eq!(record["launch"]["effort"], "low");
     assert!(
         record["launch"]["prompt"]
             .as_str()
@@ -428,8 +413,7 @@ fn refinement_accepts_launch_overrides_without_changing_item_identity() {
             .contains("Review retry deadlines")
     );
     let calls = fixture.calls();
-    assert!(calls.contains(&format!("--cwd {}", repo.display())));
-    assert!(calls.contains("--model test-opus-model --effort medium"));
+    assert!(calls.contains("--model test-opus-model --effort low"));
     assert!(!calls.contains("--permission-mode"));
 }
 
@@ -443,14 +427,7 @@ fn codex_refinement_grants_access_to_the_selected_spec_directory() {
     let spec = drafts.join("payment retries.md");
     let contents = "# Existing external spec\n\nKeep this exact file.\n";
     fs::write(&spec, contents).unwrap();
-    fixture.success(&[
-        "start",
-        "Payment retries",
-        "--repo",
-        fixture.repo.to_str().unwrap(),
-        "--spec",
-        spec.to_str().unwrap(),
-    ]);
+    fixture.success(&["start", "Payment retries", "--spec", spec.to_str().unwrap()]);
     let list: Value = serde_json::from_slice(&fixture.run(&["list", "--json"]).stdout).unwrap();
     let id = list[0]["id"].as_str().unwrap();
     fixture.success(&["finish", id]);

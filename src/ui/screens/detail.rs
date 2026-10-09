@@ -220,7 +220,13 @@ fn run(app: &mut App, action: DetailAction) -> Result<()> {
     match action {
         DetailAction::Finish if record.title.is_empty() => app.begin(Prompt::FinishTitle { id }),
         DetailAction::Finish => {
-            let updated = app.store.update(&id, Change::Finish { title: None })?;
+            let updated = app.store.update(
+                &id,
+                Change::Finish {
+                    title: None,
+                    spec: None,
+                },
+            )?;
             let _ = launch::rename_tab(&updated);
             app.acknowledge(Milestone::Spec);
         }

@@ -6,10 +6,10 @@ use crate::store::{Change, Record, Result, Store};
 use std::path::PathBuf;
 
 pub const COMMANDS: &[Command] = &[
-    Command::new("start", "start TITLE [--repo PATH] [--spec PATH]", start),
+    Command::new("start", "start TITLE [--spec PATH]", start),
     Command::new("list", "list [--json]", list),
     Command::new("show", "show ID [--json]", show),
-    Command::new("finish", "finish ID [--title TITLE]", finish),
+    Command::new("finish", "finish ID [--title TITLE] [--spec PATH]", finish),
     Command::new("title", "title ID TITLE", title),
     Command::new("jira", "jira ID KEY [--url URL]", jira),
     Command::new(
@@ -25,10 +25,9 @@ pub const COMMANDS: &[Command] = &[
 ];
 
 fn start(store: &Store, mut args: Args) -> Result<()> {
-    let repo = args.flag("--repo")?.map(PathBuf::from);
     let spec = args.flag("--spec")?.map(PathBuf::from);
     let [title] = args.positionals()?;
-    output::record(store, &store.start(&title, repo, spec)?)
+    output::record(store, &store.start(&title, spec)?)
 }
 
 fn list(store: &Store, mut args: Args) -> Result<()> {
@@ -66,8 +65,9 @@ fn renamed(store: &Store, record: Record) -> Result<()> {
 
 fn finish(store: &Store, mut args: Args) -> Result<()> {
     let title = args.flag("--title")?;
+    let spec = args.flag("--spec")?.map(PathBuf::from);
     let [id] = args.positionals()?;
-    renamed(store, store.update(&id, Change::Finish { title })?)
+    renamed(store, store.update(&id, Change::Finish { title, spec })?)
 }
 
 fn title(store: &Store, args: Args) -> Result<()> {
