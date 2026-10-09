@@ -1,90 +1,11 @@
 //! End-to-end CLI regression: the whole spec-to-PR path through the real binary, with the
 //! Jira stage on and off, plus the argument and prerequisite errors users actually hit.
 
-use serde_json::Value;
+mod common;
+
+use common::Cli;
 use std::fs;
-use std::path::PathBuf;
-use std::process::{Command, Output};
 use uuid::Uuid;
-
-struct Cli {
-    root: PathBuf,
-    data: PathBuf,
-    source: PathBuf,
-}
-
-impl Cli {
-    fn new(name: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("herdr-inbox-cli-{name}-{}", Uuid::new_v4()));
-        let source = root.join("specs");
-        fs::create_dir_all(&source).unwrap();
-        let cli = Self {
-            data: root.join("data"),
-            root,
-            source,
-        };
-        cli.ok(&["settings", "add-source", cli.source.to_str().unwrap()]);
-        cli
-    }
-
-    fn run(&self, args: &[&str]) -> Output {
-        Command::new(env!("CARGO_BIN_EXE_herdr-inbox"))
-            .args(args)
-            .env("HERDR_INBOX_HOME", &self.data)
-            .env("HERDR_ENV", "0")
-            .env_remove("HERDR_PLUGIN_ID")
-            .output()
-            .unwrap()
-    }
-
-    fn ok(&self, args: &[&str]) -> String {
-        let output = self.run(args);
-        assert!(
-            output.status.success(),
-            "{args:?} failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        String::from_utf8(output.stdout).unwrap()
-    }
-
-    /// Runs a command that must fail and returns what it told the user.
-    fn err(&self, args: &[&str]) -> String {
-        let output = self.run(args);
-        assert!(!output.status.success(), "{args:?} unexpectedly succeeded");
-        String::from_utf8(output.stderr).unwrap()
-    }
-
-    fn json(&self, args: &[&str]) -> Value {
-        serde_json::from_str(&self.ok(args)).unwrap()
-    }
-
-    fn only_id(&self) -> String {
-        let records = self.json(&["list", "--json"]);
-        assert_eq!(records.as_array().unwrap().len(), 1);
-        records[0]["id"].as_str().unwrap().to_owned()
-    }
-
-    fn set_jira(&self, enabled: bool) {
-        let path = self.data.join("settings.toml");
-        let text = fs::read_to_string(&path).unwrap();
-        let (from, to) = if enabled {
-            ("jira = false", "jira = true")
-        } else {
-            ("jira = true", "jira = false")
-        };
-        assert!(
-            text.contains(from),
-            "settings.toml has no `{from}`:\n{text}"
-        );
-        fs::write(path, text.replace(from, to)).unwrap();
-    }
-}
-
-impl Drop for Cli {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.root);
-    }
-}
 
 fn status_line(output: &str) -> &str {
     output.lines().nth(1).unwrap().trim()
@@ -235,6 +156,9 @@ fn full_pipeline_without_jira_skips_the_ticket_and_hides_it_from_output() {
         cli.json(&["show", id, "--json"])["pr"]["url"],
         "https://example.test/pull/2"
     );
+    // The ticket that was skipped can still be linked afterwards.
+    let linked = cli.ok(&["jira", id, "LATE-1"]);
+    assert!(status_line(&linked).contains("Jira: created"));
 }
 
 #[test]
@@ -249,11 +173,15 @@ fn archive_restore_and_scan_round_trip_through_the_cli() {
     cli.ok(&["jira", id, "PLAN-7"]);
 
     assert!(cli.err(&["archive", id]).contains("--confirm"));
+    assert!(
+        cli.err(&["archive", id, "--confirm", &id[..8]])
+            .contains("full matching item ID")
+    );
     cli.ok(&["archive", id, "--confirm", id]);
     assert_eq!(cli.json(&["list", "--json"]).as_array().unwrap().len(), 0);
     let scan = cli.json(&["scan", "--json"]);
     assert_eq!(
-        (scan["imported"].as_u64(), scan["suppressed"].as_u64()),
+        (scan["imported"].as_u64(), scan["archived"].as_u64()),
         (Some(0), Some(1))
     );
 

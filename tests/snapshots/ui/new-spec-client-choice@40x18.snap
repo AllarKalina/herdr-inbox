@@ -4,8 +4,8 @@
                                S J D P
   ▾  designs
   ├─    Inbox layout          ✓ → ○ ○
-  └─    Settings navigation   ● → ○ ○
-  ▾  missions
+  ├─    preview               ✓ → ○ ○
+  └─    Settings navigation   ● ○ ○ ○
   ┌ Choose client ───────────────────┐
   │Claude · Opus 5.5 · High          │
   │Codex · GPT-6.1-Sol · High        │
@@ -28,10 +28,15 @@
  5  35-35  fg=DarkGray
  5  37-37  fg=DarkGray
  6   2-4   fg=DarkGray
- 6   5-8   fg=LightBlue
- 6  31-31  fg=Cyan
+ 6   5-8   fg=LightRed
+ 6  31-31  fg=LightGreen
  6  33-33  fg=LightBlue
  6  35-35  fg=DarkGray
  6  37-37  fg=DarkGray
- 7   2-13  fg=Yellow BOLD
+ 7   2-4   fg=DarkGray
+ 7   5-8   fg=LightBlue
+ 7  31-31  fg=Cyan
+ 7  33-33  fg=Gray
+ 7  35-35  fg=DarkGray
+ 7  37-37  fg=DarkGray
  9   3-36  fg=Black bg=Cyan BOLD

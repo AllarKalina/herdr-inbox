@@ -94,22 +94,21 @@ pub enum Change {
 }
 
 impl Record {
-    /// A record as it exists before any workflow step: the starting point for new and
-    /// imported specs alike.
-    pub(crate) fn blank(id: String, spec_path: PathBuf, spec: SpecStatus, now: u64) -> Self {
+    /// A record before any workflow step: the starting point for new and imported specs alike.
+    pub(crate) fn new(id: String, location: Location, spec: SpecStatus, now: u64) -> Self {
         Self {
-            schema_version: 1,
-            source_id: None,
-            source_relative_path: None,
+            schema_version: SCHEMA_VERSION,
+            source_id: location.source_id,
+            source_relative_path: location.relative,
             content_fingerprint: None,
             id,
             title: String::new(),
             repo: None,
-            spec_path,
+            spec_path: location.path,
             created_at: now,
             updated_at: now,
             spec,
-            jira: Link {
+            jira: Jira {
                 status: match spec {
                     SpecStatus::Done => JiraStatus::Ready,
                     SpecStatus::InProgress => JiraStatus::Waiting,
@@ -122,14 +121,20 @@ impl Record {
                 agent: None,
                 branch: None,
             },
-            pr: Link {
+            pr: PullRequest {
                 status: PrStatus::Waiting,
-                key: None,
                 url: None,
             },
             launch: None,
             previous_launches: Vec::new(),
         }
+    }
+
+    /// Points the record at a spec file in a selected folder.
+    pub(super) fn place(&mut self, location: Location) {
+        self.source_id = location.source_id;
+        self.source_relative_path = location.relative;
+        self.spec_path = location.path;
     }
 
     pub fn active_spec_session(&self) -> bool {

@@ -1,0 +1,84 @@
+
+  Inbox
+
+                                                            Spec      Jira      Dev       PR
+  ▾  designs
+  ├─    Inbox layout                                       ✓ done    → ready   ○ locked  ○ locked
+  ├─    preview                                            ✓ done    → ready   ○ locked  ○ locked
+  └─    Settings navigation                                ● active  ○ wait    ○ locked  ○ locked
+  ▾  missions
+  └─ ▾  zeller
+     ├─ ▾  settlement-and-reconciliation-programme
+     │  └─ ▾  acquirer-integrations
+     │     └─ ▾  regional-scheme-adapters
+     │        └─    Chargeback evidence handling for reg…  ✓ done    → ready   ○ locked  ○ locked
+     ├─    Settlement reconciliation across acquirers an…  ✓ done    ✓ done    ● active  → ready
+     └─    Transaction search                              ✓ done    ✓ done    → ready   ○ locked
+     Quarterly plan                                        ✓ done    ✓ done    ✓ done    ◐ draft
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Enter open · n new · a archive · s settings
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-97  fg=Gray BOLD
+ 4   2-12  fg=Yellow BOLD
+ 5   2-4   fg=DarkGray
+ 5   5-8   fg=LightBlue
+ 5  60-67  fg=LightGreen
+ 5  70-77  fg=LightBlue
+ 5  80-87  fg=DarkGray
+ 5  90-97  fg=DarkGray
+ 6   2-4   fg=DarkGray
+ 6   5-8   fg=LightRed
+ 6  60-67  fg=LightGreen
+ 6  70-77  fg=LightBlue
+ 6  80-87  fg=DarkGray
+ 6  90-97  fg=DarkGray
+ 7   2-4   fg=DarkGray
+ 7   5-8   fg=LightBlue
+ 7  60-67  fg=Cyan
+ 7  70-77  fg=Gray
+ 7  80-87  fg=DarkGray
+ 7  90-97  fg=DarkGray
+ 8   2-13  fg=Yellow BOLD
+ 9   2-4   fg=DarkGray
+ 9   5-14  fg=Yellow BOLD
+10   2-7   fg=DarkGray
+10   8-50  fg=Yellow BOLD
+11   2-10  fg=DarkGray
+11  11-35  fg=Yellow BOLD
+12   2-13  fg=DarkGray
+12  14-41  fg=Yellow BOLD
+13   2-97  fg=Black bg=Cyan BOLD
+14   2-7   fg=DarkGray
+14   8-11  fg=LightBlue
+14  60-67  fg=LightGreen
+14  70-77  fg=LightGreen
+14  80-87  fg=Cyan
+14  90-97  fg=LightBlue
+15   2-7   fg=DarkGray
+15   8-11  fg=LightBlue
+15  60-67  fg=LightGreen
+15  70-77  fg=LightGreen
+15  80-87  fg=LightBlue
+15  90-97  fg=DarkGray
+16   2-5   fg=LightBlue
+16  60-67  fg=LightGreen
+16  70-77  fg=LightGreen
+16  80-87  fg=LightGreen
+16  90-97  fg=Yellow

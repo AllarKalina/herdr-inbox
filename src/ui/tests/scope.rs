@@ -35,8 +35,8 @@ impl Fixture {
             record.title = title.into();
             record.spec_path = directory.join(format!("{}.md", record.id));
             // Cached source metadata must never authorize a file outside the selected root.
-            record.source_id = Some(settings.sources[0].id.clone());
-            record.source_relative_path = Some(PathBuf::from("domain/selected.md"));
+            record.source_id = settings.sources[0].id.clone();
+            record.source_relative_path = PathBuf::from("domain/selected.md");
             fs::write(&record.spec_path, format!("# {title}\nOutside content.\n"))?;
             fs::write(
                 store
@@ -56,8 +56,7 @@ impl Fixture {
     }
 
     fn focus_spec(&mut self) {
-        self.app.tree.focus_record(0);
-        self.app.sync_tree_selection();
+        self.app.list.tree.focus_record(0);
     }
 }
 
@@ -74,7 +73,7 @@ fn press(app: &mut App, code: KeyCode) -> Result<()> {
 
 fn render(app: &mut App) -> Result<String> {
     let mut terminal = Terminal::new(TestBackend::new(100, 28))?;
-    terminal.draw(|frame| draw::draw(frame, app))?;
+    terminal.draw(|frame| draw(frame, app))?;
     Ok(terminal
         .backend()
         .buffer()
@@ -98,6 +97,7 @@ fn selected_folder_is_the_only_authority_for_list_open_and_archive() -> Result<(
     assert_eq!(
         fixture
             .app
+            .list
             .tree
             .rows
             .iter()
@@ -152,9 +152,9 @@ fn removing_sources_closes_stale_detail_and_requires_folder_selection() -> Resul
     fixture.app.store.save_settings(&settings)?;
     fixture.app.refresh()?;
     assert!(fixture.app.records.is_empty());
-    assert!(fixture.app.tree.rows.is_empty());
+    assert!(fixture.app.list.tree.rows.is_empty());
     assert!(fixture.app.current().is_none());
-    assert!(fixture.app.prompt.is_none());
+    assert!(fixture.app.modal.prompt.is_none());
     assert_eq!(fixture.app.screen, Screen::Settings);
     let restarted = App::new(Store::new(fixture.app.store.path().to_path_buf()))?;
     assert!(restarted.records.is_empty());
@@ -200,7 +200,7 @@ fn a_deleted_spec_is_not_retained_as_a_visible_metadata_row() -> Result<()> {
     fs::remove_file(&record.spec_path)?;
     fixture.app.refresh()?;
     assert!(fixture.app.records.is_empty());
-    assert!(fixture.app.tree.rows.is_empty());
+    assert!(fixture.app.list.tree.rows.is_empty());
     assert!(fixture.app.current().is_none());
     assert_ne!(fixture.app.screen, Screen::Detail);
     assert!(fixture.app.store.get(&record.id).is_ok());

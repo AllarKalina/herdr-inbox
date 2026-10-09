@@ -4,14 +4,14 @@
   SPEC                                                        PROGRESS
   # Settings navigation                                            ⢠⠖⠒⠲⡄
                                                               SPEC ⢾ ◉ ⡷ active
-  ## Goal                                                          ⠘⠦⠤⠴⠃
+                                                                   ⠘⠦⠤⠴⠃
                                                                      │   ✦ Seal the spec
-  Describe Settings navigation well enough to build it.              │     Read the scroll
+                                                                     │     Read the scroll
                                                                      │     Refine the spec
-  ## Requirements                                                    │
+                                                                     │
                                                               DEV    ○   locked
-  - First requirement                                                │   After spec
-  - Second requirement                                               │
+                                                                     │   After spec
+                                                                     │
                                                                      │
                                                                      │
                                                                      │

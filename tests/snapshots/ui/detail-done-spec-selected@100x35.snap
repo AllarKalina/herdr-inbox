@@ -1,0 +1,72 @@
+
+  Inbox / Quarterly plan
+
+  SPEC                                                        PROGRESS
+  # Quarterly plan                                                 ⢠⠖⠒⠲⡄
+                                                              SPEC ⢾ ● ⡷ done
+  ## Goal                                                          ⠘⠦⠤⠴⠃
+                                                                     │   ✦ Read the scroll
+  Describe Quarterly plan well enough to build it.                   │     Refine the spec
+                                                                     │
+  ## Requirements                                                    │
+                                                              JIRA   ●   done
+  - First requirement                                                │   PAY-123
+  - Second requirement                                               │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                              DEV    ●   done
+                                                                     │   feature/settlement
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                              PR     ◐   draft
+                                                                         #42 ↗
+
+
+
+
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-23  fg=LightCyan BOLD
+ 3  62-97  fg=Gray
+ 4  67-71  fg=Cyan
+ 5  62-65  fg=LightGreen
+ 5  67-67  fg=Cyan
+ 5  69-70  fg=LightGreen
+ 5  71-71  fg=Cyan
+ 5  72-76  fg=LightGreen
+ 6  67-71  fg=Cyan
+ 6  73-97  fg=Gray
+ 7  69-69  fg=DarkGray
+ 7  73-89  fg=Cyan BOLD | UNDERLINED
+ 8  69-69  fg=DarkGray
+ 8  73-89  fg=LightBlue
+ 9  69-69  fg=DarkGray
+10  69-69  fg=DarkGray
+11  62-65  fg=LightGreen
+11  69-76  fg=LightGreen
+12  69-69  fg=DarkGray
+12  73-97  fg=Gray
+13  69-69  fg=DarkGray
+14  69-69  fg=DarkGray
+15  69-69  fg=DarkGray
+16  69-69  fg=DarkGray
+17  62-65  fg=LightGreen
+17  69-76  fg=LightGreen
+18  69-69  fg=DarkGray
+18  73-97  fg=Gray
+19  69-69  fg=DarkGray
+20  69-69  fg=DarkGray
+21  69-69  fg=DarkGray
+22  69-69  fg=DarkGray
+23  62-65  fg=Yellow
+23  69-77  fg=Yellow
+24  73-97  fg=Gray

@@ -53,7 +53,7 @@ fn imports_nested_done_and_preserves_enrichment_on_repeat() -> Result<()> {
     assert_eq!(record.pr_stage(true), "locked");
     assert_eq!(
         record.source_relative_path,
-        Some(PathBuf::from("nested/anything.markdown"))
+        PathBuf::from("nested/anything.markdown")
     );
     store.update(
         &record.id,
@@ -104,34 +104,6 @@ fn overlaps_aliases_and_cycles_are_deduplicated() -> Result<()> {
 }
 
 #[test]
-fn deleted_specs_are_dropped_and_unreadable_ones_keep_metadata_with_errors() -> Result<()> {
-    let (root, store, source) = fixture()?;
-    fs::write(source.join("one.md"), "# One")?;
-    fs::write(source.join("two.md"), "# Two")?;
-    store.scan()?;
-    let records = store.list()?;
-    let deleted = records.iter().find(|r| r.title == "One").unwrap();
-    let record = records.iter().find(|r| r.title == "Two").unwrap().clone();
-    fs::remove_file(source.join("one.md"))?;
-    fs::write(source.join("invalid.md"), [0xff, 0xfe])?;
-    let report = store.scan()?;
-    assert!(report.issues.iter().any(|s| s.contains("Cannot read spec")));
-    assert_eq!(report.dropped, 1);
-    assert!(store.get(&deleted.id).is_err());
-    fs::rename(&source, root.join("gone"))?;
-    assert!(
-        store
-            .scan()?
-            .issues
-            .iter()
-            .any(|s| s.contains("Source unavailable"))
-    );
-    assert_eq!(store.get(&record.id)?.id, record.id);
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
 fn deletion_suppresses_reimport_and_restore_keeps_identity() -> Result<()> {
     let (root, store, source) = fixture()?;
     fs::write(source.join("spec.md"), "# Spec")?;
@@ -146,7 +118,7 @@ fn deletion_suppresses_reimport_and_restore_keeps_identity() -> Result<()> {
     )?;
     store.archive(&record.id)?;
     assert!(record.spec_path.is_file());
-    assert_eq!(store.scan()?.suppressed, 1);
+    assert_eq!(store.scan()?.archived, 1);
     assert!(store.list()?.is_empty());
     assert_eq!(
         serde_json::to_value(store.restore(&record.id)?)?,
@@ -267,18 +239,14 @@ fn active_session_requires_settle_before_relink_and_relocation() -> Result<()> {
 #[test]
 fn creation_uses_selected_folder_and_rejects_existing_agent_target() -> Result<()> {
     let (root, store, source) = fixture()?;
-    let new = store.start_untitled(None)?;
+    let new = store.start_untitled(None, None)?;
     assert_eq!(
         new.spec_path.parent(),
         Some(fs::canonicalize(&source)?.as_path())
     );
     let existing = source.join("existing.md");
     fs::write(&existing, "# Keep")?;
-    assert!(
-        store
-            .start_untitled_with_spec(None, Some(existing.clone()))
-            .is_err()
-    );
+    assert!(store.start_untitled(None, Some(existing.clone())).is_err());
     assert_eq!(fs::read_to_string(existing)?, "# Keep");
     assert!(store.settings_path().is_file());
     let mut settings = store.settings()?;
@@ -299,7 +267,7 @@ fn creation_requires_sources_and_rejects_outside_destinations() -> Result<()> {
             .to_string()
             .contains("settings")
     );
-    assert!(empty.start_untitled(None).is_err());
+    assert!(empty.start_untitled(None, None).is_err());
     assert!(!empty.path().join("specs").exists());
     let source = root.join("selected");
     fs::create_dir_all(&source)?;
@@ -327,8 +295,7 @@ fn creation_requires_sources_and_rejects_outside_destinations() -> Result<()> {
             .start("Wrong", None, Some(source.join("wrong.txt")))
             .is_err()
     );
-    let current = empty.start("Current", None, None)?;
-    assert!(current.source_id.is_some());
+    empty.start("Current", None, None)?;
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -368,8 +335,8 @@ fn creation_and_discovery_share_canonical_scope_and_ancestor_exclusions() -> Res
     settings.sources[0].exclude = vec!["nested/ignored".into()];
     store.save_settings(&settings)?;
     let created = store.start("Created", None, Some(nested.join("new.md")))?;
-    assert_eq!(created.source_id.as_deref(), Some(child_id.as_str()));
-    assert_eq!(created.source_relative_path, Some(PathBuf::from("new.md")));
+    assert_eq!(created.source_id, child_id);
+    assert_eq!(created.source_relative_path, PathBuf::from("new.md"));
     assert!(
         store
             .start("Excluded", None, Some(nested.join("ignored/new.md")))
@@ -384,8 +351,8 @@ fn creation_and_discovery_share_canonical_scope_and_ancestor_exclusions() -> Res
         .into_iter()
         .find(|record| record.title == "Scanned")
         .unwrap();
-    assert_eq!(scanned.source_id.as_deref(), Some(child_id.as_str()));
-    assert_eq!(scanned.source_relative_path, Some(PathBuf::from("scan.md")));
+    assert_eq!(scanned.source_id, child_id);
+    assert_eq!(scanned.source_relative_path, PathBuf::from("scan.md"));
     assert_eq!(store.list()?.len(), 2);
     fs::remove_dir_all(root)?;
     Ok(())

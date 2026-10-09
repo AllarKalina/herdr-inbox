@@ -5,9 +5,9 @@
   ▸  designs
   ▾  missions
   └─ ▾  zeller
-     ├─    Settlement reconc… ✓ ✓ ● →
      └─    Transaction search ✓ ✓ → ○
      Quarterly plan           ✓ ✓ ✓ ◐
+
 
 
 
@@ -27,16 +27,10 @@
  7   8-11  fg=LightBlue
  7  31-31  fg=LightGreen
  7  33-33  fg=LightGreen
- 7  35-35  fg=Cyan
- 7  37-37  fg=LightBlue
- 8   2-7   fg=DarkGray
- 8   8-11  fg=LightBlue
+ 7  35-35  fg=LightBlue
+ 7  37-37  fg=DarkGray
+ 8   2-5   fg=LightBlue
  8  31-31  fg=LightGreen
  8  33-33  fg=LightGreen
- 8  35-35  fg=LightBlue
- 8  37-37  fg=DarkGray
- 9   2-5   fg=LightBlue
- 9  31-31  fg=LightGreen
- 9  33-33  fg=LightGreen
- 9  35-35  fg=LightGreen
- 9  37-37  fg=Yellow
+ 8  35-35  fg=LightGreen
+ 8  37-37  fg=Yellow

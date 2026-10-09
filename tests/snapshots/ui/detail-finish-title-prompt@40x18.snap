@@ -1,0 +1,43 @@
+
+  Inbox / Untitled spec
+
+  PROGRESS
+       ⢠⠖⠒⠲⡄          SPEC ACTIONS
+  SPEC ⢾ ◉ ⡷ active
+       ⠘⠦⠤⠴⠃
+         │
+  JIRA   ○   wait
+         │
+         │            Finished spec t…
+  DEV    ○   locked   Draft█
+         │            Enter save · Esc
+         │            cancel
+  PR     ○   locked
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-22  fg=LightCyan BOLD
+ 3   2-37  fg=Gray
+ 4   7-11  fg=Cyan
+ 4  22-37  fg=Gray
+ 5   2-5   fg=Cyan
+ 5   7-7   fg=Cyan
+ 5   9-18  fg=Cyan
+ 6   7-11  fg=Cyan
+ 6  22-37  fg=Gray
+ 7   9-9   fg=DarkGray
+ 7  22-37  fg=Gray
+ 8   2-5   fg=Gray
+ 8   9-16  fg=Gray
+ 8  22-37  fg=Gray
+ 9   9-9   fg=DarkGray
+ 9  22-37  fg=Gray
+10   9-9   fg=DarkGray
+11   2-5   fg=DarkGray
+11   9-18  fg=DarkGray
+12   9-9   fg=DarkGray
+13   9-9   fg=DarkGray
+14   2-5   fg=DarkGray
+14   9-18  fg=DarkGray

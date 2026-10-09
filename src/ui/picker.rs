@@ -143,17 +143,8 @@ mod tests {
         assert!(SCRIPT.contains("panel.canChooseDirectories = true"));
         assert!(SCRIPT.contains("panel.allowsMultipleSelection = false"));
         assert!(SCRIPT.contains("JSON.stringify(ObjC.unwrap(panel.URL.path))"));
-    }
-
-    #[test]
-    fn folder_command_and_mock_results_do_not_open_a_native_panel() {
-        let command = command(None).unwrap();
-        let args: Vec<_> = command.get_args().collect();
-        assert_eq!(args[4], "");
-        set_test_result(Ok(Some("/tmp/specs".into())));
-        assert_eq!(choose(None).unwrap(), Some("/tmp/specs".into()));
-        assert_eq!(choose(None).unwrap(), None);
-        set_test_result(Err("picker failed".into()));
-        assert!(choose(None).is_err());
+        // Without a current folder the selector opens wherever macOS last left it.
+        let unset = super::command(None).unwrap();
+        assert_eq!(unset.get_args().nth(4).unwrap(), "");
     }
 }

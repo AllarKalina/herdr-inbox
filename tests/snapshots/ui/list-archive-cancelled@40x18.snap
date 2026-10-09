@@ -2,7 +2,7 @@
   Inbox
 
                                S J D P
-  └─    Settings navigation   ● → ○ ○
+  └─    Settings navigation   ● ○ ○ ○
   ▾  missions
   └─ ▾  zeller
      ├─    Settlement reconc… ✓ ✓ ● →
@@ -22,7 +22,7 @@
  4   2-4   fg=DarkGray
  4   5-8   fg=LightBlue
  4  31-31  fg=Cyan
- 4  33-33  fg=LightBlue
+ 4  33-33  fg=Gray
  4  35-35  fg=DarkGray
  4  37-37  fg=DarkGray
  5   2-13  fg=Yellow BOLD

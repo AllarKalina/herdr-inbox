@@ -1,0 +1,53 @@
+
+  Inbox / Quarterly plan
+
+  SPEC
+
+  PROGRESS
+                      JIRA ACTIONS
+  SPEC   ●   done
+         │            PAY-123
+       ⢠⠖⠒⠲⡄
+  JIRA ⢾ ● ⡷ done
+       ⠘⠦⠤⠴⠃ Bound
+         │              Visit Jira ticket
+  DEV    ●   done
+         │            ✦ Update Jira link
+         │
+  PR     ◐   draft
+
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-23  fg=LightCyan BOLD
+ 5   2-57  fg=Gray
+ 6  22-57  fg=Gray
+ 7   2-5   fg=LightGreen
+ 7   9-16  fg=LightGreen
+ 8   9-9   fg=DarkGray
+ 8  22-57  fg=Gray
+ 9   7-11  fg=Cyan
+ 9  22-57  fg=Gray
+10   2-5   fg=LightGreen
+10   7-7   fg=Cyan
+10   9-10  fg=LightGreen
+10  11-11  fg=Cyan
+10  12-16  fg=LightGreen
+10  22-57  fg=Gray
+11   7-11  fg=Cyan
+11  13-19  fg=LightGreen
+11  22-57  fg=Gray
+12   9-9   fg=DarkGray
+12  22-40  fg=LightBlue
+13   2-5   fg=LightGreen
+13   9-16  fg=LightGreen
+14   9-9   fg=DarkGray
+14  22-39  fg=Cyan BOLD | UNDERLINED
+15   9-9   fg=DarkGray
+16   2-5   fg=Yellow
+16   9-17  fg=Yellow

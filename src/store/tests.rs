@@ -11,115 +11,6 @@ fn configured_store(root: &Path) -> Result<Store> {
 }
 
 #[test]
-fn spec_to_pr_flow_requires_jira_before_implementation() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
-    let store = configured_store(&root)?;
-    let started = store.start("Payment retries", None, None)?;
-    assert!(started.spec_path.is_file());
-    assert_eq!(started.next_actions(true), vec!["Finish spec"]);
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Implement {
-                    agent: None,
-                    branch: None
-                }
-            )
-            .is_err()
-    );
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Jira {
-                    key: "ABC-123".into(),
-                    url: None,
-                }
-            )
-            .is_err()
-    );
-
-    let finished = store.update(&started.id, Change::Finish { title: None })?;
-    assert_eq!(finished.next_actions(true), vec!["Create Jira ticket"]);
-    assert_eq!(finished.implementation_stage(true), "locked");
-    assert_eq!(finished.pr_stage(true), "locked");
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Jira {
-                    key: "  ".into(),
-                    url: None,
-                },
-            )
-            .is_err()
-    );
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Implement {
-                    agent: Some("codex".into()),
-                    branch: Some("feature/payment-retries".into()),
-                },
-            )
-            .is_err()
-    );
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Pr {
-                    url: "https://example.test/pr/1".into(),
-                },
-            )
-            .is_err()
-    );
-    let linked = store.update(
-        &started.id,
-        Change::Jira {
-            key: "ABC-123".into(),
-            url: None,
-        },
-    )?;
-    assert_eq!(linked.next_actions(true), vec!["Hand spec to implementor"]);
-    assert_eq!(linked.implementation_stage(true), "ready");
-    assert_eq!(linked.pr_stage(true), "locked");
-    assert!(
-        store
-            .update(
-                &started.id,
-                Change::Pr {
-                    url: "https://example.test/pr/1".into(),
-                },
-            )
-            .is_err()
-    );
-    let implementing = store.update(
-        &started.id,
-        Change::Implement {
-            agent: Some("codex".into()),
-            branch: Some("feature/payment-retries".into()),
-        },
-    )?;
-    assert_eq!(implementing.implementation.status, "in_progress");
-    assert_eq!(implementing.pr_stage(true), "ready");
-    assert_eq!(implementing.next_actions(true), vec!["Await draft PR"]);
-    let pr = store.update(
-        &started.id,
-        Change::Pr {
-            url: "https://example.test/pr/1".into(),
-        },
-    )?;
-    assert_eq!(pr.next_actions(true), vec!["Review draft PR"]);
-    assert_eq!(store.list()?.len(), 1);
-    assert_eq!(fs::read_dir(root.join("items"))?.count(), 1);
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
 fn existing_spec_is_preserved() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
     fs::create_dir_all(root.join("selected"))?;
@@ -137,7 +28,7 @@ fn existing_spec_is_preserved() -> Result<()> {
 fn untitled_session_waits_for_written_spec_and_final_title() -> Result<()> {
     let root = std::env::temp_dir().join(format!("herdr-inbox-test-{}", Uuid::new_v4()));
     let store = configured_store(&root)?;
-    let record = store.start_untitled(None)?;
+    let record = store.start_untitled(None, None)?;
     assert_eq!(record.display_title(), "Untitled spec");
     assert!(!record.spec_path.exists());
     assert!(
@@ -178,12 +69,12 @@ fn archiving_only_moves_metadata_and_keeps_all_source_files() -> Result<()> {
     assert!(owned.spec_path.exists());
     assert!(!root.join("trash/specs").exists());
     assert!(
-        root.join("trash/items")
+        root.join("archive")
             .join(format!("{}.json", owned.id))
             .is_file()
     );
     assert!(
-        root.join("trash/items")
+        root.join("archive")
             .join(format!("{}.json", external.id))
             .is_file()
     );
@@ -277,19 +168,6 @@ fn refining_and_finishing_preserves_links_and_launch_history() -> Result<()> {
     assert_eq!(finished.pr.url.as_deref(), Some("https://git.test/pr/1"));
     assert_eq!(finished.previous_launches.len(), 1);
     assert_eq!(store.list()?.len(), 1);
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
-fn records_without_required_launch_history_are_rejected() -> Result<()> {
-    let root = std::env::temp_dir().join(format!("herdr-inbox-history-{}", Uuid::new_v4()));
-    let store = configured_store(&root)?;
-    let record = store.start("Current", None, None)?;
-    let mut json = serde_json::to_value(&record)?;
-    json.as_object_mut().unwrap().remove("previous_launches");
-    fs::write(store.path_for(&record.id)?, serde_json::to_vec(&json)?)?;
-    assert!(store.get(&record.id).is_err());
     fs::remove_dir_all(root)?;
     Ok(())
 }

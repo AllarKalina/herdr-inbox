@@ -1,5 +1,5 @@
-//! What the user is in the middle of: an open prompt, a client choice, the action
-//! Enter would run, and the acknowledgement shown after a step completes.
+//! What the user is in the middle of: an open prompt, the action Enter would run, the
+//! acknowledgement shown after a step completes, and the one-line notice above the shortcuts.
 
 use super::Milestone;
 use crate::launch::Profile;
@@ -70,6 +70,11 @@ impl Prompt {
             | Self::LaunchSpec { .. }
             | Self::LaunchTopic { .. } => None,
         }
+    }
+
+    /// A yes-or-no question: Enter confirms and typing does nothing.
+    pub(super) fn is_confirmation(&self) -> bool {
+        matches!(self, Self::Archive { .. } | Self::Settle { .. })
     }
 
     pub(super) fn label(&self) -> &'static str {
@@ -144,5 +149,126 @@ impl DetailAction {
             Self::UpdateImplementation => "Update dev quest",
             Self::UpdatePr => "Update PR link",
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Tone {
+    Info,
+    Success,
+    Error,
+}
+
+/// The one-line message shown above the shortcut line until the next action replaces it.
+pub(super) struct Notice {
+    text: String,
+    tone: Tone,
+}
+
+impl Default for Notice {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            tone: Tone::Info,
+        }
+    }
+}
+
+impl Notice {
+    fn set(&mut self, text: impl Into<String>, tone: Tone) {
+        self.text = text.into();
+        self.tone = tone;
+    }
+
+    pub(super) fn info(&mut self, text: impl Into<String>) {
+        self.set(text, Tone::Info);
+    }
+
+    pub(super) fn success(&mut self, text: impl Into<String>) {
+        self.set(text, Tone::Success);
+    }
+
+    pub(super) fn error(&mut self, text: impl Into<String>) {
+        self.set(text, Tone::Error);
+    }
+
+    pub(super) fn clear(&mut self) {
+        self.text.clear();
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
+    pub(super) fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub(super) fn tone(&self) -> Tone {
+        self.tone
+    }
+}
+
+/// A vertical scroll position that never passes the end of its content.
+#[derive(Default)]
+pub(super) struct Scroll {
+    offset: u16,
+    max: u16,
+}
+
+impl Scroll {
+    pub(super) fn offset(&self) -> u16 {
+        self.offset
+    }
+
+    pub(super) fn down(&mut self, lines: u16) {
+        self.offset = self.offset.saturating_add(lines).min(self.max);
+    }
+
+    pub(super) fn up(&mut self, lines: u16) {
+        self.offset = self.offset.saturating_sub(lines);
+    }
+
+    pub(super) fn top(&mut self) {
+        self.offset = 0;
+    }
+
+    /// Called while drawing, once the content's height in the current layout is known.
+    pub(super) fn limit(&mut self, max: usize) {
+        self.max = max.min(usize::from(u16::MAX)) as u16;
+        self.offset = self.offset.min(self.max);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Scroll;
+
+    #[test]
+    fn scroll_stays_between_the_top_and_the_end_of_its_content() {
+        let mut scroll = Scroll::default();
+        scroll.down(5);
+        assert_eq!(
+            scroll.offset(),
+            0,
+            "nothing to scroll before content is measured"
+        );
+        scroll.limit(12);
+        scroll.down(10);
+        scroll.down(10);
+        assert_eq!(scroll.offset(), 12);
+        scroll.up(3);
+        assert_eq!(scroll.offset(), 9);
+        // Content that shrinks, or a taller viewport, pulls the position back in range.
+        scroll.limit(4);
+        assert_eq!(scroll.offset(), 4);
+        scroll.up(10);
+        assert_eq!(scroll.offset(), 0);
+        scroll.down(2);
+        scroll.top();
+        assert_eq!(scroll.offset(), 0);
+        scroll.limit(usize::MAX);
+        scroll.down(u16::MAX);
+        assert_eq!(scroll.offset(), u16::MAX);
     }
 }

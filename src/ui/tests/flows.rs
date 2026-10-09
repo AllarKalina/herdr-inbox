@@ -1,0 +1,167 @@
+use super::support::*;
+use super::*;
+
+#[test]
+fn archiving_from_the_list_needs_a_confirming_enter() -> Result<()> {
+    let mut fixture = Fixture::new(0)?;
+    let app = &mut fixture.app;
+    press(app, KeyCode::Esc)?;
+    press(app, KeyCode::Char('a'))?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::Archive { .. })));
+    press(app, KeyCode::Esc)?;
+    assert!(!app.modal.is_open());
+    assert_eq!(app.notice.text(), "Cancelled");
+    assert!(app.store.get(&fixture.id).is_ok());
+
+    press(app, KeyCode::Char('a'))?;
+    // A confirmation is not a text field: stray keys neither type nor confirm.
+    press(app, KeyCode::Char('x'))?;
+    assert!(app.modal.input.is_empty());
+    assert!(app.store.get(&fixture.id).is_ok());
+    press(app, KeyCode::Enter)?;
+    assert!(app.records.is_empty());
+    assert_eq!(app.notice.text(), "Item archived");
+    assert_eq!(app.store.archived()?[0].id, fixture.id);
+    Ok(())
+}
+
+#[test]
+fn enter_opens_the_spec_and_r_toggles_the_full_reader() -> Result<()> {
+    let mut fixture = Fixture::new(0)?;
+    let app = &mut fixture.app;
+    assert_eq!(app.screen, Screen::Detail);
+    press(app, KeyCode::Char('r'))?;
+    assert_eq!(app.screen, Screen::Reader);
+    press(app, KeyCode::Char('r'))?;
+    assert_eq!(app.screen, Screen::Detail);
+    press(app, KeyCode::Char('r'))?;
+    press(app, KeyCode::Esc)?;
+    assert_eq!(
+        app.screen,
+        Screen::Detail,
+        "Esc leaves the reader, not the item"
+    );
+    press(app, KeyCode::Esc)?;
+    assert_eq!(app.screen, Screen::List);
+    assert_eq!(
+        app.current().unwrap().id,
+        fixture.id,
+        "the list returns to the same item"
+    );
+    Ok(())
+}
+
+#[test]
+fn typing_through_the_prompts_advances_the_workflow_stage_by_stage() -> Result<()> {
+    let mut fixture = Fixture::new(0)?;
+    let app = &mut fixture.app;
+    assert_eq!(
+        app.actions(),
+        [
+            DetailAction::Finish,
+            DetailAction::ReadSpec,
+            DetailAction::RefineSpec
+        ]
+    );
+    press(app, KeyCode::Enter)?;
+    assert_eq!(app.current().unwrap().spec, "done");
+    assert_eq!(app.actions(), [DetailAction::Jira]);
+
+    press(app, KeyCode::Enter)?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::Jira { .. })));
+    // An empty required answer cancels instead of saving nothing.
+    press(app, KeyCode::Enter)?;
+    assert_eq!(app.notice.text(), "Cancelled");
+    assert_eq!(app.actions(), [DetailAction::Jira]);
+    press(app, KeyCode::Enter)?;
+    type_text(app, "ABC-1234")?;
+    press(app, KeyCode::Backspace)?;
+    press(app, KeyCode::Enter)?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::JiraUrl { .. })));
+    type_text(app, "https://jira.example/ABC-123")?;
+    press(app, KeyCode::Enter)?;
+    let jira = &app.current().unwrap().jira;
+    assert_eq!(jira.key.as_deref(), Some("ABC-123"));
+    assert_eq!(jira.url.as_deref(), Some("https://jira.example/ABC-123"));
+    assert_eq!(app.actions(), [DetailAction::Implement]);
+
+    // Agent and branch are optional: two Enters record that work has started.
+    press(app, KeyCode::Enter)?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::Agent { .. })));
+    press(app, KeyCode::Enter)?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::Branch { .. })));
+    press(app, KeyCode::Enter)?;
+    assert_eq!(app.current().unwrap().implementation.status, "in_progress");
+    assert_eq!(app.actions(), [DetailAction::Pr]);
+
+    press(app, KeyCode::Enter)?;
+    type_text(app, "https://github.example/pr/1")?;
+    press(app, KeyCode::Enter)?;
+    assert_eq!(
+        app.actions(),
+        [DetailAction::ReviewPr, DetailAction::UpdatePr]
+    );
+    Ok(())
+}
+
+#[test]
+fn settling_an_abandoned_session_needs_confirmation_and_keeps_the_spec_open() -> Result<()> {
+    let mut fixture = Fixture::new(0)?;
+    let app = &mut fixture.app;
+    press(app, KeyCode::Char('x'))?;
+    assert!(!app.modal.is_open(), "nothing to settle without a session");
+    let launch = crate::store::Launch {
+        status: crate::store::LaunchStatus::PromptSent,
+        harness: "codex".into(),
+        workspace: "ai-boiler-room".into(),
+        workspace_id: None,
+        tab_id: Some("w1:t1".into()),
+        pane_id: None,
+        agent: None,
+        model: "gpt-6.1-sol".into(),
+        effort: "high".into(),
+        prompt: String::new(),
+        error: None,
+    };
+    let spec_path = app.current().unwrap().spec_path.clone();
+    app.store
+        .update(&fixture.id, Change::Launch(Box::new(launch), spec_path))?;
+    app.refresh()?;
+    press(app, KeyCode::Char('x'))?;
+    assert!(matches!(app.modal.prompt, Some(Prompt::Settle { .. })));
+    press(app, KeyCode::Esc)?;
+    assert!(app.current().unwrap().active_spec_session());
+    press(app, KeyCode::Char('x'))?;
+    press(app, KeyCode::Enter)?;
+    let record = app.current().unwrap();
+    assert!(!record.active_spec_session());
+    assert_eq!(
+        record.spec, "in_progress",
+        "settling does not finish the spec"
+    );
+    Ok(())
+}
+
+#[test]
+fn scan_results_scroll_and_lead_back_to_the_inbox_or_settings() -> Result<()> {
+    let mut fixture = Fixture::new(1)?;
+    let app = &mut fixture.app;
+    let report = crate::store::ScanReport {
+        issues: vec!["Cannot read spec".into(); 40],
+        ..Default::default()
+    };
+    scan::show(app, report);
+    assert_eq!(app.screen, Screen::Scan);
+    press(app, KeyCode::Char('s'))?;
+    assert_eq!(app.screen, Screen::Settings);
+    scan::show(app, crate::store::ScanReport::default());
+    assert_eq!(
+        app.screen,
+        Screen::Settings,
+        "a clean scan stays where it was"
+    );
+    app.screen = Screen::Scan;
+    press(app, KeyCode::Enter)?;
+    assert_eq!(app.screen, Screen::List);
+    Ok(())
+}

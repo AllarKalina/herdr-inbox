@@ -4,10 +4,10 @@
                                                                       Spec      Dev       PR
   ▾  designs
   ├─    Inbox layout                                                 ✓ done    → ready   ○ locked
+  ├─    preview                                                      ✓ done    → ready   ○ locked
   └─    Settings navigation                                          ● active  ○ locked  ○ locked
   ▾  missions
   └─ ▾  zeller
-     ├─    Settlement reconciliation across acquirers and ledgers    ✓ done    ● active  → ready
      └─    Transaction search                                        ✓ done    → ready   ○ locked
      Quarterly plan                                                  ✓ done    ✓ done    ◐ draft
 
@@ -43,18 +43,18 @@
  5  80-87  fg=LightBlue
  5  90-97  fg=DarkGray
  6   2-4   fg=DarkGray
- 6   5-8   fg=LightBlue
- 6  70-77  fg=Cyan
- 6  80-87  fg=DarkGray
+ 6   5-8   fg=LightRed
+ 6  70-77  fg=LightGreen
+ 6  80-87  fg=LightBlue
  6  90-97  fg=DarkGray
- 7   2-13  fg=Yellow BOLD
- 8   2-4   fg=DarkGray
- 8   5-14  fg=Yellow BOLD
- 9   2-7   fg=DarkGray
- 9   8-11  fg=LightBlue
- 9  70-77  fg=LightGreen
- 9  80-87  fg=Cyan
- 9  90-97  fg=LightBlue
+ 7   2-4   fg=DarkGray
+ 7   5-8   fg=LightBlue
+ 7  70-77  fg=Cyan
+ 7  80-87  fg=DarkGray
+ 7  90-97  fg=DarkGray
+ 8   2-13  fg=Yellow BOLD
+ 9   2-4   fg=DarkGray
+ 9   5-14  fg=Yellow BOLD
 10   2-7   fg=DarkGray
 10   8-11  fg=LightBlue
 10  70-77  fg=LightGreen

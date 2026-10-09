@@ -395,29 +395,6 @@ fn focus_failure_after_prompt_delivery_keeps_the_live_session_and_returns_succes
 }
 
 #[test]
-fn unfinished_refinement_locks_pending_implementation_and_pr_until_finish() {
-    let fixture = Fixture::new();
-    fixture.success(&[
-        "start",
-        "Payment retries",
-        "--repo",
-        fixture.repo.to_str().unwrap(),
-    ]);
-    let listed: Value = serde_json::from_slice(&fixture.run(&["list", "--json"]).stdout).unwrap();
-    let id = listed[0]["id"].as_str().unwrap();
-    fixture.success(&["finish", id]);
-    fixture.success(&["jira", id, "PAY-123"]);
-    fixture.success(&["refine", id, "--profile", "codex"]);
-    let show = String::from_utf8(fixture.run(&["show", id]).stdout).unwrap();
-    assert!(show.contains("Implementation: locked"));
-    assert!(show.contains("PR: locked"));
-    assert!(!fixture.run(&["implement", id]).status.success());
-    fixture.success(&["finish", id]);
-    fixture.success(&["implement", id]);
-    fixture.success(&["pr", id, "https://github.example/org/repo/pull/43"]);
-}
-
-#[test]
 fn refinement_accepts_launch_overrides_without_changing_item_identity() {
     let fixture = Fixture::new();
     let before = fixture.completed();

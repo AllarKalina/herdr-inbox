@@ -1,8 +1,14 @@
-use super::{App, ChoicePurpose, Prompt, Screen, text, theme};
+//! What every screen shares: the anchored breadcrumb header, the content area, the notice
+//! row and the shortcut line.
+
+use super::state::{Notice, Tone};
+use super::{text, theme};
 use ratatui::layout::Rect;
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
+/// The area below the header, inset two columns on each side and one row at the bottom.
 pub(super) fn content(area: Rect) -> Rect {
     Rect::new(
         area.x.saturating_add(2),
@@ -23,12 +29,24 @@ pub(super) fn footer_area(area: Rect) -> Rect {
     )
 }
 
-/// Draws shortcut hints with the main list's placement and unstyled terminal foreground.
+/// Draws shortcut hints in the unstyled terminal foreground.
 pub(super) fn draw_footer(frame: &mut ratatui::Frame, hints: &str) {
     frame.render_widget(Paragraph::new(hints), footer_area(frame.area()));
 }
 
-pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
+/// Draws the notice on one row, coloured by its tone.
+pub(super) fn draw_notice(frame: &mut ratatui::Frame, notice: &Notice, row: Rect) {
+    let style = match notice.tone() {
+        Tone::Info => Style::default(),
+        Tone::Success => theme::success(),
+        Tone::Error => theme::error(),
+    };
+    let fitted = text::fit_label(notice.text(), usize::from(row.width));
+    frame.render_widget(Paragraph::new(fitted).style(style), row);
+}
+
+/// Draws `Inbox / … / current`: the anchor stays put, and only the last segment is accented.
+pub(super) fn draw_header(frame: &mut ratatui::Frame, crumbs: &[String]) {
     let area = frame.area();
     let header = Rect::new(
         area.x.saturating_add(2),
@@ -36,10 +54,8 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
         area.width.saturating_sub(4),
         1.min(area.height.saturating_sub(1)),
     );
-    let labels = crumbs(app);
-    let labels = fit_crumbs(&labels, header.width.saturating_sub(8) as usize);
-    let accent = theme::accent();
-    let muted = theme::muted();
+    let labels = fit_crumbs(crumbs, header.width.saturating_sub(8) as usize);
+    let (accent, muted) = (theme::accent(), theme::muted());
     let mut spans = vec![Span::styled(
         "Inbox",
         if labels.is_empty() { accent } else { muted },
@@ -55,67 +71,7 @@ pub(super) fn draw(frame: &mut ratatui::Frame, app: &App) {
     frame.render_widget(Paragraph::new(Line::from(spans)), header);
 }
 
-fn crumbs(app: &App) -> Vec<String> {
-    match app.screen {
-        Screen::Settings => return vec!["Settings".into()],
-        Screen::Archive => return vec!["Settings".into(), "Archive".into()],
-        Screen::ScanResult => return vec!["Settings".into(), "Scan results".into()],
-        _ => {}
-    }
-    if app.choice_selected.is_some() {
-        return match app.choice_purpose {
-            ChoicePurpose::NewSpec => vec!["New spec".into()],
-            ChoicePurpose::Refine { .. } => {
-                let mut path = record_crumbs(app);
-                path.push("Refine".into());
-                path
-            }
-        };
-    }
-    if matches!(
-        app.prompt,
-        Some(
-            Prompt::LaunchWorkspace { .. }
-                | Prompt::LaunchRepo { .. }
-                | Prompt::LaunchSpec { .. }
-                | Prompt::LaunchTopic { .. }
-        )
-    ) {
-        return vec!["New spec".into()];
-    }
-    if matches!(app.screen, Screen::Detail | Screen::Reader) {
-        let mut path = record_crumbs(app);
-        if app.screen == Screen::Reader {
-            path.push("FULL SPEC".into());
-        }
-        return path;
-    }
-    Vec::new()
-}
-
-fn record_crumbs(app: &App) -> Vec<String> {
-    let Some(record) = app.current() else {
-        return Vec::new();
-    };
-    let Some(index) = app.tree.rows.iter().position(|row| {
-        row.record_index
-            .is_some_and(|index| app.records[index].id == record.id)
-    }) else {
-        return vec![record.display_title().into()];
-    };
-    let mut depth = app.tree.rows[index].depth;
-    let mut ancestors = Vec::new();
-    for row in app.tree.rows[..index].iter().rev() {
-        if row.depth < depth && row.is_folder {
-            ancestors.push(row.label.clone());
-            depth = row.depth;
-        }
-    }
-    ancestors.reverse();
-    ancestors.push(record.display_title().into());
-    ancestors
-}
-
+/// Shortens long ancestry while keeping the current location readable.
 fn fit_crumbs(labels: &[String], budget: usize) -> Vec<String> {
     if labels.is_empty() || budget == 0 {
         return Vec::new();

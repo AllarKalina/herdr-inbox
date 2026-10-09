@@ -1,0 +1,73 @@
+
+  Inbox
+
+                                                   S J D P
+  ▾  designs
+  ├─    Inbox layout                              ✓ → ○ ○
+  ├─    preview                                   ✓ → ○ ○
+  └─    Settings navigation                       ● ○ ○ ○
+  ▾  missions
+  └─ ▾  zeller
+     ├─ ▾  settlement-and-reconciliation-program…
+     │  └─ ▾  acquirer-integrations
+     │     └─ ▾  regional-scheme-adapters
+     │        └─    Chargeback evidence handling… ✓ → ○ ○
+     ├─    Settlement reconciliation across acqu… ✓ ✓ ● →
+     └─    Transaction search                     ✓ ✓ → ○
+     Quarterly plan                               ✓ ✓ ✓ ◐
+
+
+
+
+
+  Enter open · n new · a archive · s settings
+
+--- styles: row, columns, style ---
+ 1   2-6   fg=LightCyan BOLD
+ 3   2-57  fg=Gray BOLD
+ 4   2-12  fg=Yellow BOLD
+ 5   2-4   fg=DarkGray
+ 5   5-8   fg=LightBlue
+ 5  51-51  fg=LightGreen
+ 5  53-53  fg=LightBlue
+ 5  55-55  fg=DarkGray
+ 5  57-57  fg=DarkGray
+ 6   2-4   fg=DarkGray
+ 6   5-8   fg=LightRed
+ 6  51-51  fg=LightGreen
+ 6  53-53  fg=LightBlue
+ 6  55-55  fg=DarkGray
+ 6  57-57  fg=DarkGray
+ 7   2-4   fg=DarkGray
+ 7   5-8   fg=LightBlue
+ 7  51-51  fg=Cyan
+ 7  53-53  fg=Gray
+ 7  55-55  fg=DarkGray
+ 7  57-57  fg=DarkGray
+ 8   2-13  fg=Yellow BOLD
+ 9   2-4   fg=DarkGray
+ 9   5-14  fg=Yellow BOLD
+10   2-7   fg=DarkGray
+10   8-49  fg=Yellow BOLD
+11   2-10  fg=DarkGray
+11  11-35  fg=Yellow BOLD
+12   2-13  fg=DarkGray
+12  14-41  fg=Yellow BOLD
+13   2-57  fg=Black bg=Cyan BOLD
+14   2-7   fg=DarkGray
+14   8-11  fg=LightBlue
+14  51-51  fg=LightGreen
+14  53-53  fg=LightGreen
+14  55-55  fg=Cyan
+14  57-57  fg=LightBlue
+15   2-7   fg=DarkGray
+15   8-11  fg=LightBlue
+15  51-51  fg=LightGreen
+15  53-53  fg=LightGreen
+15  55-55  fg=LightBlue
+15  57-57  fg=DarkGray
+16   2-5   fg=LightBlue
+16  51-51  fg=LightGreen
+16  53-53  fg=LightGreen
+16  55-55  fg=LightGreen
+16  57-57  fg=Yellow

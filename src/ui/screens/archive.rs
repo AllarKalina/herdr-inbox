@@ -1,0 +1,254 @@
+//! The archive: specs hidden from the Inbox, each restorable or deletable for good.
+
+use crate::store::{Record, Result};
+use crate::ui::{App, Screen, chrome, text, theme};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::Style;
+use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
+
+#[derive(Default)]
+pub(crate) struct View {
+    pub records: Vec<Record>,
+    pub selected: usize,
+    offset: usize,
+    confirm_delete: bool,
+    list_area: Rect,
+}
+
+impl View {
+    fn current(&self) -> Option<&Record> {
+        self.records.get(self.selected)
+    }
+}
+
+/// Rereads the archive from disk, keeping the selection on the same spec when it is still there.
+pub(crate) fn reload(app: &mut App) -> Result<()> {
+    let id = app.archive.current().map(|record| record.id.clone());
+    let mut records = app.store.archived()?;
+    records.sort_by(|a, b| {
+        a.display_title()
+            .to_lowercase()
+            .cmp(&b.display_title().to_lowercase())
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    let kept = id
+        .as_ref()
+        .and_then(|id| records.iter().position(|record| &record.id == id));
+    if kept.is_none() {
+        app.archive.confirm_delete = false;
+    }
+    app.archive.selected =
+        kept.unwrap_or(app.archive.selected.min(records.len().saturating_sub(1)));
+    app.archive.records = records;
+    Ok(())
+}
+
+pub(crate) fn crumbs() -> Vec<String> {
+    vec!["Settings".into(), "Archive".into()]
+}
+
+pub(crate) fn open(app: &mut App) -> Result<()> {
+    app.archive.selected = 0;
+    app.archive.confirm_delete = false;
+    app.notice.clear();
+    app.screen = Screen::Archive;
+    reload(app)
+}
+
+pub(crate) fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool> {
+    if app.archive.confirm_delete {
+        match key.code {
+            KeyCode::Esc => app.archive.confirm_delete = false,
+            KeyCode::Enter => {
+                app.archive.confirm_delete = false;
+                delete(app)?;
+            }
+            _ => {}
+        }
+        return Ok(false);
+    }
+    let last = app.archive.records.len().saturating_sub(1);
+    match key.code {
+        KeyCode::Esc => {
+            app.screen = Screen::Settings;
+            app.notice.clear();
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            app.archive.selected = (app.archive.selected + 1).min(last)
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            app.archive.selected = app.archive.selected.saturating_sub(1)
+        }
+        KeyCode::Char('r') => restore(app)?,
+        KeyCode::Char('d') if app.archive.current().is_some() => {
+            app.archive.confirm_delete = true;
+            app.notice.clear();
+        }
+        _ => {}
+    }
+    Ok(false)
+}
+
+pub(crate) fn handle_mouse(app: &mut App, mouse: MouseEvent) -> Result<()> {
+    let area = app.archive.list_area;
+    if app.archive.confirm_delete || !area.contains((mouse.column, mouse.row).into()) {
+        return Ok(());
+    }
+    let last = app.archive.records.len().saturating_sub(1);
+    match mouse.kind {
+        MouseEventKind::Moved | MouseEventKind::Down(_) => {
+            let index = app.archive.offset + usize::from(mouse.row - area.y);
+            if index <= last {
+                app.archive.selected = index;
+            }
+        }
+        MouseEventKind::ScrollDown => app.archive.selected = (app.archive.selected + 1).min(last),
+        MouseEventKind::ScrollUp => app.archive.selected = app.archive.selected.saturating_sub(1),
+        _ => {}
+    }
+    Ok(())
+}
+
+fn restore(app: &mut App) -> Result<()> {
+    let Some(id) = app.archive.current().map(|record| record.id.clone()) else {
+        return Ok(());
+    };
+    let record = app.store.restore(&id)?;
+    app.notice
+        .info(format!("Restored {}", record.display_title()));
+    Ok(())
+}
+
+fn delete(app: &mut App) -> Result<()> {
+    let Some(record) = app.archive.current().cloned() else {
+        return Ok(());
+    };
+    let (_, moved) = app.store.delete_archived(&record.id)?;
+    let title = record.display_title();
+    app.notice.info(if moved {
+        format!("Deleted {title}; file moved to the macOS Trash")
+    } else {
+        format!("Deleted {title}")
+    });
+    Ok(())
+}
+
+/// Archived specs always sit inside a selected folder, so the path within it is enough.
+fn location(record: &Record) -> String {
+    record.source_relative_path.display().to_string()
+}
+
+pub(crate) fn draw(frame: &mut ratatui::Frame, app: &mut App) {
+    let content = chrome::content(frame.area());
+    let footer = chrome::footer_area(frame.area());
+    let confirming = app.archive.confirm_delete;
+    let areas = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),
+            Constraint::Length(if confirming { 8 } else { 0 }),
+            Constraint::Length(if app.notice.is_empty() { 1 } else { 2 }),
+        ])
+        .split(content);
+    app.archive.list_area = Rect::default();
+    if app.archive.records.is_empty() {
+        frame.render_widget(
+            Paragraph::new("No archived specs.").style(theme::muted()),
+            areas[0],
+        );
+    } else {
+        draw_list(frame, app, areas[0]);
+    }
+    if confirming && let Some(record) = app.archive.current() {
+        let width = usize::from(areas[1].width.saturating_sub(2));
+        let file = if record.spec_path.symlink_metadata().is_ok() {
+            "The file moves to the macOS Trash."
+        } else {
+            "The file is already gone."
+        };
+        let text = format!(
+            "DELETE SPEC\n{}\n{}\n{file}\nIts archived record is deleted for good.",
+            text::fit_label(record.display_title(), width),
+            text::fit_tail(&text::tilde(&record.spec_path), width),
+        );
+        frame.render_widget(
+            Paragraph::new(text).wrap(Wrap { trim: false }).block(
+                Block::default()
+                    .title(" Confirm delete ")
+                    .borders(Borders::ALL),
+            ),
+            areas[1],
+        );
+    }
+    if !app.notice.is_empty() {
+        let row = Rect::new(footer.x, footer.y.saturating_sub(1), footer.width, 1);
+        chrome::draw_notice(frame, &app.notice, row);
+    }
+    let hints = if confirming {
+        "Enter delete this spec · Esc cancel"
+    } else if app.archive.records.is_empty() {
+        "Esc back"
+    } else if footer.width >= 42 {
+        "j/k select · r restore · d delete · Esc back"
+    } else {
+        "r restore · d delete · Esc back"
+    };
+    chrome::draw_footer(frame, hints);
+}
+
+fn draw_list(frame: &mut ratatui::Frame, app: &mut App, area: Rect) {
+    let locations: Vec<String> = app.archive.records.iter().map(location).collect();
+    // Narrow popups keep the whole row for the title.
+    let location_width = if frame.area().width < 64 {
+        0
+    } else {
+        locations
+            .iter()
+            .map(|location| location.chars().count())
+            .max()
+            .unwrap_or(0)
+            .min(usize::from(area.width / 2))
+    };
+    let title_width = usize::from(area.width).saturating_sub(location_width + 2);
+    let rows = app
+        .archive
+        .records
+        .iter()
+        .zip(&locations)
+        .enumerate()
+        .map(|(index, (record, location))| {
+            let title = if record.spec_path.is_file() {
+                record.display_title().to_owned()
+            } else {
+                format!("{} [unavailable]", record.display_title())
+            };
+            let location = Cell::from(text::fit_tail(location, location_width)).style(
+                if index == app.archive.selected {
+                    Style::default()
+                } else {
+                    theme::muted()
+                },
+            );
+            Row::new(vec![
+                Cell::from(text::fit_label(&title, title_width)),
+                location,
+            ])
+        })
+        .collect::<Vec<_>>();
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Fill(1),
+            Constraint::Length(location_width as u16),
+        ],
+    )
+    .column_spacing(2)
+    .row_highlight_style(theme::selection());
+    let mut state = TableState::default()
+        .with_offset(app.archive.offset)
+        .with_selected(Some(app.archive.selected));
+    frame.render_stateful_widget(table, area, &mut state);
+    app.archive.offset = state.offset();
+    app.archive.list_area = area;
+}

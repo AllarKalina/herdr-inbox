@@ -1,7 +1,9 @@
 //! Every screen must survive any popup size, including ones too small to be useful.
 
-use super::proximity::{Fixture, press};
+use super::support::{Fixture, press};
 use super::*;
+use crate::launch::Profile;
+use crate::store::ScanReport;
 
 /// Renders one screen at every size and reports the first size that panics.
 fn sweep(app: &mut App, label: &str, failures: &mut Vec<String>) {
@@ -12,7 +14,7 @@ fn sweep(app: &mut App, label: &str, failures: &mut Vec<String>) {
     for (width, height) in sizes {
         let drawn = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
-            terminal.draw(|frame| draw::draw(frame, app)).unwrap();
+            terminal.draw(|frame| draw(frame, app)).unwrap();
         }));
         if drawn.is_err() {
             failures.push(format!("{label} at {width}x{height}"));
@@ -39,9 +41,9 @@ fn no_screen_panics_at_any_size() -> Result<()> {
             sweep(app, &format!("detail {stage:?} jira={jira}"), failures);
         }
         app.begin(Prompt::Pr { id: id.clone() });
-        app.input = "https://github.example/org/repo/pull/123456789".into();
+        app.modal.input = "https://github.example/org/repo/pull/123456789".into();
         sweep(app, "detail prompt", failures);
-        app.prompt = None;
+        app.modal.prompt = None;
         if !jira {
             // Only the detail view depends on the Jira setting.
             continue;
@@ -54,21 +56,21 @@ fn no_screen_panics_at_any_size() -> Result<()> {
             vec![Profile::Opus, Profile::Codex],
         );
         sweep(app, "refine chooser", failures);
-        app.choice_selected = None;
+        app.modal.close();
 
         app.screen = Screen::List;
         sweep(app, "list", failures);
         app.begin(Prompt::Archive { id: id.clone() });
         sweep(app, "list archive confirm", failures);
-        app.prompt = None;
+        app.modal.prompt = None;
         app.choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus, Profile::Codex]);
         sweep(app, "list chooser", failures);
-        app.choice_selected = None;
+        app.modal.close();
         app.begin(Prompt::LaunchWorkspace {
             profile: Profile::Opus,
         });
         sweep(app, "list launch prompt", failures);
-        app.prompt = None;
+        app.modal.prompt = None;
 
         app.screen = Screen::Settings;
         sweep(app, "settings", failures);
@@ -80,8 +82,11 @@ fn no_screen_panics_at_any_size() -> Result<()> {
         press(app, KeyCode::Char('d'))?;
         sweep(app, "archive delete confirm", failures);
         press(app, KeyCode::Esc)?;
-        app.scan_issues = vec!["Cannot read spec /tmp/x.md: Permission denied".into(); 12];
-        app.screen = Screen::ScanResult;
+        let report = ScanReport {
+            issues: vec!["Cannot read spec /tmp/x.md: Permission denied".into(); 12],
+            ..ScanReport::default()
+        };
+        scan::show(app, report);
         sweep(app, "scan results", failures);
     }
     assert!(failures.is_empty(), "screens panicked: {failures:#?}");

@@ -1,0 +1,44 @@
+
+  Inbox / designs / Inbox layout
+
+  PROGRESS
+                      JIRA ACTIONS
+  SPEC   ●   done
+         │            Ticket needed
+       ⢠⠖⠒⠲⡄
+  JIRA ⢾ ○ ⡷ ready
+       ⠘⠦⠤⠴⠃
+         │            Jira URL (optio…
+  DEV    ○   locked   le/browse/PAY-9█
+         │            Enter save · Esc
+         │            cancel
+  PR     ○   locked
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-19  fg=Gray
+ 1  20-31  fg=LightCyan BOLD
+ 3   2-37  fg=Gray
+ 4  22-37  fg=Gray
+ 5   2-5   fg=LightGreen
+ 5   9-16  fg=LightGreen
+ 6   9-9   fg=DarkGray
+ 6  22-37  fg=Gray
+ 7   7-11  fg=Cyan
+ 7  22-37  fg=Gray
+ 8   2-5   fg=LightBlue
+ 8   7-7   fg=Cyan
+ 8   9-10  fg=LightBlue
+ 8  11-11  fg=Cyan
+ 8  12-17  fg=LightBlue
+ 8  22-37  fg=Gray
+ 9   7-11  fg=Cyan
+ 9  22-37  fg=Gray
+10   9-9   fg=DarkGray
+11   2-5   fg=DarkGray
+11   9-18  fg=DarkGray
+12   9-9   fg=DarkGray
+13   9-9   fg=DarkGray
+14   2-5   fg=DarkGray
+14   9-18  fg=DarkGray

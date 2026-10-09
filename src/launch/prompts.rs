@@ -1,5 +1,9 @@
-use super::*;
-use std::path::Path;
+//! The words that start a session. The agent learns which item and file it owns and the
+//! exact command that reports completion back to the Inbox.
+
+use super::{Profile, Record, Result};
+use std::env;
+use std::path::{Path, PathBuf};
 
 pub(super) fn initial(
     record: &Record,
@@ -79,6 +83,7 @@ fn shell_quote(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     #[test]
     fn shell_paths_round_trip_spaces_quotes_and_substitution() -> Result<()> {

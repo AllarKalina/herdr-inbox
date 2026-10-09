@@ -4,10 +4,10 @@
                                                      S D P
   ▾  designs
   ├─    Inbox layout                                ✓ → ○
+  ├─    preview                                     ✓ → ○
   └─    Settings navigation                         ● ○ ○
   ▾  missions
   └─ ▾  zeller
-     ├─    Settlement reconciliation across acquir… ✓ ● →
      └─    Transaction search                       ✓ → ○
      Quarterly plan                                 ✓ ✓ ◐
 
@@ -32,18 +32,18 @@
  5  55-55  fg=LightBlue
  5  57-57  fg=DarkGray
  6   2-4   fg=DarkGray
- 6   5-8   fg=LightBlue
- 6  53-53  fg=Cyan
- 6  55-55  fg=DarkGray
+ 6   5-8   fg=LightRed
+ 6  53-53  fg=LightGreen
+ 6  55-55  fg=LightBlue
  6  57-57  fg=DarkGray
- 7   2-13  fg=Yellow BOLD
- 8   2-4   fg=DarkGray
- 8   5-14  fg=Yellow BOLD
- 9   2-7   fg=DarkGray
- 9   8-11  fg=LightBlue
- 9  53-53  fg=LightGreen
- 9  55-55  fg=Cyan
- 9  57-57  fg=LightBlue
+ 7   2-4   fg=DarkGray
+ 7   5-8   fg=LightBlue
+ 7  53-53  fg=Cyan
+ 7  55-55  fg=DarkGray
+ 7  57-57  fg=DarkGray
+ 8   2-13  fg=Yellow BOLD
+ 9   2-4   fg=DarkGray
+ 9   5-14  fg=Yellow BOLD
 10   2-7   fg=DarkGray
 10   8-11  fg=LightBlue
 10  53-53  fg=LightGreen

@@ -1,0 +1,73 @@
+
+  Inbox / designs / Settings navigation
+
+  SPEC                                                        PROGRESS
+  # Settings navigation
+                                                              SPEC   ◉   active
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                   ⢠⠖⠒⠲⡄
+                                                              JIRA ⢾ ○ ⡷ wait
+                                                                   ⠘⠦⠤⠴⠃ After spec
+                                                                     │   Finish the spec before
+                                                                     │   linking a ticket.
+                                                                     │
+                                                                     │
+                                                              DEV    ○   locked
+                                                                     │   Needs Jira
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                              PR     ○   locked
+                                                                         Needs implementation
+
+
+
+
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-19  fg=Gray
+ 1  20-38  fg=LightCyan BOLD
+ 3  62-97  fg=Gray
+ 5  62-65  fg=Cyan
+ 5  69-78  fg=Cyan
+ 6  69-69  fg=DarkGray
+ 6  73-97  fg=Gray
+ 7  69-69  fg=DarkGray
+ 8  69-69  fg=DarkGray
+ 9  69-69  fg=DarkGray
+10  67-71  fg=Cyan
+11  62-65  fg=Gray
+11  67-67  fg=Cyan
+11  69-70  fg=Gray
+11  71-71  fg=Cyan
+11  72-76  fg=Gray
+12  67-71  fg=Cyan
+12  73-97  fg=Gray
+13  69-69  fg=DarkGray
+13  73-97  fg=Gray
+14  69-69  fg=DarkGray
+14  73-97  fg=Gray
+15  69-69  fg=DarkGray
+15  73-97  fg=Gray
+16  69-69  fg=DarkGray
+16  73-97  fg=Gray
+17  62-65  fg=DarkGray
+17  69-78  fg=DarkGray
+18  69-69  fg=DarkGray
+18  73-97  fg=Gray
+19  69-69  fg=DarkGray
+20  69-69  fg=DarkGray
+21  69-69  fg=DarkGray
+22  69-69  fg=DarkGray
+23  62-65  fg=DarkGray
+23  69-78  fg=DarkGray
+24  73-97  fg=Gray

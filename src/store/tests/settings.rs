@@ -71,17 +71,17 @@ fn obsolete_metadata_is_rejected_without_rewriting_it() -> Result<()> {
         let mut value = serde_json::to_value(&record)?;
         value.as_object_mut().unwrap().remove(field);
         let bytes = serde_json::to_vec(&value)?;
-        fs::write(store.path_for(&record.id)?, &bytes)?;
+        fs::write(store.item_path(&record.id)?, &bytes)?;
         assert!(store.get(&record.id).is_err());
-        assert_eq!(fs::read(store.path_for(&record.id)?)?, bytes);
+        assert_eq!(fs::read(store.item_path(&record.id)?)?, bytes);
     }
     for version in [0, 99] {
         let mut value = serde_json::to_value(&record)?;
         value["schema_version"] = version.into();
         let bytes = serde_json::to_vec(&value)?;
-        fs::write(store.path_for(&record.id)?, &bytes)?;
+        fs::write(store.item_path(&record.id)?, &bytes)?;
         assert!(store.get(&record.id).is_err());
-        assert_eq!(fs::read(store.path_for(&record.id)?)?, bytes);
+        assert_eq!(fs::read(store.item_path(&record.id)?)?, bytes);
     }
     fs::remove_dir_all(root)?;
     Ok(())

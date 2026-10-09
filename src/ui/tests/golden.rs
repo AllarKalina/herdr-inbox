@@ -5,21 +5,22 @@
 //! and reviewed through `git diff`.
 
 use super::*;
-use crate::store::{ScanReport, SpecSource};
+use crate::launch::Profile;
+use crate::store::{Launch, LaunchStatus, ScanReport, SpecSource};
 use ratatui::buffer::{Buffer, Cell};
 use std::path::Path;
 
 const SIZES: [(u16, u16); 3] = [(100, 35), (60, 24), (40, 18)];
 
-struct Fixture {
-    root: PathBuf,
-    app: App,
+pub(super) struct Fixture {
+    pub(super) root: PathBuf,
+    pub(super) app: App,
     failures: Vec<String>,
 }
 
 impl Fixture {
     /// A fixed location keeps every rendered path identical between runs and machines.
-    fn empty(name: &str) -> Result<Self> {
+    pub(super) fn empty(name: &str) -> Result<Self> {
         let root = PathBuf::from("/tmp").join(format!("herdr-inbox-golden-{name}"));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("specs"))?;
@@ -32,12 +33,11 @@ impl Fixture {
     }
 
     /// Five specs across nested folders, one at each point of the workflow.
-    fn new(name: &str) -> Result<Self> {
+    pub(super) fn new(name: &str) -> Result<Self> {
         let mut fixture = Self::empty(name)?;
         let specs = fixture.root.join("specs");
         for (path, title) in [
             ("designs/inbox-layout.md", "Inbox layout"),
-            ("designs/settings-navigation.md", "Settings navigation"),
             (
                 "missions/zeller/transaction-search.md",
                 "Transaction search",
@@ -58,10 +58,34 @@ impl Fixture {
                 ),
             )?;
         }
+        fs::write(specs.join("designs/preview.html"), "<h1>Preview</h1>\n")?;
         let store = Store::new(fixture.root.join("data"));
         let mut settings = store.settings()?;
-        settings.sources.push(SpecSource::new(specs)?);
+        let mut source = SpecSource::new(specs.clone())?;
+        source.include.push("**/*.html".into());
+        settings.sources.push(source);
         store.save_settings(&settings)?;
+        // A spec still being written: Jira waits, and its session is live.
+        let started = store.start(
+            "Settings navigation",
+            None,
+            Some(specs.join("designs/settings-navigation.md")),
+        )?;
+        let launch = Launch {
+            status: LaunchStatus::PromptSent,
+            harness: "codex".into(),
+            workspace: "ai-boiler-room".into(),
+            workspace_id: Some("w1".into()),
+            tab_id: Some("w1:t1".into()),
+            pane_id: Some("w1:p1".into()),
+            agent: Some("spec_00000000".into()),
+            model: "gpt-6.1-sol".into(),
+            effort: "high".into(),
+            prompt: "Fixture prompt".into(),
+            error: None,
+        };
+        let launched = Change::Launch(Box::new(launch), started.spec_path.clone());
+        store.update(&started.id, launched)?;
         store.scan()?;
         // Random record IDs would change wrapped confirmation text between runs.
         let mut records = store.list()?;
@@ -83,7 +107,6 @@ impl Fixture {
                 .ok_or("fixture spec missing")?
                 .id)
         };
-        store.update(&id("Settings navigation")?, Change::RefineSpec)?;
         for (title, stages) in [
             ("Transaction search", 1),
             ("Settlement reconciliation", 2),
@@ -113,17 +136,16 @@ impl Fixture {
         }
         fixture.app = App::new(store)?;
         // The Inbox opens on its most recently updated spec; fixture specs tie, so pin the row.
-        fixture.app.tree.focused = 0;
-        fixture.app.sync_tree_selection();
+        fixture.app.list.tree.focused = 0;
         Ok(fixture)
     }
 
-    fn press(&mut self, code: KeyCode) -> Result<()> {
+    pub(super) fn press(&mut self, code: KeyCode) -> Result<()> {
         handle_key(&mut self.app, KeyEvent::new(code, KeyModifiers::NONE))?;
         self.app.refresh()
     }
 
-    fn type_text(&mut self, text: &str) -> Result<()> {
+    pub(super) fn type_text(&mut self, text: &str) -> Result<()> {
         for ch in text.chars() {
             self.press(KeyCode::Char(ch))?;
         }
@@ -131,7 +153,7 @@ impl Fixture {
     }
 
     /// Selects a spec in the list by the start of its title.
-    fn focus(&mut self, title: &str) -> Result<()> {
+    pub(super) fn focus(&mut self, title: &str) -> Result<()> {
         let index = self
             .app
             .records
@@ -139,27 +161,26 @@ impl Fixture {
             .position(|record| record.title.starts_with(title))
             .ok_or("fixture spec missing")?;
         self.app.screen = Screen::List;
-        self.app.tree.focus_record(index);
-        self.app.sync_tree_selection();
+        self.app.list.tree.focus_record(index);
         self.app.refresh()
     }
 
-    fn open(&mut self, title: &str) -> Result<()> {
+    pub(super) fn open(&mut self, title: &str) -> Result<()> {
         self.focus(title)?;
         self.press(KeyCode::Enter)
     }
 
-    fn set_jira(&mut self, enabled: bool) -> Result<()> {
+    pub(super) fn set_jira(&mut self, enabled: bool) -> Result<()> {
         let mut settings = self.app.store.settings()?;
         settings.jira = enabled;
         self.app.store.save_settings(&settings)?;
         self.app.refresh()
     }
 
-    fn check(&mut self, name: &str) -> Result<()> {
+    pub(super) fn check(&mut self, name: &str) -> Result<()> {
         for (width, height) in SIZES {
             let mut terminal = Terminal::new(TestBackend::new(width, height))?;
-            terminal.draw(|frame| draw::draw(frame, &mut self.app))?;
+            terminal.draw(|frame| draw(frame, &mut self.app))?;
             let actual = snapshot(terminal.backend().buffer());
             if let Err(failure) = compare(&format!("{name}@{width}x{height}"), &actual) {
                 self.failures.push(failure);
@@ -168,7 +189,7 @@ impl Fixture {
         Ok(())
     }
 
-    fn finish(mut self) -> Result<()> {
+    pub(super) fn finish(mut self) -> Result<()> {
         let failures = std::mem::take(&mut self.failures);
         assert!(
             failures.is_empty(),
@@ -250,168 +271,21 @@ fn compare(name: &str, actual: &str) -> std::result::Result<(), String> {
     let _ = fs::create_dir_all(&rejected);
     let rejected = rejected.join(format!("{name}.snap"));
     let _ = fs::write(&rejected, actual);
-    let (line, (want, got)) = expected
-        .lines()
-        .zip(actual.lines())
-        .enumerate()
-        .find(|(_, (want, got))| want != got)
-        .unwrap_or((
-            expected.lines().count().min(actual.lines().count()),
-            ("", ""),
-        ));
+    let (mut want, mut got) = (expected.lines(), actual.lines());
+    let mut line = 1;
+    let (want, got) = loop {
+        match (want.next(), got.next()) {
+            (Some(want), Some(got)) if want == got => line += 1,
+            (want, got) => break (want.unwrap_or("<end>"), got.unwrap_or("<end>")),
+        }
+    };
     Err(format!(
         "{name}: first difference at line {}\n  expected: {want}\n  actual:   {got}\n  full actual output: {}",
-        line + 1,
+        line,
         rejected.display()
     ))
 }
 
-#[test]
-fn inbox_list() -> Result<()> {
-    let mut fixture = Fixture::new("list")?;
-    fixture.check("list")?;
-    fixture.focus("Settlement reconciliation")?;
-    fixture.check("list-long-title-selected")?;
-    fixture.press(KeyCode::Char('a'))?;
-    fixture.check("list-archive-confirm")?;
-    fixture.press(KeyCode::Esc)?;
-    fixture.check("list-archive-cancelled")?;
-    fixture.app.message.clear();
-    fixture.app.tree.focused = 0;
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("list-folder-collapsed")?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.set_jira(false)?;
-    fixture.check("list-jira-off")?;
-    fixture.finish()
-}
-
-#[test]
-fn new_spec_flow() -> Result<()> {
-    let mut fixture = Fixture::new("new-spec")?;
-    fixture
-        .app
-        .choose_client(ChoicePurpose::NewSpec, vec![Profile::Opus, Profile::Codex]);
-    fixture.check("new-spec-client-choice")?;
-    fixture.press(KeyCode::Char('j'))?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("new-spec-workspace-prompt")?;
-    fixture
-        .app
-        .choose_client(ChoicePurpose::NewSpec, Vec::new());
-    fixture.app.prompt = None;
-    fixture.check("new-spec-no-client")?;
-    fixture.finish()
-}
-
-#[test]
-fn detail_at_every_stage() -> Result<()> {
-    let mut fixture = Fixture::new("detail")?;
-    for (title, name) in [
-        ("Settings navigation", "detail-spec-active"),
-        ("Inbox layout", "detail-jira-ready"),
-        ("Transaction search", "detail-dev-ready"),
-        ("Settlement reconciliation", "detail-pr-ready"),
-        ("Quarterly plan", "detail-pr-draft"),
-    ] {
-        fixture.open(title)?;
-        fixture.check(name)?;
-    }
-    fixture.open("Inbox layout")?;
-    fixture.press(KeyCode::Char('j'))?;
-    fixture.check("detail-locked-stage-selected")?;
-    fixture.press(KeyCode::Char('k'))?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.type_text("PAY-9")?;
-    fixture.check("detail-jira-key-prompt")?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("detail-jira-bound-feedback")?;
-    fixture.finish()
-}
-
-#[test]
-fn detail_without_jira() -> Result<()> {
-    let mut fixture = Fixture::new("detail-jira-off")?;
-    fixture.set_jira(false)?;
-    for (title, name) in [
-        ("Settings navigation", "detail-jira-off-spec-active"),
-        ("Inbox layout", "detail-jira-off-dev-ready"),
-        ("Quarterly plan", "detail-jira-off-pr-draft"),
-    ] {
-        fixture.open(title)?;
-        fixture.check(name)?;
-    }
-    fixture.finish()
-}
-
-#[test]
-fn reader_and_refine_choice() -> Result<()> {
-    let mut fixture = Fixture::new("reader")?;
-    fixture.open("Transaction search")?;
-    fixture.press(KeyCode::Char('r'))?;
-    fixture.check("reader")?;
-    fixture.press(KeyCode::Esc)?;
-    let id = fixture.app.current().unwrap().id.clone();
-    fixture.app.choose_client(
-        ChoicePurpose::Refine { id },
-        vec![Profile::Opus, Profile::Codex],
-    );
-    fixture.check("refine-client-choice")?;
-    fixture.finish()
-}
-
-#[test]
-fn settings_and_archive() -> Result<()> {
-    let mut fixture = Fixture::new("settings")?;
-    for title in ["Inbox layout", "Quarterly plan"] {
-        fixture.focus(title)?;
-        fixture.press(KeyCode::Char('a'))?;
-        fixture.press(KeyCode::Enter)?;
-    }
-    fixture.app.message.clear();
-    fixture.press(KeyCode::Char('s'))?;
-    fixture.check("settings-folder-selected")?;
-    fixture.press(KeyCode::Char('j'))?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("settings-jira-turned-off")?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.press(KeyCode::Char('j'))?;
-    fixture.check("settings-archive-selected")?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("archive-list")?;
-    fixture.press(KeyCode::Char('j'))?;
-    fixture.press(KeyCode::Char('d'))?;
-    fixture.check("archive-delete-confirm")?;
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("archive-deleted")?;
-    fixture.press(KeyCode::Char('r'))?;
-    fixture.check("archive-restored-empty")?;
-    fixture.finish()
-}
-
-#[test]
-fn first_use_and_scan_issues() -> Result<()> {
-    let mut fixture = Fixture::empty("first-use")?;
-    fixture.check("settings-first-use")?;
-    super::super::picker::set_test_result(Err("Could not open the macOS selector".into()));
-    fixture.press(KeyCode::Enter)?;
-    fixture.check("settings-picker-error")?;
-    fixture.finish()?;
-
-    let mut fixture = Fixture::new("scan-issues")?;
-    let report = ScanReport {
-        imported: 2,
-        known: 3,
-        suppressed: 1,
-        dropped: 1,
-        issues: vec![
-            "Cannot read spec /tmp/herdr-inbox-golden-scan-issues/specs/locked.md: Permission denied"
-                .into(),
-            "Spec outside selected folder: /tmp/elsewhere/linked.md".into(),
-        ],
-    };
-    super::super::scan::apply(&mut fixture.app, report);
-    fixture.check("scan-issues")?;
-    fixture.finish()
-}
+mod detail;
+mod flows;
+mod list;

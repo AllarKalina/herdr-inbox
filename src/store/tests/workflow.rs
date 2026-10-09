@@ -1,54 +1,93 @@
 use super::*;
 
-fn temp_root(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("herdr-{name}-{}", Uuid::new_v4()))
+/// A finished spec with nothing downstream: where every imported spec starts.
+fn imported() -> Record {
+    let location = Location {
+        source_id: "source".into(),
+        relative: "spec.md".into(),
+        path: "/nowhere/spec.md".into(),
+    };
+    Record::new("id".into(), location, SpecStatus::Done, 0)
+}
+
+fn jira_link() -> Change {
+    Change::Jira {
+        key: "ABC-1".into(),
+        url: None,
+    }
+}
+
+fn implement() -> Change {
+    Change::Implement {
+        agent: None,
+        branch: Some("feature/x".into()),
+    }
+}
+
+fn draft_pr() -> Change {
+    Change::Pr {
+        url: "https://example.test/pull/1".into(),
+    }
 }
 
 #[test]
-fn turning_jira_off_unlocks_development_after_the_spec_and_keeps_stored_progress() -> Result<()> {
-    let root = temp_root("jira-off");
-    let store = configured_store(&root)?;
-    let id = store.start("No ticket needed", None, None)?.id;
-    let mut settings = store.settings()?;
-    assert!(settings.jira);
-    settings.jira = false;
-    store.save_settings(&settings)?;
-    let implement = || Change::Implement {
-        agent: None,
-        branch: Some("feature/no-ticket".into()),
-    };
-    let error = store.update(&id, implement()).unwrap_err().to_string();
-    assert_eq!(error, "Finish the spec before implementation");
-    let finished = store.update(&id, Change::Finish { title: None })?;
-    assert_eq!(finished.implementation_stage(true), "locked");
-    assert_eq!(finished.implementation_stage(false), "ready");
-    assert_eq!(finished.pr_stage(false), "locked");
-    assert_eq!(
-        finished.next_actions(false),
-        vec!["Hand spec to implementor"]
-    );
-    let jira = || Change::Jira {
-        key: "OFF-1".into(),
+fn each_step_unlocks_the_next_and_names_what_to_do() -> Result<()> {
+    let mut record = imported();
+    assert_eq!(record.next_actions(true), ["Create Jira ticket"]);
+    assert_eq!(record.implementation_stage(true), "locked");
+    assert!(record.apply(implement(), true).is_err());
+    assert!(record.apply(draft_pr(), true).is_err());
+    let blank = Change::Jira {
+        key: "  ".into(),
         url: None,
     };
-    let error = store.update(&id, jira()).unwrap_err().to_string();
-    assert_eq!(error, "Jira is turned off in Settings");
-    let implementing = store.update(&id, implement())?;
-    assert_eq!(implementing.pr_stage(false), "ready");
-    let url = "https://github.example/org/repo/pull/7".to_string();
-    let drafted = store.update(&id, Change::Pr { url })?;
-    assert_eq!(drafted.pr.status, "draft");
+    assert!(record.apply(blank, true).is_err());
 
-    // Turning Jira back on keeps the recorded work and shows the ticket as outstanding.
-    settings.jira = true;
-    store.save_settings(&settings)?;
-    let kept = store.get(&id)?;
-    assert_eq!(kept.jira.status, "ready");
-    assert_eq!(kept.implementation.status, "draft_pr");
-    assert_eq!(kept.pr_stage(true), "draft");
-    assert_eq!(store.update(&id, jira())?.jira.status, "created");
-    fs::remove_dir_all(root)?;
+    record.apply(jira_link(), true)?;
+    assert_eq!(record.next_actions(true), ["Hand spec to implementor"]);
+    assert_eq!(record.implementation_stage(true), "ready");
+    assert_eq!(record.pr_stage(true), "locked");
+    assert!(record.apply(draft_pr(), true).is_err());
+
+    record.apply(implement(), true)?;
+    assert_eq!(record.next_actions(true), ["Await draft PR"]);
+    assert_eq!(record.pr_stage(true), "ready");
+
+    record.apply(draft_pr(), true)?;
+    assert_eq!(record.next_actions(true), ["Review draft PR"]);
+    assert_eq!(record.implementation_stage(true), "draft_pr");
+    assert_eq!(record.pr_stage(true), "draft");
+    // Recording the implementer again never takes a draft PR back.
+    record.apply(implement(), true)?;
+    assert_eq!(record.implementation.status, "draft_pr");
     Ok(())
+}
+
+#[test]
+fn without_jira_a_finished_spec_is_the_only_prerequisite() -> Result<()> {
+    let mut record = imported();
+    assert_eq!(record.implementation_stage(false), "ready");
+    assert_eq!(record.next_actions(false), ["Hand spec to implementor"]);
+    let refused = record.apply(jira_link(), false).unwrap_err();
+    assert_eq!(refused.to_string(), "Jira is turned off in Settings");
+    record.apply(implement(), false)?;
+    record.apply(draft_pr(), false)?;
+    // Turning Jira on later shows the ticket as outstanding and keeps the progress.
+    assert_eq!(record.jira.status, "ready");
+    assert_eq!(record.pr_stage(true), "draft");
+    record.apply(jira_link(), true)?;
+    assert_eq!(record.jira.status, "created");
+
+    let mut unfinished = imported();
+    unfinished.spec = SpecStatus::InProgress;
+    let refused = unfinished.apply(implement(), false).unwrap_err();
+    assert_eq!(refused.to_string(), "Finish the spec before implementation");
+    assert_eq!(unfinished.next_actions(false), ["Finish spec"]);
+    Ok(())
+}
+
+fn temp_root(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("herdr-{name}-{}", Uuid::new_v4()))
 }
 
 #[test]
@@ -74,20 +113,17 @@ fn deleting_an_archived_spec_trashes_its_file_and_removes_the_record() -> Result
         fs::read_to_string(root.join("test-macos-trash/gone.md"))?,
         "# Gone"
     );
-    assert!(store.trash_list()?.is_empty());
+    assert!(store.archived()?.is_empty());
     assert!(store.restore(&gone.id).is_err());
     let report = store.scan()?;
-    assert_eq!(
-        (report.imported, report.known, report.suppressed),
-        (0, 1, 0)
-    );
+    assert_eq!((report.imported, report.known, report.archived), (0, 1, 0));
 
     // A spec whose file is already gone only loses its archived record.
     let kept = store.list()?.remove(0);
     store.archive(&kept.id)?;
     fs::remove_file(&kept.spec_path)?;
     assert!(!store.delete_archived(&kept.id)?.1);
-    assert!(store.trash_list()?.is_empty());
+    assert!(store.archived()?.is_empty());
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -136,7 +172,7 @@ fn relinking_to_a_scanned_copy_replaces_the_placeholder_a_scan_imported() -> Res
     // Neither is an archived one.
     store.archive(&other.id)?;
     assert!(store.relink(&original.id, source.join("other.md")).is_err());
-    assert_eq!(store.trash_list()?.len(), 1);
+    assert_eq!(store.archived()?.len(), 1);
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -150,7 +186,7 @@ fn scans_stay_quiet_about_unwritten_new_specs_and_unselected_folders() -> Result
     store.scan()?;
 
     // A new spec session is recorded before its agent has written the file.
-    let pending = store.start_untitled(None)?;
+    let pending = store.start_untitled(None, None)?;
     assert!(!pending.spec_path.exists());
     let launch = Launch {
         status: LaunchStatus::PromptSent,
@@ -212,6 +248,17 @@ fn scan_drops_records_whose_file_was_deleted_from_the_selected_folder() -> Resul
     let report = store.scan()?;
     assert_eq!((report.dropped, report.known, report.imported), (1, 1, 0));
     assert!(report.issues.is_empty(), "{:?}", report.issues);
+
+    // A file that cannot be read as text is reported and never imported.
+    fs::write(source.join("binary.md"), [0xff, 0xfe])?;
+    let report = store.scan()?;
+    assert_eq!(report.imported, 0);
+    assert!(
+        report.issues[0].contains("Cannot read spec"),
+        "{:?}",
+        report.issues
+    );
+    fs::remove_file(source.join("binary.md"))?;
     assert!(store.get(&deleted.id).is_err());
     assert_eq!(store.list()?.len(), 1);
     assert_eq!(store.scan()?.dropped, 0);
@@ -252,13 +299,13 @@ fn archive_holds_only_existing_specs_from_the_selected_folder() -> Result<()> {
     );
     store.archive(&stays.id)?;
     store.archive(&deleted.id)?;
-    assert_eq!(store.scan()?.suppressed, 2);
+    assert_eq!(store.scan()?.archived, 2);
 
     // An archived spec whose file is gone has nothing left to restore.
     fs::remove_file(&deleted.spec_path)?;
     let report = store.scan()?;
-    assert_eq!((report.dropped, report.suppressed), (1, 1));
-    assert_eq!(store.trash_list()?.len(), 1);
+    assert_eq!((report.dropped, report.archived), (1, 1));
+    assert_eq!(store.archived()?.len(), 1);
     assert!(store.restore(&deleted.id).is_err());
 
     // Selecting another folder empties the archive of the old folder's specs. Their files
@@ -271,7 +318,7 @@ fn archive_holds_only_existing_specs_from_the_selected_folder() -> Result<()> {
     let report = store.scan()?;
     assert_eq!(report.dropped, 1);
     assert!(report.issues.is_empty(), "{:?}", report.issues);
-    assert!(store.trash_list()?.is_empty());
+    assert!(store.archived()?.is_empty());
     assert!(stays.spec_path.is_file());
     assert_eq!(store.get(&active.id)?.id, active.id);
     fs::remove_dir_all(root)?;

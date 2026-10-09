@@ -5,9 +5,9 @@
   ▸  designs
   ▾  missions
   └─ ▾  zeller
-     ├─    Settlement reconciliation across acqu… ✓ ✓ ● →
      └─    Transaction search                     ✓ ✓ → ○
      Quarterly plan                               ✓ ✓ ✓ ◐
+
 
 
 
@@ -33,16 +33,10 @@
  7   8-11  fg=LightBlue
  7  51-51  fg=LightGreen
  7  53-53  fg=LightGreen
- 7  55-55  fg=Cyan
- 7  57-57  fg=LightBlue
- 8   2-7   fg=DarkGray
- 8   8-11  fg=LightBlue
+ 7  55-55  fg=LightBlue
+ 7  57-57  fg=DarkGray
+ 8   2-5   fg=LightBlue
  8  51-51  fg=LightGreen
  8  53-53  fg=LightGreen
- 8  55-55  fg=LightBlue
- 8  57-57  fg=DarkGray
- 9   2-5   fg=LightBlue
- 9  51-51  fg=LightGreen
- 9  53-53  fg=LightGreen
- 9  55-55  fg=LightGreen
- 9  57-57  fg=Yellow
+ 8  55-55  fg=LightGreen
+ 8  57-57  fg=Yellow

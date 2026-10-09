@@ -13,12 +13,15 @@ mod model;
 pub use model::*;
 mod workflow;
 pub use workflow::*;
-mod discovery;
-pub use discovery::ScanReport;
-use discovery::{fingerprint, same_file};
-mod lifecycle;
-mod trash;
+mod archive;
+mod config;
+mod records;
+mod scan;
+pub use scan::ScanReport;
+mod sources;
+use sources::{fingerprint, fingerprint_bytes, same_file};
 
+#[derive(Clone)]
 pub struct Store {
     root: PathBuf,
 }
@@ -40,12 +43,12 @@ impl Store {
         &self.root
     }
 
-    fn items(&self) -> PathBuf {
+    fn items_dir(&self) -> PathBuf {
         self.root.join("items")
     }
 
     fn archive_dir(&self) -> PathBuf {
-        self.root.join("trash/items")
+        self.root.join("archive")
     }
 
     fn archived_path(&self, id: &str) -> Result<PathBuf> {
@@ -53,9 +56,31 @@ impl Store {
         Ok(self.archive_dir().join(format!("{id}.json")))
     }
 
-    fn path_for(&self, id: &str) -> Result<PathBuf> {
+    fn item_path(&self, id: &str) -> Result<PathBuf> {
         Uuid::parse_str(id)?;
-        Ok(self.items().join(format!("{id}.json")))
+        Ok(self.items_dir().join(format!("{id}.json")))
+    }
+
+    fn atomic_file(&self, path: &Path, bytes: &[u8]) -> Result<()> {
+        let parent = path.parent().ok_or("Invalid destination")?;
+        ensure_dir(parent)?;
+        let temporary = parent.join(format!(".{}.tmp", Uuid::new_v4()));
+        let result = (|| -> Result<()> {
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&temporary)?;
+            file.write_all(bytes)?;
+            file.sync_all()?;
+            fs::rename(&temporary, path)?;
+            fs::File::open(parent)?.sync_all()?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = fs::remove_file(temporary);
+        }
+        result
     }
 
     fn locked<T>(&self, f: impl FnOnce() -> Result<T>) -> Result<T> {
@@ -71,82 +96,6 @@ impl Store {
         let result = f();
         lock.unlock()?;
         result
-    }
-
-    pub fn start(
-        &self,
-        title: &str,
-        repo: Option<PathBuf>,
-        spec: Option<PathBuf>,
-    ) -> Result<Record> {
-        let title = title.trim();
-        if title.is_empty() {
-            return Err("Title cannot be empty".into());
-        }
-        self.create(title, repo, spec, true)
-    }
-
-    pub fn start_untitled(&self, repo: Option<PathBuf>) -> Result<Record> {
-        self.start_untitled_with_spec(repo, None)
-    }
-
-    pub fn get(&self, id: &str) -> Result<Record> {
-        let path = self.path_for(id)?;
-        self.read_record(&path)
-    }
-
-    pub fn list(&self) -> Result<Vec<Record>> {
-        let mut records = Vec::new();
-        if !self.items().exists() {
-            return Ok(records);
-        }
-        for entry in fs::read_dir(self.items())? {
-            let path = entry?.path();
-            if path
-                .extension()
-                .is_some_and(|extension| extension == "json")
-            {
-                records.extend(self.read_listed(&path)?);
-            }
-        }
-        records.sort_by(|a, b| {
-            b.updated_at
-                .cmp(&a.updated_at)
-                .then_with(|| b.id.cmp(&a.id))
-        });
-        Ok(records)
-    }
-
-    pub fn update(&self, id: &str, change: Change) -> Result<Record> {
-        self.locked(|| {
-            let mut record = self.get(id)?;
-            record.apply(change, self.settings()?.jira)?;
-            record.updated_at = timestamp();
-            self.write(&record)?;
-            Ok(record)
-        })
-    }
-
-    pub fn archive(&self, id: &str) -> Result<Record> {
-        self.locked(|| {
-            let record = self.get(id)?;
-            let item_trash = self.archived_path(id)?;
-            if item_trash.symlink_metadata().is_ok() {
-                return Err("Archive already contains this item; restore it first".into());
-            }
-            ensure_dir(item_trash.parent().ok_or("Invalid archive item path")?)?;
-            fs::rename(self.path_for(id)?, &item_trash)?;
-            Ok(record)
-        })
-    }
-
-    fn write(&self, record: &Record) -> Result<()> {
-        if record.schema_version != 1 {
-            return Err("Unsupported metadata schema; refusing to write".into());
-        }
-        let mut bytes = serde_json::to_vec_pretty(record)?;
-        bytes.push(b'\n');
-        self.atomic_file(&self.path_for(&record.id)?, &bytes)
     }
 }
 
@@ -173,20 +122,6 @@ pub fn absolute(path: PathBuf) -> Result<PathBuf> {
         Ok(path)
     } else {
         Ok(std::env::current_dir()?.join(path))
-    }
-}
-
-pub fn git_root() -> Option<PathBuf> {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .ok()?;
-    if output.status.success() {
-        Some(PathBuf::from(
-            String::from_utf8_lossy(&output.stdout).trim(),
-        ))
-    } else {
-        None
     }
 }
 

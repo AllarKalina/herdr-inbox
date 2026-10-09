@@ -1,5 +1,5 @@
 use super::*;
-use crate::store::SpecStatus;
+use crate::store::{Location, SpecStatus};
 use std::fs;
 
 struct Fixture(PathBuf);
@@ -24,9 +24,15 @@ impl Fixture {
         let path = self.0.join(path);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, "# Mock spec\n").unwrap();
+        // Deliberately unrelated to any folder: membership must come from the file itself.
+        let location = Location {
+            source_id: String::new(),
+            relative: PathBuf::new(),
+            path: path.clone(),
+        };
         Record {
             title: path.file_name().unwrap().to_string_lossy().into_owned(),
-            ..Record::blank(id.into(), path, SpecStatus::Done, 1)
+            ..Record::new(id.into(), location, SpecStatus::Done, 1)
         }
     }
 }
@@ -98,11 +104,11 @@ fn cached_source_metadata_cannot_import_outside_records_or_invent_domains() {
     let fixture = Fixture::new();
     let sources = [fixture.source("context", "context")];
     let mut outside = fixture.record("outside", "elsewhere/outside.md");
-    outside.source_id = Some("context".into());
-    outside.source_relative_path = Some("invented/outside.md".into());
+    outside.source_id = "context".into();
+    outside.source_relative_path = "invented/outside.md".into();
     let mut inside = fixture.record("inside", "context/designs/inside.md");
-    inside.source_id = Some("obsolete".into());
-    inside.source_relative_path = Some("invented/inside.md".into());
+    inside.source_id = "obsolete".into();
+    inside.source_relative_path = "invented/inside.md".into();
     let records = [outside, inside];
     let mut tree = Tree::default();
     tree.rebuild(&records, &sources);
@@ -140,8 +146,8 @@ fn deepest_actual_source_wins_over_cached_identity() {
         fixture.source("inner", "context/missions"),
     ];
     let mut record = fixture.record("one", "context/missions/zeller/a.md");
-    record.source_id = Some("outer".into());
-    record.source_relative_path = Some("missions/zeller/a.md".into());
+    record.source_id = "outer".into();
+    record.source_relative_path = "missions/zeller/a.md".into();
     let mut tree = Tree::default();
     tree.rebuild(&[record], &sources);
     assert_eq!(tree.rows[0].key, "source:inner/folder:zeller");

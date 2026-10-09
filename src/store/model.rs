@@ -1,10 +1,25 @@
 use super::*;
 
-/// A reference to external work: a Jira ticket or a draft PR.
+/// The only metadata schema this version reads or writes.
+pub const SCHEMA_VERSION: u32 = 1;
+
+/// Where a spec lives: its selected folder, its path inside that folder, and its resolved path.
+pub struct Location {
+    pub source_id: String,
+    pub relative: PathBuf,
+    pub path: PathBuf,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Link<S> {
-    pub status: S,
+pub struct Jira {
+    pub status: JiraStatus,
     pub key: Option<String>,
+    pub url: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PullRequest {
+    pub status: PrStatus,
     pub url: Option<String>,
 }
 
@@ -18,8 +33,8 @@ pub struct Implementation {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Record {
     pub schema_version: u32,
-    pub source_id: Option<String>,
-    pub source_relative_path: Option<PathBuf>,
+    pub source_id: String,
+    pub source_relative_path: PathBuf,
     pub content_fingerprint: Option<String>,
     pub id: String,
     pub title: String,
@@ -28,9 +43,9 @@ pub struct Record {
     pub created_at: u64,
     pub updated_at: u64,
     pub spec: SpecStatus,
-    pub jira: Link<JiraStatus>,
+    pub jira: Jira,
     pub implementation: Implementation,
-    pub pr: Link<PrStatus>,
+    pub pr: PullRequest,
     pub launch: Option<Launch>,
     pub previous_launches: Vec<Launch>,
 }

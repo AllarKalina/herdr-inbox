@@ -4,14 +4,14 @@
   SPEC                                                        PROGRESS
   # Settings navigation                                            ⢠⠖⠒⠲⡄
                                                               SPEC ⢾ ◉ ⡷ active
-  ## Goal                                                          ⠘⠦⠤⠴⠃
+                                                                   ⠘⠦⠤⠴⠃
                                                                      │   ✦ Seal the spec
-  Describe Settings navigation well enough to build it.              │     Read the scroll
+                                                                     │     Read the scroll
                                                                      │     Refine the spec
-  ## Requirements                                                    │
-                                                              JIRA   ○   ready
-  - First requirement                                                │   Ticket needed
-  - Second requirement                                               │
+                                                                     │
+                                                              JIRA   ○   wait
+                                                                     │   After spec
+                                                                     │
                                                                      │
                                                                      │
                                                                      │
@@ -50,8 +50,8 @@
  9  69-69  fg=DarkGray
  9  73-89  fg=LightBlue
 10  69-69  fg=DarkGray
-11  62-65  fg=LightBlue
-11  69-77  fg=LightBlue
+11  62-65  fg=Gray
+11  69-76  fg=Gray
 12  69-69  fg=DarkGray
 12  73-97  fg=Gray
 13  69-69  fg=DarkGray

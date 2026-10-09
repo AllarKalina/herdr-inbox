@@ -1,0 +1,51 @@
+
+  Inbox / Quarterly plan
+
+  SPEC
+
+  PROGRESS
+                      DEV ACTIONS
+  SPEC   ●   done
+         │            feature/settlement
+         │
+  JIRA   ●   done
+         │
+       ⢠⠖⠒⠲⡄          ✦ Update dev quest
+  DEV  ⢾ ● ⡷ done
+       ⠘⠦⠤⠴⠃
+         │
+  PR     ◐   draft
+
+
+
+
+
+  j/k stage · Tab action · r read
+
+--- styles: row, columns, style ---
+ 1   2-9   fg=Gray
+ 1  10-23  fg=LightCyan BOLD
+ 5   2-57  fg=Gray
+ 6  22-57  fg=Gray
+ 7   2-5   fg=LightGreen
+ 7   9-16  fg=LightGreen
+ 8   9-9   fg=DarkGray
+ 8  22-57  fg=Gray
+ 9   9-9   fg=DarkGray
+ 9  22-57  fg=Gray
+10   2-5   fg=LightGreen
+10   9-16  fg=LightGreen
+10  22-57  fg=Gray
+11   9-9   fg=DarkGray
+11  22-57  fg=Gray
+12   7-11  fg=Cyan
+12  22-39  fg=Cyan BOLD | UNDERLINED
+13   2-5   fg=LightGreen
+13   7-7   fg=Cyan
+13   9-10  fg=LightGreen
+13  11-11  fg=Cyan
+13  12-16  fg=LightGreen
+14   7-11  fg=Cyan
+15   9-9   fg=DarkGray
+16   2-5   fg=Yellow
+16   9-17  fg=Yellow

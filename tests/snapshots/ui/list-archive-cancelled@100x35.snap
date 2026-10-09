@@ -2,7 +2,7 @@
   Inbox
 
                                                             Spec      Jira      Dev       PR
-  └─    Settings navigation                                ● active  → ready   ○ locked  ○ locked
+  └─    Settings navigation                                ● active  ○ wait    ○ locked  ○ locked
   ▾  missions
   └─ ▾  zeller
      ├─    Settlement reconciliation across acquirers an…  ✓ done    ✓ done    ● active  → ready
@@ -39,7 +39,7 @@
  4   2-4   fg=DarkGray
  4   5-8   fg=LightBlue
  4  60-67  fg=Cyan
- 4  70-77  fg=LightBlue
+ 4  70-77  fg=Gray
  4  80-87  fg=DarkGray
  4  90-97  fg=DarkGray
  5   2-13  fg=Yellow BOLD
