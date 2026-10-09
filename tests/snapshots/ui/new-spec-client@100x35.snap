@@ -80,5 +80,4 @@
 27  12-39  fg=Cyan BOLD | UNDERLINED
 28   4-11  fg=Gray
 28  12-41  fg=LightBlue
-30   4-11  fg=Gray
-30  12-19  fg=DarkGray
+30   4-19  fg=DarkGray

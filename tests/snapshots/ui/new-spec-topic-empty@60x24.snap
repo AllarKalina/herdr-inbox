@@ -65,8 +65,7 @@
 12  53-53  fg=LightGreen
 12  55-55  fg=LightGreen
 12  57-57  fg=Yellow
-16   4-11  fg=Gray
-16  12-39  fg=DarkGray
-17   4-11  fg=Gray
+16   4-39  fg=DarkGray
+17   4-11  fg=DarkGray
 19   4-11  fg=Gray
 19  13-21  fg=Gray

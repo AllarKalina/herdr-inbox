@@ -75,6 +75,13 @@ fn fit_client(label: &str, room: usize) -> String {
     text::fit_label(label, room)
 }
 
+/// A row's label. Only the step being answered keeps its label at reading strength; the
+/// other recedes with its row, so two labels never compete for attention.
+fn row_label(text: &'static str, live: bool) -> Span<'static> {
+    let style = if live { theme::muted() } else { theme::faint() };
+    Span::styled(format!("{text:<LABEL_WIDTH$}"), style)
+}
+
 /// One client per row, the chosen one marked the way the detail view marks its chosen
 /// action. Once the choice is `settled` the rows stay exactly where they were and go quiet.
 fn client_lines(choice: &Choice, width: u16, settled: bool) -> Vec<Line<'static>> {
@@ -93,10 +100,7 @@ fn client_lines(choice: &Choice, width: u16, settled: bool) -> Vec<Line<'static>
                 (true, true) => Span::raw(format!("✦ {name}")),
                 (false, true) => Span::styled(format!("  {name}"), theme::faint()),
             };
-            Line::from(vec![
-                Span::styled(format!("{label:<LABEL_WIDTH$}"), theme::muted()),
-                option,
-            ])
+            Line::from(vec![row_label(label, !settled), option])
         })
         .collect()
 }
@@ -113,10 +117,7 @@ fn draw_new_spec(frame: &mut ratatui::Frame, choice: &Choice, topic: &str, area:
     let inner = block.inner(area);
     let mut lines = client_lines(choice, inner.width, typing);
     lines.push(Line::default());
-    let mut topic_line = vec![Span::styled(
-        format!("{:<LABEL_WIDTH$}", "Topic"),
-        theme::muted(),
-    )];
+    let mut topic_line = vec![row_label("Topic", typing)];
     // The topic scrolls so the cursor stays visible however much is typed.
     let room = usize::from(inner.width).saturating_sub(LABEL_WIDTH + 1);
     let count = topic.chars().count();

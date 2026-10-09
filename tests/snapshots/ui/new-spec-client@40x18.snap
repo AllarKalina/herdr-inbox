@@ -44,5 +44,4 @@
 10  12-30  fg=Cyan BOLD | UNDERLINED
 11   4-11  fg=Gray
 11  12-32  fg=LightBlue
-13   4-11  fg=Gray
-13  12-19  fg=DarkGray
+13   4-19  fg=DarkGray

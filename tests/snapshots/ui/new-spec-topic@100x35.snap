@@ -76,7 +76,6 @@
 12  70-77  fg=LightGreen
 12  80-87  fg=LightGreen
 12  90-97  fg=Yellow
-27   4-11  fg=Gray
-27  12-39  fg=DarkGray
-28   4-11  fg=Gray
+27   4-39  fg=DarkGray
+28   4-11  fg=DarkGray
 30   4-11  fg=Gray

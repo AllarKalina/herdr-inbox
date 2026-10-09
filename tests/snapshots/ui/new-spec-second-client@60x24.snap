@@ -69,5 +69,4 @@
 16  12-39  fg=LightBlue
 17   4-11  fg=Gray
 17  12-41  fg=Cyan BOLD | UNDERLINED
-19   4-11  fg=Gray
-19  12-19  fg=DarkGray
+19   4-19  fg=DarkGray
